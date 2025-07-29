@@ -1,0 +1,55 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>增强版回测报告</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .metric-card { background: #f8f9fa; padding: 20px; border-radius: 8px; }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 中线轮动策略增强版回测报告</h1>
+            <p>生成时间: 2025-07-26 14:30:04</p>
+        </div>
+        
+        <div class="metrics">
+            <div class="metric-card">
+                <h3>总收益率</h3>
+                <p class="positive">
+                    40.00%
+                </p>
+            </div>
+            <div class="metric-card">
+                <h3>年化收益率</h3>
+                <p class="positive">
+                    11.99%
+                </p>
+            </div>
+            <div class="metric-card">
+                <h3>最大回撤</h3>
+                <p class="negative">-14.23%</p>
+            </div>
+            <div class="metric-card">
+                <h3>总交易次数</h3>
+                <p>7</p>
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <h2>📊 报告说明</h2>
+            <p>✅ 量能倍数计算已修复：现在显示的是当前成交量与4周平均成交量的比值</p>
+            <p>📋 详细交易记录已导出为CSV文件，包含完整的技术指标数据</p>
+            <p>🔧 保留了原有的4维信号分析功能</p>
+        </div>
+    </div>
+</body>
+</html>

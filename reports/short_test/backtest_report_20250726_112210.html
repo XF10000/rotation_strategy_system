@@ -1,0 +1,112 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>回测报告</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .section { margin-bottom: 30px; }
+                .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+                .metric-card { background: #f5f5f5; padding: 15px; border-radius: 8px; }
+                .metric-title { font-weight: bold; color: #333; margin-bottom: 10px; }
+                .metric-value { font-size: 1.2em; color: #007bff; }
+                .chart { text-align: center; margin: 20px 0; }
+                .chart img { max-width: 100%; height: auto; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .positive { color: green; }
+                .negative { color: red; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📊 中线轮动策略回测报告</h1>
+                <p>生成时间: 2025-07-26 11:22:11</p>
+            </div>
+            
+            <div class="section">
+                <h2>📈 核心绩效指标</h2>
+                <div class="metrics-grid">
+                    
+            <div class="metric-card">
+                <div class="metric-title">总收益率</div>
+                <div class="metric-value positive">
+                    20.21%
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">年化收益率</div>
+                <div class="metric-value positive">
+                    46.83%
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">年化波动率</div>
+                <div class="metric-value">18.08%</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">最大回撤</div>
+                <div class="metric-value negative">-3.55%</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">夏普比率</div>
+                <div class="metric-value">2.425</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">索提诺比率</div>
+                <div class="metric-value">5.602</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">总交易次数</div>
+                <div class="metric-value">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">年化换手率</div>
+                <div class="metric-value">0.00%</div>
+            </div>
+            
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📊 资金曲线</h2>
+                <div class="chart">
+                    <img src="equity_curve.png" alt="资金曲线图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>⚠️ 回撤分析</h2>
+                <div class="chart">
+                    <img src="drawdown_analysis.png" alt="回撤分析图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔥 月度收益热力图</h2>
+                <div class="chart">
+                    <img src="monthly_returns_heatmap.png" alt="月度收益热力图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>💼 交易分析</h2>
+                <div class="chart">
+                    <img src="" alt="交易分析图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📋 详细交易记录</h2>
+                
+            </div>
+        </body>
+        </html>
+        

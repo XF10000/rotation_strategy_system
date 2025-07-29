@@ -1,0 +1,88 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>回测报告</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .section { margin-bottom: 30px; }
+                .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+                .metric-card { background: #f5f5f5; padding: 15px; border-radius: 8px; }
+                .metric-title { font-weight: bold; color: #333; margin-bottom: 10px; }
+                .metric-value { font-size: 1.2em; color: #007bff; }
+                .chart { text-align: center; margin: 20px 0; }
+                .chart img { max-width: 100%; height: auto; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .positive { color: green; }
+                .negative { color: red; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📊 中线轮动策略回测报告</h1>
+                <p>生成时间: 2025-07-26 13:26:14</p>
+            </div>
+            
+            <div class="section">
+                <h2>📈 核心绩效指标</h2>
+                <div class="metrics-grid">
+                    
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📊 资金曲线</h2>
+                <div class="chart">
+                    <img src="equity_curve.png" alt="资金曲线图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>⚠️ 回撤分析</h2>
+                <div class="chart">
+                    <img src="drawdown_analysis.png" alt="回撤分析图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔥 月度收益热力图</h2>
+                <div class="chart">
+                    <img src="monthly_returns_heatmap.png" alt="月度收益热力图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>💼 交易分析</h2>
+                <div class="chart">
+                    <img src="trading_analysis.png" alt="交易分析图">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📋 详细交易记录</h2>
+                <table><thead><tr><th>日期</th><th>类型</th><th>股票代码</th><th>股数</th><th>价格</th><th>金额</th><th>手续费</th><th>RSI</th><th>EMA20</th><th>MACD</th><th>布林带位置</th><th>信号详情</th><th>原因</th></tr></thead><tbody>
+                <tr>
+                    <td>2024-08-02</td>
+                    <td><span class="negative">SELL</span></td>
+                    <td>600900</td>
+                    <td>4,300</td>
+                    <td>29.30</td>
+                    <td>125,990</td>
+                    <td>292.30</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td style="font-size: 10px;"></td>
+                    <td>转现金</td>
+                </tr>
+                </tbody></table>
+            </div>
+        </body>
+        </html>
+        

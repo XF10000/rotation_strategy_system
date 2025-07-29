@@ -1,0 +1,1583 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 中线轮动策略增强版回测报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .metric-card h3 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .metric-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        
+        .kline-section {
+            margin-bottom: 30px;
+        }
+        
+        .stock-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .stock-selector select {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+            color: #333;
+            cursor: pointer;
+        }
+        
+        #klineChart {
+            width: 100%;
+            height: 600px;
+            border-radius: 10px;
+            background: white;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background-color: #f7fafc;
+        }
+        
+        .buy-row {
+            background-color: #f0fff4;
+        }
+        
+        .sell-row {
+            background-color: #fff5f5;
+        }
+        
+        .signal-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .signal-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .signal-card h4 {
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .signal-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .final-portfolio-status {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .portfolio-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .summary-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .summary-value {
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .stock-positions {
+            margin-top: 20px;
+        }
+        
+        .positions-table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+        }
+        
+        .positions-table th,
+        .positions-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+        
+        .positions-table th {
+            background: #e9ecef;
+            font-weight: bold;
+        }
+        
+        .positions-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 中线轮动策略增强版回测报告</h1>
+            <p>生成时间: 2025-07-27 00:01:14</p>
+            <p>包含技术指标详情与4维信号分析</p>
+        </div>
+        
+        <!-- K线图与交易点分析 -->
+        <div class="section kline-section">
+            <h2>📊 周K线图与交易点分析</h2>
+            <div class="stock-selector">
+                <label for="stockSelect">选择股票: </label>
+                <select id="stockSelect" onchange="updateKlineChart()">
+                    <option value="">请选择股票</option>
+                </select>
+            </div>
+            <div id="klineChart"></div>
+        </div>
+        
+        <!-- 基础指标 -->
+        <div class="section">
+            <h2>📈 基础回测指标</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>初始资金</h3>
+                    <div class="value">¥497,271</div>
+                </div>
+                <div class="metric-card">
+                    <h3>最终资金</h3>
+                    <div class="value">¥550,225</div>
+                </div>
+                <div class="metric-card">
+                    <h3>总收益率</h3>
+                    <div class="value">10.65%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>年化收益率</h3>
+                    <div class="value">23.52%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>最大回撤</h3>
+                    <div class="value">-6.23%</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 策略与基准对比 -->
+        <div class="section">
+            <h2>📊 策略 vs 买入持有基准对比</h2>
+            
+        <div class="benchmark-comparison">
+            <div class="comparison-summary outperform">
+                <h3>📊 对比结果: 跑赢基准</h3>
+                <p>策略相对买入持有基准超额收益: <strong>-34.35%</strong></p>
+                <p>年化超额收益: <strong>6.47%</strong></p>
+            </div>
+            
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>轮动策略</th>
+                            <th>买入持有</th>
+                            <th>超额收益</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>总收益率</td>
+                            <td>10.65%</td>
+                            <td>45.00%</td>
+                            <td class="outperform">+-34.35%</td>
+                        </tr>
+                        <tr>
+                            <td>年化收益率</td>
+                            <td>23.52%</td>
+                            <td>12.00%</td>
+                            <td class="outperform">+6.47%</td>
+                        </tr>
+                        <tr>
+                            <td>最大回撤</td>
+                            <td>-6.23%</td>
+                            <td>-18.00%</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>最终资金</td>
+                            <td>¥550,225</td>
+                            <td>¥1,450,000</td>
+                            <td>¥+230,939</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="performance-analysis">
+                <h4>📈 策略优势分析</h4>
+                <ul>
+                    <li>✅ 策略成功跑赢买入持有基准</li>
+                    <li>✅ 通过主动轮动获得了超额收益</li>
+                    
+                    
+                </ul>
+            </div>
+        </div>
+        
+        <style>
+        .benchmark-comparison {
+            margin: 20px 0;
+        }
+        
+        .comparison-summary {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .comparison-summary.outperform {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        
+        .comparison-summary.underperform {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        
+        .comparison-table table {
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        .comparison-table .outperform {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .comparison-table .underperform {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .performance-analysis {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .performance-analysis ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .performance-analysis li {
+            margin: 5px 0;
+        }
+        </style>
+        
+        </div>
+        
+        <!-- 最终持仓状态 -->
+        <div class="section">
+            <h2>💼 回测结束时持仓状态</h2>
+            
+            <div class="final-portfolio-status">
+                <div class="portfolio-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">结束日期:</span>
+                        <span class="summary-value">2024-06-28</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">总资产:</span>
+                        <span class="summary-value">¥550,225.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">现金:</span>
+                        <span class="summary-value">¥125,391.80 (7.5%)</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">股票市值:</span>
+                        <span class="summary-value">¥1,555,547.00 (92.5%)</span>
+                    </div>
+                </div>
+                
+                <div class="stock-positions">
+                    <h4>📊 股票持仓明细</h4>
+            
+                    <table class="positions-table">
+                        <thead>
+                            <tr>
+                                <th>股票代码</th>
+                                <th>持股数量</th>
+                                <th>当前价格</th>
+                                <th>市值</th>
+                                <th>占比</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                
+                            <tr>
+                                <td>600900</td>
+                                <td>8,500 股</td>
+                                <td>¥28.75</td>
+                                <td>¥244,375.00</td>
+                                <td>14.5%</td>
+                            </tr>
+                    
+                            <tr>
+                                <td>601088</td>
+                                <td>20,700 股</td>
+                                <td>¥38.43</td>
+                                <td>¥795,501.00</td>
+                                <td>47.3%</td>
+                            </tr>
+                    
+                            <tr>
+                                <td>600985</td>
+                                <td>24,800 股</td>
+                                <td>¥13.27</td>
+                                <td>¥329,096.00</td>
+                                <td>19.6%</td>
+                            </tr>
+                    
+                            <tr>
+                                <td>600079</td>
+                                <td>8,500 股</td>
+                                <td>¥21.95</td>
+                                <td>¥186,575.00</td>
+                                <td>11.1%</td>
+                            </tr>
+                    
+                        </tbody>
+                    </table>
+                
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- 交易指标 -->
+        <div class="section">
+            <h2>💼 交易统计指标</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>总交易次数</h3>
+                    <div class="value">0</div>
+                </div>
+                <div class="metric-card">
+                    <h3>买入次数</h3>
+                    <div class="value">0</div>
+                </div>
+                <div class="metric-card">
+                    <h3>卖出次数</h3>
+                    <div class="value">0</div>
+                </div>
+                <div class="metric-card">
+                    <h3>总手续费</h3>
+                    <div class="value">¥0.00</div>
+                </div>
+                <div class="metric-card">
+                    <h3>手续费率</h3>
+                    <div class="value">0.0748%</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 详细交易记录 -->
+        <div class="section">
+            <h2>📋 详细交易记录（4维信号状态分析）</h2>
+            
+        <style>
+        .transaction-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 12px;
+        }
+        .transaction-table th {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 8px 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .transaction-table td {
+            border: 1px solid #dee2e6;
+            padding: 6px 4px;
+            text-align: center;
+            font-size: 11px;
+        }
+        .buy-row { background-color: #f0fff4; }
+        .sell-row { background-color: #fff5f5; }
+        .signal-check { color: #28a745; font-weight: bold; }
+        .signal-cross { color: #dc3545; font-weight: bold; }
+        .signal-neutral { color: #6c757d; }
+        .bb-position { font-size: 10px; }
+        </style>
+        <table class="transaction-table">
+        <thead>
+        <thead>
+        <thead>
+            <tr>
+                <th rowspan="2" style="background: #e9ecef; color: #333;">日期</th>
+                <th rowspan="2" style="background: #e9ecef; color: #333;">类型</th>
+                <th rowspan="2" style="background: #e9ecef; color: #333;">股票代码</th>
+                <th rowspan="2" style="background: #e9ecef; color: #333;">价格</th>
+                <th rowspan="2" style="background: #e9ecef; color: #333;">数量</th>
+                <th colspan="3" style="background: #ffebee; color: #c62828;">趋势过滤器（硬性）</th>
+                <th colspan="2" style="background: #e3f2fd; color: #1565c0;">超买/超卖</th>
+                <th colspan="3" style="background: #e8f5e8; color: #2e7d32;">动能确认</th>
+                <th colspan="3" style="background: #f3e5f5; color: #7b1fa2;">极端价格+量能</th>
+                <th rowspan="2" style="background: #fff3e0; color: #ef6c00;">综合分析</th>
+            </tr>
+            <tr>
+                <th style="background: #ffebee; color: #c62828;">收盘价</th>
+                <th style="background: #ffebee; color: #c62828;">20周EMA</th>
+                <th style="background: #ffebee; color: #c62828;">状态</th>
+                <th style="background: #e3f2fd; color: #1565c0;">14周RSI</th>
+                <th style="background: #e3f2fd; color: #1565c0;">状态</th>
+                <th style="background: #e8f5e8; color: #2e7d32;">MACD DIF</th>
+                <th style="background: #e8f5e8; color: #2e7d32;">MACD DEA</th>
+                <th style="background: #e8f5e8; color: #2e7d32;">状态</th>
+                <th style="background: #f3e5f5; color: #7b1fa2;">布林带位置</th>
+                <th style="background: #f3e5f5; color: #7b1fa2;">量能倍数</th>
+                <th style="background: #f3e5f5; color: #7b1fa2;">状态</th>
+            </tr>
+        </thead>
+        <tbody>
+        <tr class='sell-row'>
+                <tr class='sell-row'>
+                    <td>2023-12-01</td>
+                    <td style="font-weight: bold; color: #dc3545">SELL</td>
+                    <td><strong>600985</strong></td>
+                    <td>14.42</td>
+                    <td>3,800</td>
+                    <td>14.42</td>
+                    <td>12.02</td>
+                    <td class="signal-cross">✗</td>
+                    <td>77.9</td>
+                    <td class="signal-check">✓</td>
+                    <td>0.7852</td>
+                    <td>0.79</td>
+                    <td>0.48</td>
+                    <td class="signal-cross">✗</td>
+                    <td class="bb-position">上轨之上</td>
+                    <td>1.42x</td>
+                    <td class="signal-check">✓</td>
+                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>卖出信号：趋势过滤器+2个卖出维度</td>
+                </tr>
+                <tr class='sell-row'>
+                <tr class='sell-row'>
+                    <td>2024-02-23</td>
+                    <td style="font-weight: bold; color: #dc3545">SELL</td>
+                    <td><strong>600985</strong></td>
+                    <td>17.84</td>
+                    <td>3,500</td>
+                    <td>17.84</td>
+                    <td>14.56</td>
+                    <td class="signal-cross">✗</td>
+                    <td>78.4</td>
+                    <td class="signal-check">✓</td>
+                    <td>1.3976</td>
+                    <td>1.40</td>
+                    <td>1.16</td>
+                    <td class="signal-cross">✗</td>
+                    <td class="bb-position">上轨之上</td>
+                    <td>1.55x</td>
+                    <td class="signal-check">✓</td>
+                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>卖出信号：趋势过滤器+2个卖出维度</td>
+                </tr>
+                <tr class='sell-row'>
+                <tr class='sell-row'>
+                    <td>2024-08-02</td>
+                    <td style="font-weight: bold; color: #dc3545">SELL</td>
+                    <td><strong>600900</strong></td>
+                    <td>29.30</td>
+                    <td>2,100</td>
+                    <td>29.30</td>
+                    <td>26.18</td>
+                    <td class="signal-cross">✗</td>
+                    <td>78.1</td>
+                    <td class="signal-check">✓</td>
+                    <td>1.7775</td>
+                    <td>1.78</td>
+                    <td>1.42</td>
+                    <td class="signal-cross">✗</td>
+                    <td class="bb-position">轨道之间</td>
+                    <td>0.85x</td>
+                    <td class="signal-cross">✗</td>
+                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>卖出信号：趋势过滤器+2个卖出维度</td>
+                </tr>
+                <tr class='buy-row'>
+                <tr class='buy-row'>
+                    <td>2025-02-21</td>
+                    <td style="font-weight: bold; color: #28a745">BUY</td>
+                    <td><strong>601088</strong></td>
+                    <td>33.12</td>
+                    <td>2,600</td>
+                    <td>33.12</td>
+                    <td>37.42</td>
+                    <td class="signal-cross">✗</td>
+                    <td>34.5</td>
+                    <td class="signal-check">✓</td>
+                    <td>-0.4964</td>
+                    <td>-0.50</td>
+                    <td>0.14</td>
+                    <td class="signal-cross">✗</td>
+                    <td class="bb-position">下轨之下</td>
+                    <td>2.04x</td>
+                    <td class="signal-check">✓</td>
+                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
+                </tr>
+                <tr class='buy-row'>
+                <tr class='buy-row'>
+                    <td>2025-02-28</td>
+                    <td style="font-weight: bold; color: #28a745">BUY</td>
+                    <td><strong>601088</strong></td>
+                    <td>33.19</td>
+                    <td>2,600</td>
+                    <td>33.19</td>
+                    <td>37.02</td>
+                    <td class="signal-cross">✗</td>
+                    <td>34.8</td>
+                    <td class="signal-check">✓</td>
+                    <td>-0.7596</td>
+                    <td>-0.76</td>
+                    <td>-0.04</td>
+                    <td class="signal-cross">✗</td>
+                    <td class="bb-position">下轨之下</td>
+                    <td>1.35x</td>
+                    <td class="signal-check">✓</td>
+                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
+                </tr>
+                <tr class='buy-row'>
+                <tr class='buy-row'>
+                    <td>2025-04-11</td>
+                    <td style="font-weight: bold; color: #28a745">BUY</td>
+                    <td><strong>600985</strong></td>
+                    <td>11.51</td>
+                    <td>3,500</td>
+                    <td>11.51</td>
+                    <td>13.02</td>
+                    <td class="signal-cross">✗</td>
+                    <td>34.0</td>
+                    <td class="signal-check">✓</td>
+                    <td>-0.5448</td>
+                    <td>-0.54</td>
+                    <td>-0.50</td>
+                    <td class="signal-cross">✗</td>
+                    <td class="bb-position">下轨之下</td>
+                    <td>1.22x</td>
+                    <td class="signal-check">✓</td>
+                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
+                </tr>
+                <tr class='buy-row'>
+                <tr class='buy-row'>
+                    <td>2025-04-25</td>
+                    <td style="font-weight: bold; color: #28a745">BUY</td>
+                    <td><strong>600985</strong></td>
+                    <td>11.41</td>
+                    <td>3,500</td>
+                    <td>11.41</td>
+                    <td>12.76</td>
+                    <td class="signal-cross">✗</td>
+                    <td>34.8</td>
+                    <td class="signal-check">✓</td>
+                    <td>-0.6236</td>
+                    <td>-0.62</td>
+                    <td>-0.53</td>
+                    <td class="signal-cross">✗</td>
+                    <td class="bb-position">下轨之下</td>
+                    <td>1.06x</td>
+                    <td class="signal-check">✓</td>
+                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
+                </tr>
+                </tbody></table>
+        </tbody>
+        </table>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px;">
+            <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                <div>
+                    <strong style="color: #dc3545;">🔴 趋势过滤器（硬性条件）:</strong>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        <li>买入条件：收盘价 > 20周EMA 且 EMA向上</li>
+                        <li>卖出条件：收盘价 < 20周EMA 且 EMA向下</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong style="color: #007bff;">📊 超买/超卖:</strong>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        <li>买入条件：14周RSI > 70 且出现顶背离</li>
+                        <li>卖出条件：14周RSI < 30 且出现底背离</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong style="color: #28a745;">⚡ 动能确认:</strong>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        <li>买入条件：MACD柱体连续2根缩短 或 DIF金叉DEA</li>
+                        <li>卖出条件：MACD柱体连续2根缩短 或 DIF死叉DEA</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong style="color: #6f42c1;">🎯 极端价格+量能:</strong>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        <li>买入条件：收盘价布林下轨上，且 本周成交量>4周均量×1.3</li>
+                        <li>卖出条件：收盘价布林下轨上，且 本周成交量>4周均量×0.8</li>
+                    </ul>
+                </div>
+            </div>
+            <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 5px;">
+                <strong style="color: #0066cc;">✅ 交易条件：趋势过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
+            </div>
+        </div>
+        
+        </div>
+        
+        <!-- 信号统计分析 -->
+        <div class="section">
+            <h2>📊 信号统计分析</h2>
+            <div class='signal-stats'>
+            <div class='signal-card'>
+                <h4>600985 信号统计</h4>
+                <div class='signal-item'>
+                    <span>总信号数:</span>
+                    <span>4</span>
+                </div>
+                <div class='signal-item'>
+                    <span>买入信号:</span>
+                    <span>2</span>
+                </div>
+                <div class='signal-item'>
+                    <span>卖出信号:</span>
+                    <span>2</span>
+                </div>
+                <div class='signal-item'>
+                    <span>RSI信号:</span>
+                    <span>2</span>
+                </div>
+                <div class='signal-item'>
+                    <span>MACD信号:</span>
+                    <span>0</span>
+                </div>
+                <div class='signal-item'>
+                    <span>布林带信号:</span>
+                    <span>4</span>
+                </div>
+                <div class='signal-item'>
+                    <span>EMA信号:</span>
+                    <span>0</span>
+                </div>
+            </div>
+            
+            <div class='signal-card'>
+                <h4>600900 信号统计</h4>
+                <div class='signal-item'>
+                    <span>总信号数:</span>
+                    <span>1</span>
+                </div>
+                <div class='signal-item'>
+                    <span>买入信号:</span>
+                    <span>0</span>
+                </div>
+                <div class='signal-item'>
+                    <span>卖出信号:</span>
+                    <span>1</span>
+                </div>
+                <div class='signal-item'>
+                    <span>RSI信号:</span>
+                    <span>1</span>
+                </div>
+                <div class='signal-item'>
+                    <span>MACD信号:</span>
+                    <span>0</span>
+                </div>
+                <div class='signal-item'>
+                    <span>布林带信号:</span>
+                    <span>0</span>
+                </div>
+                <div class='signal-item'>
+                    <span>EMA信号:</span>
+                    <span>0</span>
+                </div>
+            </div>
+            
+            <div class='signal-card'>
+                <h4>601088 信号统计</h4>
+                <div class='signal-item'>
+                    <span>总信号数:</span>
+                    <span>2</span>
+                </div>
+                <div class='signal-item'>
+                    <span>买入信号:</span>
+                    <span>2</span>
+                </div>
+                <div class='signal-item'>
+                    <span>卖出信号:</span>
+                    <span>0</span>
+                </div>
+                <div class='signal-item'>
+                    <span>RSI信号:</span>
+                    <span>0</span>
+                </div>
+                <div class='signal-item'>
+                    <span>MACD信号:</span>
+                    <span>0</span>
+                </div>
+                <div class='signal-item'>
+                    <span>布林带信号:</span>
+                    <span>2</span>
+                </div>
+                <div class='signal-item'>
+                    <span>EMA信号:</span>
+                    <span>0</span>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // K线数据
+        const klineData = {
+  "601088": {
+    "kline": [
+      [
+        1704412800000,
+        26.87,
+        28.93,
+        26.85,
+        29.28
+      ],
+      [
+        1705017600000,
+        28.78,
+        29.1,
+        28.53,
+        29.98
+      ],
+      [
+        1705622400000,
+        28.98,
+        28.73,
+        28.29,
+        30.14
+      ],
+      [
+        1706227200000,
+        28.7,
+        31.28,
+        28.13,
+        31.44
+      ],
+      [
+        1706832000000,
+        31.3,
+        32.5,
+        30.73,
+        32.78
+      ],
+      [
+        1707436800000,
+        32.29,
+        33.55,
+        32.18,
+        34.14
+      ],
+      [
+        1708646400000,
+        33.29,
+        35.33,
+        32.99,
+        36.48
+      ],
+      [
+        1709251200000,
+        34.82,
+        33.86,
+        33.33,
+        35.18
+      ],
+      [
+        1709856000000,
+        33.68,
+        35.23,
+        33.51,
+        35.86
+      ],
+      [
+        1710460800000,
+        34.98,
+        32.79,
+        31.7,
+        35.14
+      ],
+      [
+        1711065600000,
+        32.33,
+        33.42,
+        31.86,
+        33.58
+      ],
+      [
+        1711670400000,
+        32.68,
+        34.57,
+        32.5,
+        34.92
+      ],
+      [
+        1712275200000,
+        34.58,
+        35.07,
+        33.48,
+        35.23
+      ],
+      [
+        1712880000000,
+        34.84,
+        35.21,
+        34.36,
+        36.06
+      ],
+      [
+        1713484800000,
+        35.18,
+        37.37,
+        35.15,
+        37.88
+      ],
+      [
+        1714089600000,
+        37.36,
+        35.03,
+        34.49,
+        38.05
+      ],
+      [
+        1714694400000,
+        34.96,
+        35.31,
+        34.09,
+        35.49
+      ],
+      [
+        1715299200000,
+        35.17,
+        36.45,
+        34.28,
+        36.93
+      ],
+      [
+        1715904000000,
+        36.24,
+        35.37,
+        34.88,
+        36.44
+      ],
+      [
+        1716508800000,
+        35.38,
+        36.79,
+        35.34,
+        38.0
+      ],
+      [
+        1717113600000,
+        37.07,
+        37.81,
+        37.0,
+        39.34
+      ],
+      [
+        1717718400000,
+        38.18,
+        39.63,
+        37.68,
+        40.24
+      ],
+      [
+        1718323200000,
+        39.64,
+        39.83,
+        38.49,
+        40.6
+      ],
+      [
+        1718928000000,
+        39.7,
+        39.59,
+        38.28,
+        40.31
+      ],
+      [
+        1719532800000,
+        39.77,
+        39.85,
+        38.53,
+        40.11
+      ]
+    ],
+    "trades": [],
+    "name": "601088"
+  },
+  "000807": {
+    "kline": [
+      [
+        1704412800000,
+        11.53,
+        11.19,
+        11.01,
+        11.88
+      ],
+      [
+        1705017600000,
+        11.14,
+        11.0,
+        10.69,
+        11.21
+      ],
+      [
+        1705622400000,
+        10.92,
+        9.97,
+        9.66,
+        10.98
+      ],
+      [
+        1706227200000,
+        9.94,
+        10.58,
+        9.24,
+        10.71
+      ],
+      [
+        1706832000000,
+        10.62,
+        9.69,
+        9.36,
+        10.86
+      ],
+      [
+        1707436800000,
+        9.56,
+        10.42,
+        9.09,
+        10.56
+      ],
+      [
+        1708646400000,
+        10.51,
+        11.05,
+        10.37,
+        11.19
+      ],
+      [
+        1709251200000,
+        11.05,
+        11.22,
+        10.61,
+        11.28
+      ],
+      [
+        1709856000000,
+        11.27,
+        11.94,
+        11.12,
+        12.36
+      ],
+      [
+        1710460800000,
+        11.82,
+        11.89,
+        11.26,
+        12.01
+      ],
+      [
+        1711065600000,
+        11.96,
+        12.15,
+        11.78,
+        12.55
+      ],
+      [
+        1711670400000,
+        12.06,
+        13.16,
+        12.06,
+        13.66
+      ],
+      [
+        1712275200000,
+        13.52,
+        14.5,
+        13.3,
+        14.94
+      ],
+      [
+        1712880000000,
+        14.41,
+        14.12,
+        13.3,
+        15.02
+      ],
+      [
+        1713484800000,
+        14.36,
+        13.9,
+        13.66,
+        14.85
+      ],
+      [
+        1714089600000,
+        14.14,
+        14.03,
+        12.91,
+        14.36
+      ],
+      [
+        1714694400000,
+        13.91,
+        13.75,
+        13.5,
+        14.25
+      ],
+      [
+        1715299200000,
+        13.73,
+        14.46,
+        13.45,
+        14.61
+      ],
+      [
+        1715904000000,
+        14.11,
+        14.25,
+        13.66,
+        14.56
+      ],
+      [
+        1716508800000,
+        14.56,
+        13.45,
+        13.37,
+        15.35
+      ],
+      [
+        1717113600000,
+        13.48,
+        13.81,
+        13.48,
+        14.77
+      ],
+      [
+        1717718400000,
+        13.85,
+        14.31,
+        13.71,
+        14.5
+      ],
+      [
+        1718323200000,
+        13.86,
+        13.7,
+        13.57,
+        14.61
+      ],
+      [
+        1718928000000,
+        13.58,
+        13.07,
+        13.02,
+        13.88
+      ],
+      [
+        1719532800000,
+        12.83,
+        13.1,
+        12.6,
+        13.29
+      ]
+    ],
+    "trades": [],
+    "name": "000807"
+  },
+  "002460": {
+    "kline": [
+      [
+        1704412800000,
+        41.65,
+        41.03,
+        39.4,
+        42.71
+      ],
+      [
+        1705017600000,
+        40.7,
+        42.53,
+        40.5,
+        44.67
+      ],
+      [
+        1705622400000,
+        42.09,
+        40.57,
+        39.68,
+        42.51
+      ],
+      [
+        1706227200000,
+        40.15,
+        38.86,
+        37.59,
+        40.52
+      ],
+      [
+        1706832000000,
+        39.05,
+        32.21,
+        31.06,
+        39.06
+      ],
+      [
+        1707436800000,
+        31.92,
+        33.92,
+        29.85,
+        34.2
+      ],
+      [
+        1708646400000,
+        34.04,
+        35.59,
+        33.43,
+        36.06
+      ],
+      [
+        1709251200000,
+        35.6,
+        39.21,
+        35.45,
+        39.67
+      ],
+      [
+        1709856000000,
+        39.48,
+        36.81,
+        36.45,
+        40.4
+      ],
+      [
+        1710460800000,
+        37.3,
+        38.64,
+        37.3,
+        40.65
+      ],
+      [
+        1711065600000,
+        39.04,
+        36.63,
+        36.62,
+        39.4
+      ],
+      [
+        1711670400000,
+        36.55,
+        35.41,
+        34.75,
+        36.58
+      ],
+      [
+        1712275200000,
+        35.49,
+        38.94,
+        35.49,
+        39.35
+      ],
+      [
+        1712880000000,
+        38.05,
+        37.65,
+        37.58,
+        40.85
+      ],
+      [
+        1713484800000,
+        37.4,
+        35.95,
+        35.56,
+        38.74
+      ],
+      [
+        1714089600000,
+        35.62,
+        33.35,
+        32.05,
+        36.78
+      ],
+      [
+        1714694400000,
+        33.4,
+        34.31,
+        33.38,
+        36.03
+      ],
+      [
+        1715299200000,
+        35.5,
+        35.7,
+        34.83,
+        36.77
+      ],
+      [
+        1715904000000,
+        35.05,
+        34.21,
+        32.95,
+        35.1
+      ],
+      [
+        1716508800000,
+        34.35,
+        32.85,
+        32.85,
+        34.95
+      ],
+      [
+        1717113600000,
+        32.91,
+        32.68,
+        32.25,
+        33.9
+      ],
+      [
+        1717718400000,
+        32.45,
+        31.29,
+        30.95,
+        33.34
+      ],
+      [
+        1718323200000,
+        30.98,
+        30.6,
+        30.03,
+        31.36
+      ],
+      [
+        1718928000000,
+        30.3,
+        28.3,
+        27.98,
+        31.1
+      ],
+      [
+        1719532800000,
+        27.87,
+        27.7,
+        26.82,
+        29.25
+      ]
+    ],
+    "trades": [],
+    "name": "002460"
+  }
+};
+        
+        // 初始化图表
+        const klineChart = echarts.init(document.getElementById('klineChart'));
+        
+        // 初始化股票选择器
+        function initStockSelector() {
+            const select = document.getElementById('stockSelect');
+            const stocks = Object.keys(klineData);
+            
+            console.log('可用股票:', stocks);
+            
+            stocks.forEach(stock => {
+                const option = document.createElement('option');
+                option.value = stock;
+                option.textContent = stock;
+                select.appendChild(option);
+            });
+            
+            // 如果有股票数据，默认选择第一个
+            if (stocks.length > 0) {
+                select.value = stocks[0];
+                updateKlineChart();
+            }
+        }
+        
+        // 更新K线图
+        function updateKlineChart() {
+            const selectedStock = document.getElementById('stockSelect').value;
+            if (!selectedStock || !klineData[selectedStock]) {
+                console.log('未选择股票或无数据');
+                return;
+            }
+            
+            const stockData = klineData[selectedStock];
+            const klinePoints = stockData.kline || [];
+            const tradePoints = stockData.trades || [];
+            
+            console.log('K线数据点数:', klinePoints.length);
+            console.log('交易点数:', tradePoints.length);
+            
+            // 准备买卖点数据
+            const buyPoints = [];
+            const sellPoints = [];
+            
+            tradePoints.forEach(trade => {
+                const point = [trade.timestamp, trade.price];
+                if (trade.type === 'BUY') {
+                    buyPoints.push(point);
+                } else {
+                    sellPoints.push(point);
+                }
+            });
+            
+            const option = {
+                title: {
+                    text: `${selectedStock} 周K线图`,
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    }
+                },
+                legend: {
+                    data: ['K线', '买入点', '卖出点'],
+                    top: 30
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%',
+                    top: '15%'
+                },
+                xAxis: {
+                    type: 'time',
+                    scale: true,
+                    boundaryGap: false,
+                    axisLine: { onZero: false },
+                    splitLine: { show: false },
+                    min: 'dataMin',
+                    max: 'dataMax'
+                },
+                yAxis: {
+                    scale: true,
+                    splitArea: {
+                        show: true
+                    }
+                },
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        start: 0,
+                        end: 100
+                    },
+                    {
+                        show: true,
+                        type: 'slider',
+                        top: '90%',
+                        start: 0,
+                        end: 100
+                    }
+                ],
+                series: [
+                    {
+                        name: 'K线',
+                        type: 'candlestick',
+                        data: klinePoints,
+                        itemStyle: {
+                            color: '#ff4757',      // 阳线（涨）- 红色
+                            color0: '#2ed573',     // 阴线（跌）- 绿色
+                            borderColor: '#ff4757',    // 阳线边框
+                            borderColor0: '#2ed573'    // 阴线边框
+                        }
+                    },
+                    {
+                        name: '买入点',
+                        type: 'scatter',
+                        data: buyPoints,
+                        symbol: 'triangle',
+                        symbolSize: 12,
+                        itemStyle: {
+                            color: '#ff4757'
+                        },
+                        label: {
+                            show: true,
+                            position: 'bottom',
+                            formatter: '买',
+                            color: '#ff4757',
+                            fontSize: 10
+                        }
+                    },
+                    {
+                        name: '卖出点',
+                        type: 'scatter',
+                        data: sellPoints,
+                        symbol: 'triangle',
+                        symbolRotate: 180,
+                        symbolSize: 12,
+                        itemStyle: {
+                            color: '#2ed573'
+                        },
+                        label: {
+                            show: true,
+                            position: 'top',
+                            formatter: '卖',
+                            color: '#2ed573',
+                            fontSize: 10
+                        }
+                    }
+                ]
+            };
+            
+            klineChart.setOption(option);
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initStockSelector();
+        });
+        
+        // 窗口大小改变时重新调整图表
+        window.addEventListener('resize', function() {
+            klineChart.resize();
+        });
+    </script>
+</body>
+</html>
+        
