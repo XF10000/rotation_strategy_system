@@ -1846,6 +1846,7 @@ class BacktestEngine:
             
             # 准备K线数据点
             kline_points = []
+            rsi_points = []  # 添加RSI数据点
             for idx, row in filtered_weekly_data.iterrows():
                 try:
                     # 确保时间戳格式正确
@@ -1862,6 +1863,15 @@ class BacktestEngine:
                         float(row['low']),
                         float(row['high'])
                     ])
+                    
+                    # 添加RSI数据点
+                    rsi_value = row.get('rsi', None)
+                    if rsi_value is not None and not pd.isna(rsi_value):
+                        rsi_points.append([timestamp, float(rsi_value)])
+                    else:
+                        # 如果RSI值为空，使用50作为默认值
+                        rsi_points.append([timestamp, 50.0])
+                        
                 except Exception as e:
                     self.logger.warning(f"处理K线数据点失败: {e}, 索引: {idx}")
                     continue
@@ -1894,6 +1904,7 @@ class BacktestEngine:
             
             kline_data[stock_code] = {
                 'kline': kline_points,
+                'rsi': rsi_points,  # 添加RSI数据
                 'trades': trade_points,
                 'name': stock_code  # 添加股票名称
             }

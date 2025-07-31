@@ -110,7 +110,7 @@
         
         #klineChart {
             width: 100%;
-            height: 600px;
+            height: 800px;
             border-radius: 10px;
             background: white;
         }
@@ -903,70 +903,146 @@
             
             const stockData = klineData[selectedStock];
             const klinePoints = stockData.kline || [];
+            const rsiPoints = stockData.rsi || [];
             const tradePoints = stockData.trades || [];
             
             console.log('K线数据点数:', klinePoints.length);
+            console.log('RSI数据点数:', rsiPoints.length);
             console.log('交易点数:', tradePoints.length);
             
             // 准备买卖点数据
             const buyPoints = [];
             const sellPoints = [];
+            const rsiBuyPoints = [];
+            const rsiSellPoints = [];
             
             tradePoints.forEach(trade => {
-                const point = [trade.timestamp, trade.price];
+                const klinePoint = [trade.timestamp, trade.price];
+                // 找到对应时间的RSI值
+                const rsiPoint = rsiPoints.find(rsi => rsi[0] === trade.timestamp);
+                const rsiValue = rsiPoint ? rsiPoint[1] : 50;
+                const rsiTradePoint = [trade.timestamp, rsiValue];
+                
                 if (trade.type === 'BUY') {
-                    buyPoints.push(point);
+                    buyPoints.push(klinePoint);
+                    rsiBuyPoints.push(rsiTradePoint);
                 } else {
-                    sellPoints.push(point);
+                    sellPoints.push(klinePoint);
+                    rsiSellPoints.push(rsiTradePoint);
                 }
             });
             
             const option = {
                 title: {
-                    text: `${selectedStock} 周K线图`,
+                    text: `${selectedStock} 周K线图 + RSI指标`,
                     left: 'center'
                 },
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: {
-                        type: 'cross'
+                        type: 'cross',
+                        link: [
+                            {
+                                xAxisIndex: 'all'
+                            }
+                        ]
+                    },
+                    formatter: function(params) {
+                        let result = '';
+                        const date = new Date(params[0].axisValue).toLocaleDateString();
+                        result += `日期: ${date}<br/>`;
+                        
+                        params.forEach(param => {
+                            if (param.seriesName === 'K线') {
+                                const data = param.data;
+                                result += `开盘: ${data[1]}<br/>`;
+                                result += `收盘: ${data[2]}<br/>`;
+                                result += `最低: ${data[3]}<br/>`;
+                                result += `最高: ${data[4]}<br/>`;
+                            } else if (param.seriesName === 'RSI') {
+                                result += `RSI: ${param.data[1].toFixed(2)}<br/>`;
+                            }
+                        });
+                        
+                        return result;
                     }
                 },
                 legend: {
-                    data: ['K线', '买入点', '卖出点'],
+                    data: ['K线', 'RSI', '买入点', '卖出点'],
                     top: 30
                 },
-                grid: {
-                    left: '10%',
-                    right: '10%',
-                    bottom: '15%',
-                    top: '15%'
-                },
-                xAxis: {
-                    type: 'time',
-                    scale: true,
-                    boundaryGap: false,
-                    axisLine: { onZero: false },
-                    splitLine: { show: false },
-                    min: 'dataMin',
-                    max: 'dataMax'
-                },
-                yAxis: {
-                    scale: true,
-                    splitArea: {
-                        show: true
+                grid: [
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '15%',
+                        height: '50%'
+                    },
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '70%',
+                        height: '20%'
                     }
-                },
+                ],
+                xAxis: [
+                    {
+                        type: 'time',
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax',
+                        axisLabel: { show: false }
+                    },
+                    {
+                        type: 'time',
+                        gridIndex: 1,
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax'
+                    }
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        splitArea: {
+                            show: true
+                        }
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 1,
+                        min: 0,
+                        max: 100,
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                color: ['#30', '#70'],
+                                type: 'dashed'
+                            }
+                        },
+                        axisLabel: {
+                            formatter: '{value}'
+                        }
+                    }
+                ],
                 dataZoom: [
                     {
                         type: 'inside',
+                        xAxisIndex: [0, 1],
                         start: 0,
                         end: 100
                     },
                     {
                         show: true,
                         type: 'slider',
-                        top: '90%',
+                        xAxisIndex: [0, 1],
+                        top: '95%',
                         start: 0,
                         end: 100
                     }
@@ -976,17 +1052,65 @@
                         name: 'K线',
                         type: 'candlestick',
                         data: klinePoints,
+                        xAxisIndex: 0,
+                        yAxisIndex: 0,
                         itemStyle: {
-                            color: '#ff4757',      // 阳线（涨）- 红色
-                            color0: '#2ed573',     // 阴线（跌）- 绿色
-                            borderColor: '#ff4757',    // 阳线边框
-                            borderColor0: '#2ed573'    // 阴线边框
+                            color: '#ff4757',
+                            color0: '#2ed573',
+                            borderColor: '#ff4757',
+                            borderColor0: '#2ed573'
                         }
+                    },
+                    {
+                        name: 'RSI',
+                        type: 'line',
+                        data: rsiPoints,
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        lineStyle: {
+                            color: '#3742fa',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#3742fa'
+                        },
+                        smooth: true
+                    },
+                    // RSI超买超卖线
+                    {
+                        name: 'RSI超买线',
+                        type: 'line',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: rsiPoints.map(point => [point[0], 70]),
+                        lineStyle: {
+                            color: '#ff6b6b',
+                            type: 'dashed',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        silent: true
+                    },
+                    {
+                        name: 'RSI超卖线',
+                        type: 'line',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: rsiPoints.map(point => [point[0], 30]),
+                        lineStyle: {
+                            color: '#4ecdc4',
+                            type: 'dashed',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        silent: true
                     },
                     {
                         name: '买入点',
                         type: 'scatter',
                         data: buyPoints,
+                        xAxisIndex: 0,
+                        yAxisIndex: 0,
                         symbol: 'triangle',
                         symbolSize: 20,
                         itemStyle: {
@@ -1013,6 +1137,8 @@
                         name: '卖出点',
                         type: 'scatter',
                         data: sellPoints,
+                        xAxisIndex: 0,
+                        yAxisIndex: 0,
                         symbol: 'triangle',
                         symbolRotate: 180,
                         symbolSize: 20,
@@ -1033,6 +1159,38 @@
                             backgroundColor: '#2ed573',
                             padding: [4, 8],
                             borderRadius: 4
+                        },
+                        z: 100
+                    },
+                    // RSI图上的买卖点
+                    {
+                        name: 'RSI买入点',
+                        type: 'scatter',
+                        data: rsiBuyPoints,
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        symbol: 'triangle',
+                        symbolSize: 15,
+                        itemStyle: {
+                            color: '#ff4757',
+                            borderColor: '#ffffff',
+                            borderWidth: 2
+                        },
+                        z: 100
+                    },
+                    {
+                        name: 'RSI卖出点',
+                        type: 'scatter',
+                        data: rsiSellPoints,
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        symbol: 'triangle',
+                        symbolRotate: 180,
+                        symbolSize: 15,
+                        itemStyle: {
+                            color: '#2ed573',
+                            borderColor: '#ffffff',
+                            borderWidth: 2
                         },
                         z: 100
                     }
