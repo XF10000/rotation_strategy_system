@@ -1824,7 +1824,7 @@ class BacktestEngine:
             }
     
     def _prepare_kline_data(self) -> Dict[str, Any]:
-        """准备K线数据"""
+        """准备K线数据，包含布林带指标"""
         kline_data = {}
         
         # 调试信息
@@ -1846,6 +1846,11 @@ class BacktestEngine:
             
             # 准备K线数据点
             kline_points = []
+            # 准备布林带数据点
+            bb_upper_points = []
+            bb_lower_points = []
+            bb_middle_points = []
+            
             for idx, row in filtered_weekly_data.iterrows():
                 try:
                     # 确保时间戳格式正确
@@ -1862,6 +1867,22 @@ class BacktestEngine:
                         float(row['low']),
                         float(row['high'])
                     ])
+                    
+                    # 添加布林带数据点（如果存在）
+                    if 'bb_upper' in row and 'bb_lower' in row and 'bb_middle' in row:
+                        # 处理NaN值
+                        bb_upper_val = float(row['bb_upper']) if pd.notna(row['bb_upper']) else None
+                        bb_lower_val = float(row['bb_lower']) if pd.notna(row['bb_lower']) else None
+                        bb_middle_val = float(row['bb_middle']) if pd.notna(row['bb_middle']) else None
+                        
+                        bb_upper_points.append([timestamp, bb_upper_val])
+                        bb_lower_points.append([timestamp, bb_lower_val])
+                        bb_middle_points.append([timestamp, bb_middle_val])
+                    else:
+                        # 如果没有布林带数据，添加空值
+                        bb_upper_points.append([timestamp, None])
+                        bb_lower_points.append([timestamp, None])
+                        bb_middle_points.append([timestamp, None])
                 except Exception as e:
                     self.logger.warning(f"处理K线数据点失败: {e}, 索引: {idx}")
                     continue
@@ -1892,10 +1913,74 @@ class BacktestEngine:
             
             self.logger.info(f"股票 {stock_code} 交易点数量: {stock_trade_count}")
             
+            # 准备RSI数据点
+            rsi_points = []
+            for idx, row in filtered_weekly_data.iterrows():
+                try:
+                    # 确保时间戳格式正确
+                    if hasattr(idx, 'timestamp'):
+                        timestamp = int(idx.timestamp() * 1000)
+                    else:
+                        # 如果idx不是datetime，尝试转换
+                        timestamp = int(pd.to_datetime(idx).timestamp() * 1000)
+                    
+                    # 添加RSI数据点（如果存在）
+                    if 'rsi' in row:
+                        # 处理NaN值
+                        rsi_val = float(row['rsi']) if pd.notna(row['rsi']) else None
+                        rsi_points.append([timestamp, rsi_val])
+                    else:
+                        # 如果没有RSI数据，添加空值
+                        rsi_points.append([timestamp, None])
+                except Exception as e:
+                    self.logger.warning(f"处理RSI数据点失败: {e}, 索引: {idx}")
+                    rsi_points.append([timestamp, None])
+            
+            # 准备MACD数据点
+            macd_points = []
+            macd_signal_points = []
+            macd_histogram_points = []
+            for idx, row in filtered_weekly_data.iterrows():
+                try:
+                    # 确保时间戳格式正确
+                    if hasattr(idx, 'timestamp'):
+                        timestamp = int(idx.timestamp() * 1000)
+                    else:
+                        # 如果idx不是datetime，尝试转换
+                        timestamp = int(pd.to_datetime(idx).timestamp() * 1000)
+                    
+                    # 添加MACD数据点（如果存在）
+                    if 'macd' in row and 'macd_signal' in row and 'macd_histogram' in row:
+                        # 处理NaN值
+                        macd_val = float(row['macd']) if pd.notna(row['macd']) else None
+                        macd_signal_val = float(row['macd_signal']) if pd.notna(row['macd_signal']) else None
+                        macd_histogram_val = float(row['macd_histogram']) if pd.notna(row['macd_histogram']) else None
+                        
+                        macd_points.append([timestamp, macd_val])
+                        macd_signal_points.append([timestamp, macd_signal_val])
+                        macd_histogram_points.append([timestamp, macd_histogram_val])
+                    else:
+                        # 如果没有MACD数据，添加空值
+                        macd_points.append([timestamp, None])
+                        macd_signal_points.append([timestamp, None])
+                        macd_histogram_points.append([timestamp, None])
+                except Exception as e:
+                    self.logger.warning(f"处理MACD数据点失败: {e}, 索引: {idx}")
+                    macd_points.append([timestamp, None])
+                    macd_signal_points.append([timestamp, None])
+                    macd_histogram_points.append([timestamp, None])
+            
             kline_data[stock_code] = {
                 'kline': kline_points,
                 'trades': trade_points,
-                'name': stock_code  # 添加股票名称
+                'name': stock_code,  # 添加股票名称
+                'bb_upper': bb_upper_points,  # 布林带上轨
+                'bb_lower': bb_lower_points,  # 布林带下轨
+                'bb_middle': bb_middle_points,  # 布林带中轨
+                'rsi': rsi_points,  # RSI数据
+                'macd': macd_points,  # MACD线
+                'macd_signal': macd_signal_points,  # MACD信号线
+                'macd_histogram': macd_histogram_points  # MACD柱状图
             }
         
         return kline_data
