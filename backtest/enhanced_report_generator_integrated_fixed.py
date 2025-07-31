@@ -8,7 +8,7 @@ class IntegratedReportGenerator:
     """集成HTML模板的回测报告生成器 - 修复版"""
     
     def __init__(self):
-        self.template_path = "reports/enhanced_main/backtest_report.html"
+        self.template_path = "config/backtest_report_template.html"
         # 确保模板文件存在
         if not os.path.exists(self.template_path):
             print(f"警告: HTML模板文件不存在: {self.template_path}")

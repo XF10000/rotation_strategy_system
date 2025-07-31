@@ -174,11 +174,6 @@ class DataProcessor:
             if 'turnover_rate' in df.columns:
                 agg_rules['turnover_rate'] = 'mean'
             
-            # 添加技术指标列（使用最后一个值）
-            for col in df.columns:
-                if col not in agg_rules and col not in ['open', 'high', 'low', 'close', 'volume', 'amount', 'turnover_rate']:
-                    agg_rules[col] = 'last'
-            
             # 重采样到周线（周五为一周结束）
             weekly_df = df.resample('W-FRI').agg(agg_rules)
             
