@@ -20,6 +20,8 @@ from .portfolio_manager import PortfolioManager
 from .transaction_cost import TransactionCostCalculator
 from .enhanced_report_generator_integrated_fixed import IntegratedReportGenerator
 from .detailed_csv_exporter import DetailedCSVExporter
+from indicators.price_value_ratio import calculate_pvr, get_pvr_status
+from config.csv_config_loader import load_portfolio_config
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +72,59 @@ class BacktestEngine:
         # 股票池（排除现金）
         self.stock_pool = [code for code in self.initial_holdings.keys() if code != 'cash']
         
+        # DCF估值数据
+        self.dcf_values = {
+            '601088': 40.0, '601225': 40.0, '600985': 20.0, '002738': 50.0, '002460': 50.0,
+            '000933': 37.0, '000807': 25.0, '600079': 28.0, '603345': 126.0, '601898': 20.0
+        }
+        
+        # 加载DCF估值数据
+        self.dcf_values = {
+            '601088': 40.0,
+            '601225': 40.0,
+            '600985': 20.0,
+            '002738': 50.0,
+            '002460': 50.0,
+            '000933': 37.0,
+            '000807': 25.0,
+            '600079': 28.0,
+            '603345': 126.0,
+            '601898': 20.0
+        }
+        
         self.logger.info("回测引擎初始化完成")
         self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
         self.logger.info(f"股票池: {self.stock_pool}")
         self.logger.info(f"轮动比例: {self.rotation_percentage:.1%}")
+        if hasattr(self, 'dcf_values'):
+            self.logger.info(f"DCF估值数据: {len(self.dcf_values)} 只股票")
+        else:
+            self.logger.warning("DCF估值数据加载失败")
+    
+    def _load_dcf_values(self) -> Dict[str, float]:
+        """
+        从CSV配置文件加载DCF估值数据
+        
+        Returns:
+            Dict[str, float]: 股票代码到DCF估值的映射
+        """
+        try:
+            import pandas as pd
+            df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
+            dcf_values = {}
+            
+            for _, row in df.iterrows():
+                stock_code = row['Stock_number']
+                if stock_code != 'CASH':  # 排除现金
+                    dcf_value = row.get('DCF_value_per_share', None)
+                    if dcf_value is not None and pd.notna(dcf_value):
+                        dcf_values[stock_code] = float(dcf_value)
+            
+            return dcf_values
+        except Exception as e:
+            self.logger.warning(f"DCF估值数据加载失败: {e}")
+            return {}
+
     
     def prepare_data(self) -> bool:
         """
@@ -557,11 +608,73 @@ class BacktestEngine:
         # 股票池（排除现金）
         self.stock_pool = [code for code in self.initial_holdings.keys() if code != 'cash']
         
+        # DCF估值数据
+        self.dcf_values = {
+            '601088': 40.0, '601225': 40.0, '600985': 20.0, '002738': 50.0, '002460': 50.0,
+            '000933': 37.0, '000807': 25.0, '600079': 28.0, '603345': 126.0, '601898': 20.0
+        }
+        
+        # 加载DCF估值数据
+        self.dcf_values = {
+            '601088': 40.0,
+            '601225': 40.0,
+            '600985': 20.0,
+            '002738': 50.0,
+            '002460': 50.0,
+            '000933': 37.0,
+            '000807': 25.0,
+            '600079': 28.0,
+            '603345': 126.0,
+            '601898': 20.0
+        }
+        
         self.logger.info("回测引擎初始化完成")
         self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
         self.logger.info(f"股票池: {self.stock_pool}")
         self.logger.info(f"轮动比例: {self.rotation_percentage:.1%}")
+        if hasattr(self, 'dcf_values') and self.dcf_values:
+            self.logger.info(f"DCF估值数据: {len(self.dcf_values)} 只股票")
+        else:
+            self.logger.warning("DCF估值数据加载失败")
     
+    def _load_dcf_values(self) -> Dict[str, float]:
+        """
+        从CSV配置文件加载DCF估值数据
+        
+        Returns:
+            Dict[str, float]: 股票代码到DCF估值的映射
+        """
+        try:
+            import pandas as pd
+            import os
+            
+            csv_path = 'Input/portfolio_config.csv'
+            if not os.path.exists(csv_path):
+                self.logger.warning(f"投资组合配置文件不存在: {csv_path}")
+                return {}
+            
+            # 读取CSV文件
+            df = pd.read_csv(csv_path, encoding='utf-8-sig')
+            
+            dcf_values = {}
+            for _, row in df.iterrows():
+                stock_code = str(row['Stock_number']).strip()
+                dcf_value = row.get('DCF_value_per_share')
+                
+                # 跳过现金和无效数据
+                if stock_code.upper() == 'CASH' or pd.isna(dcf_value):
+                    continue
+                
+                dcf_values[stock_code] = float(dcf_value)
+                self.logger.info(f"加载DCF估值: {stock_code} = {dcf_value}")
+            
+            self.logger.info(f"成功加载 {len(dcf_values)} 只股票的DCF估值")
+            return dcf_values
+            
+        except Exception as e:
+            self.logger.error(f"加载DCF估值失败: {e}")
+            return {}
+
     def prepare_data(self) -> bool:
         """
         准备回测数据（智能缓存版本）
@@ -976,6 +1089,12 @@ class BacktestEngine:
         
         # 股票池（排除现金）
         self.stock_pool = [code for code in self.initial_holdings.keys() if code != 'cash']
+        
+        # DCF估值数据
+        self.dcf_values = {
+            '601088': 40.0, '601225': 40.0, '600985': 20.0, '002738': 50.0, '002460': 50.0,
+            '000933': 37.0, '000807': 25.0, '600079': 28.0, '603345': 126.0, '601898': 20.0
+        }
         
         self.logger.info("回测引擎初始化完成")
         self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
@@ -1412,6 +1531,12 @@ class BacktestEngine:
         # 获取交易后持仓数量
         position_after_trade = self.portfolio_manager.positions.get(stock_code, 0)
         
+        # 计算价值比 (Price-to-Value Ratio, PVR)
+        current_price = trade_info['price']
+        dcf_value = self.dcf_values.get(stock_code)
+        pvr = calculate_pvr(current_price, dcf_value) if dcf_value else None
+        pvr_status = get_pvr_status(pvr) if pvr else None
+        
         # 记录交易
         transaction_record = {
             'date': current_date.strftime('%Y-%m-%d'),
@@ -1420,6 +1545,10 @@ class BacktestEngine:
             'shares': trade_info['shares'],
             'position_after_trade': position_after_trade,  # 添加交易后持仓数量
             'price': trade_info['price'],
+            'dcf_value': dcf_value,  # DCF估值
+            'price_to_value_ratio': pvr,  # 价值比
+            'pvr_status': pvr_status['status'] if pvr_status else None,  # 估值状态
+            'pvr_description': pvr_status['description'] if pvr_status else None,  # 价值比描述
             'gross_amount': trade_info['gross_amount'],
             'transaction_cost': trade_info['transaction_cost'],
             'net_amount': trade_info['net_amount'],
@@ -1427,6 +1556,12 @@ class BacktestEngine:
             'technical_indicators': technical_indicators,
             'signal_details': signal_details
         }
+        
+        # 记录价值比信息到日志
+        if pvr:
+            self.logger.info(f"💰 {stock_code} 价值比分析: 当前价格{current_price:.2f}, DCF估值{dcf_value:.2f}, 价值比{pvr:.1f}% ({pvr_status['status']})")
+        else:
+            self.logger.warning(f"⚠️ {stock_code} 无DCF估值数据，无法计算价值比")
         
         self.transaction_history.append(transaction_record)
     
@@ -1883,6 +2018,7 @@ class BacktestEngine:
             bb_upper_data = []
             bb_middle_data = []
             bb_lower_data = []
+            pvr_data = []  # 新增价值比数据
             
             # 为每个有效时间戳准备数据，确保所有指标都有对应的数据点
             for timestamp, idx in valid_timestamps:
@@ -1960,6 +2096,15 @@ class BacktestEngine:
                     bb_upper_data.append([timestamp, bb_upper_value])
                     bb_middle_data.append([timestamp, bb_middle_value])
                     bb_lower_data.append([timestamp, bb_lower_value])
+                    
+                    # 价值比数据 - 使用当前价格和DCF估值直接计算
+                    close_price = float(row['close'])
+                    dcf_value = self.dcf_values.get(stock_code)
+                    if dcf_value and dcf_value > 0:
+                        pvr_value = (close_price / dcf_value) * 100
+                    else:
+                        pvr_value = 100.0  # 默认值，表示无DCF数据
+                    pvr_data.append([timestamp, pvr_value])
                         
                 except Exception as e:
                     self.logger.warning(f"处理K线数据点失败: {e}, 索引: {idx}")
@@ -1990,7 +2135,7 @@ class BacktestEngine:
                         self.logger.warning(f"处理交易点数据失败: {e}, 交易记录: {transaction}")
         
             self.logger.info(f"股票 {stock_code} 交易点数量: {stock_trade_count}")
-            self.logger.info(f"股票 {stock_code} 技术指标数据量: RSI {len(rsi_data)}, MACD {len(macd_data)}")
+            self.logger.info(f"股票 {stock_code} 技术指标数据量: RSI {len(rsi_data)}, MACD {len(macd_data)}, PVR {len(pvr_data)}")
             
             kline_data[stock_code] = {
                 'kline': kline_points,
@@ -2006,7 +2151,9 @@ class BacktestEngine:
                 # 添加布林带数据
                 'bb_upper': bb_upper_data,
                 'bb_middle': bb_middle_data,
-                'bb_lower': bb_lower_data
+                'bb_lower': bb_lower_data,
+                # 添加价值比数据
+                'pvr': pvr_data
             }
         
         return kline_data

@@ -739,6 +739,9 @@
             const bbLowerPoints = stockData.bb_lower || [];
             const bbMiddlePoints = stockData.bb_middle || [];
             
+            // 准备价值比数据
+            const pvrPoints = stockData.pvr || [];
+            
             // 准备RSI数据
             const rsiPoints = stockData.rsi || [];
             
@@ -791,6 +794,27 @@
                                 }
                             }
                             
+                            // 价值比数据
+                            if (stockData.pvr && stockData.pvr[dataIndex]) {
+                                const pvrValue = stockData.pvr[dataIndex][1];
+                                result += '💰 <strong>价值比</strong><br/>';
+                                result += '&nbsp;&nbsp;PVR: ' + (pvrValue ? pvrValue.toFixed(1) + '%' : 'N/A') + '<br/>';
+                                
+                                // 添加估值状态判断
+                                if (pvrValue) {
+                                    if (pvrValue < 70) {
+                                        result += '&nbsp;&nbsp;状态: <span style="color: #2ed573;">深度低估</span><br/>';
+                                    } else if (pvrValue < 100) {
+                                        result += '&nbsp;&nbsp;状态: <span style="color: #ffa500;">轻度低估</span><br/>';
+                                    } else if (pvrValue > 120) {
+                                        result += '&nbsp;&nbsp;状态: <span style="color: #ff4757;">明显高估</span><br/>';
+                                    } else {
+                                        result += '&nbsp;&nbsp;状态: <span style="color: #333;">估值合理</span><br/>';
+                                    }
+                                }
+                                result += '<br/>';
+                            }
+                            
                             // 布林带数据
                             if (stockData.bb_upper && stockData.bb_upper[dataIndex] && 
                                 stockData.bb_middle && stockData.bb_middle[dataIndex] && 
@@ -822,7 +846,7 @@
                     }
                 },
                 legend: {
-                    data: ['K线', '布林上轨(主图)', '布林中轨(主图)', '布林下轨(主图)', '布林上轨', '布林中轨', '布林下轨', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点'],
+                    data: ['K线', '布林上轨(主图)', '布林中轨(主图)', '布林下轨(主图)', '价值比', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点'],
                     top: 30
                 },
                 grid: [
@@ -897,7 +921,12 @@
                     },
                     {
                         scale: true,
-                        gridIndex: 1
+                        gridIndex: 1,
+                        min: 0,
+                        max: 200,
+                        name: '价值比(%)',
+                        nameLocation: 'middle',
+                        nameGap: 50
                     },
                     {
                         scale: true,
@@ -1032,45 +1061,63 @@
                         },
                         z: 100
                     },
-                    // 布林带子图系列
+                    // 价值比子图系列
                     {
-                        name: '布林上轨',
+                        name: '价值比',
                         type: 'line',
-                        data: bbUpperPoints,
+                        data: pvrPoints,
                         smooth: true,
                         lineStyle: {
-                            color: '#1e90ff',
-                            width: 1
+                            color: '#ff6b35',
+                            width: 2
                         },
                         symbol: 'none',
                         xAxisIndex: 1,
-                        yAxisIndex: 1
-                    },
-                    {
-                        name: '布林中轨',
-                        type: 'line',
-                        data: bbMiddlePoints,
-                        smooth: true,
-                        lineStyle: {
-                            color: '#ffa500',
-                            width: 1
-                        },
-                        symbol: 'none',
-                        xAxisIndex: 1,
-                        yAxisIndex: 1
-                    },
-                    {
-                        name: '布林下轨',
-                        type: 'line',
-                        data: bbLowerPoints,
-                        smooth: true,
-                        lineStyle: {
-                            color: '#1e90ff',
-                            width: 1
-                        },
-                        symbol: 'none',
-                        xAxisIndex: 1,
-                        yAxisIndex: 1
+                        yAxisIndex: 1,
+                        markLine: {
+                            silent: true,
+                            data: [
+                                {
+                                    yAxis: 100,
+                                    lineStyle: {
+                                        color: '#333',
+                                        type: 'solid',
+                                        width: 1
+                                    },
+                                    label: {
+                                        show: true,
+                                        position: 'end',
+                                        formatter: '合理估值(100%)'
+                                    }
+                                },
+                                {
+                                    yAxis: 70,
+                                    lineStyle: {
+                                        color: '#2ed573',
+                                        type: 'dashed',
+                                        width: 1
+                                    },
+                                    label: {
+                                        show: true,
+                                        position: 'end',
+                                        formatter: '安全边际(70%)'
+                                    }
+                                },
+                                {
+                                    yAxis: 120,
+                                    lineStyle: {
+                                        color: '#ff4757',
+                                        type: 'dashed',
+                                        width: 1
+                                    },
+                                    label: {
+                                        show: true,
+                                        position: 'end',
+                                        formatter: '高估警戒(120%)'
+                                    }
+                                }
+                            ]
+                        }
                     },
                     // RSI子图系列
                     {

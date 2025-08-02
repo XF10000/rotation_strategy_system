@@ -19,7 +19,8 @@ class DetailedCSVExporter:
         """初始化CSV导出器"""
         self.csv_headers = [
             '日期', '交易类型', '股票代码', '交易股票数量', '交易后持仓数量', 
-            '交易价格', '交易金额', '手续费', '交易原因', '收盘价',
+            '交易价格', 'DCF估值', '价值比(%)', '估值状态', '价值比描述',
+            '交易金额', '手续费', '交易原因', '收盘价',
             'EMA20', 'EMA60', 'RSI14', 'MACD_DIF', 'MACD_DEA', 'MACD_HIST',
             '布林上轨', '布林中轨', '布林下轨', '成交量', '量能倍数', '布林带位置',
             '趋势过滤器', '超买超卖信号', '动能确认', '极端价格量能', '满足维度数', '触发原因',
@@ -188,6 +189,23 @@ class DetailedCSVExporter:
             # 获取交易后持仓数量
             position_after = record.get('position_after_trade', 0)
             
+            # 获取价值比相关数据
+            dcf_value = record.get('dcf_value', 0)
+            pvr = record.get('price_to_value_ratio')
+            pvr_status = record.get('pvr_status', '')
+            pvr_description = record.get('pvr_description', '')
+            
+            # 格式化价值比显示
+            if pvr is not None:
+                pvr_display = f"{pvr:.1f}"
+            else:
+                pvr_display = "无数据"
+            
+            if not dcf_value:
+                dcf_value = "无数据"
+            else:
+                dcf_value = f"{dcf_value:.2f}"
+            
             # 获取行业信息和RSI阈值
             try:
                 industry = get_stock_industry_auto(symbol)
@@ -207,7 +225,9 @@ class DetailedCSVExporter:
                 oversold_threshold = 30
             
             return [
-                date, action, symbol, quantity, position_after, price, amount, commission, reason, close_price,
+                date, action, symbol, quantity, position_after, 
+                price, dcf_value, pvr_display, pvr_status, pvr_description,
+                amount, commission, reason, close_price,
                 ema20, ema60, rsi14, macd_dif, macd_dea, macd_hist,
                 bb_upper, bb_middle, bb_lower, volume, volume_ratio, bb_position,
                 trend_filter, overbought_oversold, momentum_confirm, extreme_price_volume, 
