@@ -516,6 +516,45 @@ class IntegratedReportGenerator:
         </tr>"""
                 transaction_rows.append(row)
             
+            # 生成信号规则说明HTML
+            signal_rules_html = '''
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px;">
+                        <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                            <div>
+                                <strong style="color: #dc3545;">🔴 趋势过滤器（硬性条件）:</strong>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    <li>买入条件：收盘价 > 20周EMA 且 EMA向上</li>
+                                    <li>卖出条件：收盘价 < 20周EMA 且 EMA向下</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: #007bff;">📊 超买/超卖:</strong>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    <li>买入条件：14周RSI > 70 且出现顶背离</li>
+                                    <li>卖出条件：14周RSI < 30 且出现底背离</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: #28a745;">⚡ 动能确认:</strong>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    <li>买入条件：MACD柱体连续2根缩短 或 DIF金叉DEA</li>
+                                    <li>卖出条件：MACD柱体连续2根缩短 或 DIF死叉DEA</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: #6f42c1;">🎯 极端价格+量能:</strong>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    <li>买入条件：收盘价布林下轨上，且 本周成交量>4周均量×1.3</li>
+                                    <li>卖出条件：收盘价布林下轨上，且 本周成交量>4周均量×0.8</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 5px;">
+                            <strong style="color: #0066cc;">✅ 交易条件：趋势过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
+                        </div>
+                    </div>'''
+            
             # 查找详细交易记录部分的transaction-details容器
             details_start = template.find('<div class="transaction-details">')
             if details_start == -1:
@@ -528,9 +567,8 @@ class IntegratedReportGenerator:
             
             # 检查是否已经有表格结构，如果没有则创建
             if '<table' not in container_content:
-                # 创建完整的交易记录表格
+                # 创建完整的交易记录表格 + 信号规则说明
                 table_html = f'''
-                    <h4>📈 详细交易记录</h4>
                     <div class="table-container">
                         <table class="transaction-table">
                             <thead>
@@ -559,19 +597,27 @@ class IntegratedReportGenerator:
                             </tbody>
                         </table>
                     </div>
+                    {signal_rules_html}
                 '''
                 
-                # 找到transaction-details容器的结束标签前插入表格
+                # 找到transaction-details容器的h4标签后插入表格和规则说明
                 h4_end = template.find('</h4>', details_start) + 5
                 template = template[:h4_end] + table_html + template[container_end:]
             else:
-                # 如果已有表格，则替换tbody内容
+                # 如果已有表格，则替换tbody内容，并在表格后添加信号规则说明
                 tbody_start = template.find('<tbody>', details_start)
                 tbody_end = template.find('</tbody>', tbody_start)
                 
                 if tbody_start != -1 and tbody_end != -1:
                     new_tbody = '<tbody>\n' + '\n'.join(transaction_rows) + '\n</tbody>'
                     template = template[:tbody_start] + new_tbody + template[tbody_end + 8:]
+                    
+                    # 在表格后添加信号规则说明
+                    table_end = template.find('</table>', tbody_end)
+                    if table_end != -1:
+                        table_container_end = template.find('</div>', table_end)
+                        if table_container_end != -1:
+                            template = template[:table_container_end + 6] + signal_rules_html + template[table_container_end + 6:]
             
             return template
         except Exception as e:
@@ -731,19 +777,21 @@ class IntegratedReportGenerator:
             <style>
             /* 全局摘要样式 */
             .global-summary {{
-                background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-                border-radius: 15px;
-                padding: 25px;
-                margin: 20px 0;
-                color: white;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+                background: #ffffff;
+                border-radius: 12px;
+                padding: 24px;
+                margin: 24px 0;
+                color: #1a202c;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e2e8f0;
             }}
             
             .global-summary h3 {{
-                margin: 0 0 20px 0;
+                margin: 0 0 24px 0;
                 text-align: center;
-                font-size: 22px;
-                font-weight: bold;
+                font-size: 1.375rem;
+                font-weight: 600;
+                color: #1a202c;
             }}
             
             .summary-grid {{
@@ -754,18 +802,20 @@ class IntegratedReportGenerator:
             }}
             
             .summary-card {{
-                background: rgba(255,255,255,0.1);
+                background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
                 border-radius: 10px;
                 padding: 20px;
                 text-align: center;
-                border: 2px solid transparent;
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 0.2);
                 transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(66, 153, 225, 0.2);
             }}
             
-            .summary-card.total {{ border-color: #3498db; }}
-            .summary-card.buy {{ border-color: #27ae60; }}
-            .summary-card.sell {{ border-color: #e74c3c; }}
-            .summary-card.ratio {{ border-color: #f39c12; }}
+            .summary-card.total {{ background: #f8fafc; border-left: 4px solid #3182ce; }}
+            .summary-card.buy {{ background: #f8fafc; border-left: 4px solid #059669; }}
+            .summary-card.sell {{ background: #f8fafc; border-left: 4px solid #dc2626; }}
+            .summary-card.ratio {{ background: #f8fafc; border-left: 4px solid #7c3aed; }}
             
             .summary-number {{
                 font-size: 28px;
@@ -788,24 +838,27 @@ class IntegratedReportGenerator:
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                background: rgba(255,255,255,0.05);
+                background: #f7fafc;
                 padding: 12px 15px;
                 border-radius: 8px;
-                border-left: 4px solid #3498db;
+                border-left: 4px solid #4299e1;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }}
             
             .dim-name {{
                 font-weight: bold;
                 flex: 1;
+                color: #2d3748;
             }}
             
             .dim-count {{
                 font-weight: bold;
                 margin-right: 10px;
+                color: #3182ce;
             }}
             
             .dim-rate {{
-                opacity: 0.8;
+                color: #718096;
                 font-size: 12px;
             }}
             
@@ -818,26 +871,29 @@ class IntegratedReportGenerator:
             }}
             
             .signal-card {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: rgba(255, 255, 255, 0.95);
                 border-radius: 15px;
                 padding: 0;
-                color: white;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+                color: #2d3748;
+                box-shadow: 0 4px 20px rgba(74, 85, 104, 0.08);
+                border: 1px solid rgba(226, 232, 240, 0.6);
                 overflow: hidden;
                 transition: transform 0.3s ease;
             }}
             
             .signal-card:hover {{
                 transform: translateY(-5px);
+                box-shadow: 0 8px 25px rgba(74, 85, 104, 0.12);
             }}
             
             .card-header {{
-                background: rgba(0,0,0,0.2);
+                background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
                 padding: 20px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                border-bottom: 1px solid rgba(255,255,255,0.2);
+                border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+                color: white;
             }}
             
             .card-header h4 {{

@@ -15,77 +15,85 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
             line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #1a202c;
+            background: #f8fafc;
             min-height: 100vh;
         }
         
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px;
         }
         
         .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 32px;
             text-align: center;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
         }
         
         .header h1 {
-            font-size: 2.5em;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
+            font-size: 2.25rem;
+            color: #2d3748;
+            margin-bottom: 12px;
+            font-weight: 700;
         }
         
         .section {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
         }
         
         .section h2 {
-            color: #4a5568;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-            font-size: 1.5em;
+            color: #1a202c;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            font-size: 1.375rem;
+            font-weight: 600;
         }
         
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 16px;
+            margin-bottom: 24px;
         }
         
         .metric-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #f7fafc;
+            color: #1a202c;
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 8px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        
+        .metric-card:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
         }
         
         .metric-card h3 {
-            font-size: 0.9em;
-            opacity: 0.9;
+            font-size: 0.875rem;
+            color: #4a5568;
             margin-bottom: 8px;
+            font-weight: 500;
         }
         
         .metric-card .value {
-            font-size: 1.8em;
-            font-weight: bold;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #2d3748;
         }
         
         .kline-section {
@@ -98,46 +106,63 @@
         }
         
         .stock-selector select {
-            padding: 10px 20px;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
             background: white;
-            color: #333;
+            color: #2d3748;
             cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        
+        .stock-selector select:hover {
+            border-color: #a0aec0;
+        }
+        
+        .stock-selector select:focus {
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
         }
         
         #klineChart {
             width: 100%;
             height: 800px;
-            border-radius: 10px;
+            border-radius: 8px;
             background: white;
+            border: 1px solid #e2e8f0;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 16px;
             background: white;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
         }
         
         th, td {
-            padding: 12px;
+            padding: 12px 16px;
             text-align: left;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid #f1f5f9;
         }
         
         th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #f8fafc;
+            color: #374151;
             font-weight: 600;
+            font-size: 0.875rem;
         }
         
         tr:hover {
-            background-color: #f7fafc;
+            background-color: #f8fafc;
+        }
+        
+        tbody tr:last-child td {
+            border-bottom: none;
         }
         
         .buy-row {
@@ -145,42 +170,57 @@
         }
         
         .sell-row {
-            background-color: #fff5f5;
+            background-color: #fed7d7;
         }
         
         .signal-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            gap: 16px;
         }
         
         .signal-card {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
+            background: #f8fafc;
+            color: #1a202c;
             padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        
+        .signal-card:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e0;
         }
         
         .signal-card h4 {
-            margin-bottom: 15px;
-            font-size: 1.1em;
+            margin-bottom: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2d3748;
         }
         
         .signal-item {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             margin-bottom: 8px;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.875rem;
+        }
+        
+        .signal-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
         }
         
         .final-portfolio-status {
             margin: 20px 0;
             padding: 20px;
-            background: #f8f9fa;
+            background: #f7fafc;
             border-radius: 10px;
-            border: 1px solid #dee2e6;
+            border: 1px solid #e2e8f0;
         }
         
         .portfolio-summary {
@@ -193,19 +233,20 @@
         .summary-item {
             display: flex;
             justify-content: space-between;
-            padding: 10px;
+            padding: 12px;
             background: white;
-            border-radius: 5px;
-            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
         .summary-label {
             font-weight: bold;
-            color: #495057;
+            color: #4a5568;
         }
         
         .summary-value {
-            color: #007bff;
+            color: #3182ce;
             font-weight: bold;
         }
         
@@ -241,78 +282,78 @@
         
         .comparison-summary {
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 8px;
             margin-bottom: 20px;
             text-align: center;
         }
         
         .comparison-summary.outperform {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            border: 2px solid #28a745;
-            color: #155724;
+            background: #f0fff4;
+            border: 1px solid #c6f6d5;
+            color: #22543d;
         }
         
         .comparison-summary.underperform {
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-            border: 2px solid #dc3545;
-            color: #721c24;
-        }
-        
-        .comparison-table table {
-            width: 100%;
-            margin: 20px 0;
+            background: #fef5e7;
+            border: 1px solid #fed7aa;
+            color: #9c4221;
         }
         
         .comparison-table .outperform {
-            color: #28a745;
-            font-weight: bold;
+            color: #059669;
+            font-weight: 600;
         }
         
         .comparison-table .underperform {
-            color: #dc3545;
-            font-weight: bold;
+            color: #dc2626;
+            font-weight: 600;
         }
         
         .performance-analysis {
-            background: #f8f9fa;
-            padding: 15px;
+            background: #f8fafc;
+            padding: 16px;
             border-radius: 8px;
             margin-top: 20px;
+            border: 1px solid #e2e8f0;
         }
         
-        .performance-analysis ul {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        
-        .performance-analysis li {
-            margin: 5px 0;
-        }
-
-        .transaction-table {
-            width: 100%;
-            border-collapse: collapse;
+        .final-portfolio-status {
             margin: 20px 0;
-            font-size: 12px;
+            padding: 0;
         }
-        .transaction-table th {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            padding: 8px 4px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 11px;
+        
+        .portfolio-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
         }
-        .transaction-table td {
-            border: 1px solid #dee2e6;
-            padding: 6px 4px;
-            text-align: center;
-            font-size: 11px;
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
         }
-        .signal-check { color: #28a745; font-weight: bold; }
-        .signal-cross { color: #dc3545; font-weight: bold; }
-        .signal-neutral { color: #6c757d; }
-        .bb-position { font-size: 10px; }
+        
+        .summary-label {
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 0.875rem;
+        }
+        
+        .summary-value {
+            color: #1a202c;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        .signal-check { color: #38a169; font-weight: bold; }
+        .signal-cross { color: #e53e3e; font-weight: bold; }
+        .signal-neutral { color: #718096; }
+        .bb-position { font-size: 10px; color: #4a5568; }
 
         .global-summary {
             margin-bottom: 30px;
@@ -320,51 +361,58 @@
         
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
             margin: 20px 0;
         }
         
         .summary-card {
             text-align: center;
             padding: 20px;
-            border-radius: 12px;
-            color: white;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        
+        .summary-card:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e0;
         }
         
         .summary-card.total {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-left: 4px solid #3182ce;
         }
         
         .summary-card.buy {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-left: 4px solid #059669;
         }
         
         .summary-card.sell {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border-left: 4px solid #dc2626;
         }
         
         .summary-card.ratio {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-            color: #333;
+            border-left: 4px solid #7c3aed;
         }
         
         .summary-number {
-            font-size: 2.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #1a202c;
         }
         
         .summary-title {
-            font-size: 0.9em;
-            opacity: 0.9;
+            font-size: 0.875rem;
+            color: #4a5568;
+            font-weight: 500;
         }
         
         .dimension-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
+            gap: 12px;
             margin: 20px 0;
         }
         
@@ -372,25 +420,34 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 15px;
-            background: #f8f9fa;
+            padding: 16px;
+            background: #f8fafc;
             border-radius: 8px;
-            border-left: 4px solid #667eea;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        
+        .dim-summary-item:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e0;
         }
         
         .dim-name {
-            font-weight: bold;
-            color: #495057;
+            font-weight: 500;
+            color: #2d3748;
+            font-size: 0.875rem;
         }
         
         .dim-count {
-            font-weight: bold;
-            color: #007bff;
+            font-weight: 600;
+            color: #1a202c;
+            font-size: 0.875rem;
         }
         
         .dim-rate {
-            color: #6c757d;
-            font-size: 0.9em;
+            color: #6b7280;
+            font-size: 0.75rem;
+            margin-left: 8px;
         }
     </style>
 </head>
@@ -577,80 +634,7 @@
             
             <div class="transaction-details">
                 <h4>📈 详细交易记录</h4>
-                <div class="transaction-item sell">
-                    <div class="transaction-header">
-                        <span class="date">2022-04-01</span>
-                        <span class="action sell">卖出</span>
-                        <span class="stock">600985</span>
-                        <span class="price">¥11.32</span>
-                    </div>
-                    <div class="signal-details">
-                        <span class="signal-reason">卖出信号：趋势过滤器+2个卖出维度</span>
-                        <div class="signal-dimensions">
-                            <span class="dim-active">✓ 趋势过滤器</span>
-                            <span class="dim-active">✓ RSI信号</span>
-                            <span class="dim-active">✓ MACD信号</span>
-                            <span class="dim-inactive">✗ 布林带量能</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="transaction-item sell">
-                    <div class="transaction-header">
-                        <span class="date">2022-04-08</span>
-                        <span class="action sell">卖出</span>
-                        <span class="stock">601088</span>
-                        <span class="price">¥14.30</span>
-                    </div>
-                    <div class="signal-details">
-                        <span class="signal-reason">卖出信号：趋势过滤器+2个卖出维度</span>
-                        <div class="signal-dimensions">
-                            <span class="dim-active">✓ 趋势过滤器</span>
-                            <span class="dim-active">✓ RSI信号</span>
-                            <span class="dim-active">✓ MACD信号</span>
-                            <span class="dim-inactive">✗ 布林带量能</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <p class="note">💡 <strong>说明</strong>: 显示最近交易记录，完整记录请查看CSV导出文件</p>
-            </div>
-            
-            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px;">
-                <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
-                    <div>
-                        <strong style="color: #dc3545;">🔴 趋势过滤器（硬性条件）:</strong>
-                        <ul style="margin: 5px 0; padding-left: 20px;">
-                            <li>买入条件：收盘价 > 20周EMA 且 EMA向上</li>
-                            <li>卖出条件：收盘价 < 20周EMA 且 EMA向下</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <strong style="color: #007bff;">📊 超买/超卖:</strong>
-                        <ul style="margin: 5px 0; padding-left: 20px;">
-                            <li>买入条件：14周RSI > 70 且出现顶背离</li>
-                            <li>卖出条件：14周RSI < 30 且出现底背离</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <strong style="color: #28a745;">⚡ 动能确认:</strong>
-                        <ul style="margin: 5px 0; padding-left: 20px;">
-                            <li>买入条件：MACD柱体连续2根缩短 或 DIF金叉DEA</li>
-                            <li>卖出条件：MACD柱体连续2根缩短 或 DIF死叉DEA</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <strong style="color: #6f42c1;">🎯 极端价格+量能:</strong>
-                        <ul style="margin: 5px 0; padding-left: 20px;">
-                            <li>买入条件：收盘价布林下轨上，且 本周成交量>4周均量×1.3</li>
-                            <li>卖出条件：收盘价布林下轨上，且 本周成交量>4周均量×0.8</li>
-                        </ul>
-                    </div>
-                </div>
-                <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 5px;">
-                    <strong style="color: #0066cc;">✅ 交易条件：趋势过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
-                </div>
+                <!-- 交易记录表格将由Python代码动态生成 -->
             </div>
         </div>
         
