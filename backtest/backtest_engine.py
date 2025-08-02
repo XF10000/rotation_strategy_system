@@ -1582,6 +1582,7 @@ class BacktestEngine:
             Dict[str, str]: 生成的报告文件路径
         """
         try:
+            print(f"🔍 开始生成报告...")
             # 获取回测结果
             backtest_results = self.get_backtest_results()
             
@@ -1589,8 +1590,10 @@ class BacktestEngine:
                 self.logger.error("无法获取回测结果")
                 return {}
             
+            print(f"📊 回测结果获取成功，开始准备集成数据...")
             # 准备集成报告所需的数据结构
             integrated_results = self._prepare_integrated_results(backtest_results)
+            print(f"✅ 集成数据准备完成")
             
             # 生成集成HTML报告
             html_report_path = self.report_generator.generate_report(integrated_results)
@@ -1624,6 +1627,7 @@ class BacktestEngine:
         Returns:
             Dict[str, Any]: 集成报告数据结构
         """
+        print(f"🔍 开始准备集成报告数据...")
         try:
             # 基础指标
             basic_metrics = backtest_results.get('basic_metrics', {})
@@ -1708,7 +1712,9 @@ class BacktestEngine:
         max_drawdown = basic_metrics.get('max_drawdown', 0) * 100
         
         # 计算买入持有基准收益（基于实际股票池表现）
+        print(f"🔍 开始计算买入持有基准...")
         benchmark_return, benchmark_annual_return, benchmark_max_drawdown = self._calculate_buy_and_hold_benchmark()
+        print(f"📊 基准计算结果: 总收益率{benchmark_return:.2f}%, 年化{benchmark_annual_return:.2f}%, 最大回撤{benchmark_max_drawdown:.2f}%")
         
         return {
             'initial_capital': initial_capital,
@@ -1824,13 +1830,24 @@ class BacktestEngine:
             }
     
     def _prepare_kline_data(self) -> Dict[str, Any]:
-        """准备K线数据"""
+        """准备K线数据（包含技术指标）"""
         kline_data = {}
         
         # 调试信息
-        self.logger.info(f"准备K线数据，交易记录数量: {len(self.transaction_history)}")
+        print("\n=== K线数据准备开始 ===")
+        print(f"🔍 开始准备K线数据")
+        print(f"📊 股票数据总数: {len(self.stock_data)}")
+        print(f"📈 股票代码列表: {list(self.stock_data.keys())}")
+        print(f"📋 交易记录数量: {len(self.transaction_history)}")
         if self.transaction_history:
-            self.logger.info(f"交易记录示例: {self.transaction_history[0]}")
+            print(f"📝 交易记录示例: {self.transaction_history[0]}")
+        
+        self.logger.info(f"🔍 开始准备K线数据")
+        self.logger.info(f"📊 股票数据总数: {len(self.stock_data)}")
+        self.logger.info(f"📈 股票代码列表: {list(self.stock_data.keys())}")
+        self.logger.info(f"📋 交易记录数量: {len(self.transaction_history)}")
+        if self.transaction_history:
+            self.logger.info(f"📝 交易记录示例: {self.transaction_history[0]}")
         
         # 过滤回测期间的数据
         start_date = pd.to_datetime(self.start_date)
@@ -1846,6 +1863,15 @@ class BacktestEngine:
             
             # 准备K线数据点
             kline_points = []
+            # 准备技术指标数据
+            rsi_data = []
+            macd_data = []
+            macd_signal_data = []
+            macd_histogram_data = []
+            bb_upper_data = []
+            bb_middle_data = []
+            bb_lower_data = []
+            
             for idx, row in filtered_weekly_data.iterrows():
                 try:
                     # 确保时间戳格式正确
@@ -1855,6 +1881,7 @@ class BacktestEngine:
                         # 如果idx不是datetime，尝试转换
                         timestamp = int(pd.to_datetime(idx).timestamp() * 1000)
                     
+                    # K线数据
                     kline_points.append([
                         timestamp,  # 时间戳（毫秒）
                         float(row['open']),
@@ -1862,6 +1889,31 @@ class BacktestEngine:
                         float(row['low']),
                         float(row['high'])
                     ])
+                    
+                    # RSI数据
+                    if 'rsi' in row and pd.notna(row['rsi']):
+                        rsi_data.append([timestamp, float(row['rsi'])])
+                    
+                    # MACD数据
+                    if 'macd' in row and pd.notna(row['macd']):
+                        macd_data.append([timestamp, float(row['macd'])])
+                    
+                    if 'macd_signal' in row and pd.notna(row['macd_signal']):
+                        macd_signal_data.append([timestamp, float(row['macd_signal'])])
+                    
+                    if 'macd_histogram' in row and pd.notna(row['macd_histogram']):
+                        macd_histogram_data.append([timestamp, float(row['macd_histogram'])])
+                    
+                    # 布林带数据
+                    if 'bb_upper' in row and pd.notna(row['bb_upper']):
+                        bb_upper_data.append([timestamp, float(row['bb_upper'])])
+                    
+                    if 'bb_middle' in row and pd.notna(row['bb_middle']):
+                        bb_middle_data.append([timestamp, float(row['bb_middle'])])
+                    
+                    if 'bb_lower' in row and pd.notna(row['bb_lower']):
+                        bb_lower_data.append([timestamp, float(row['bb_lower'])])
+                        
                 except Exception as e:
                     self.logger.warning(f"处理K线数据点失败: {e}, 索引: {idx}")
                     continue
@@ -1889,17 +1941,29 @@ class BacktestEngine:
                             self.logger.warning(f"交易日期超出回测范围: {transaction['date']}")
                     except Exception as e:
                         self.logger.warning(f"处理交易点数据失败: {e}, 交易记录: {transaction}")
-            
+        
             self.logger.info(f"股票 {stock_code} 交易点数量: {stock_trade_count}")
+            self.logger.info(f"股票 {stock_code} 技术指标数据量: RSI {len(rsi_data)}, MACD {len(macd_data)}")
             
             kline_data[stock_code] = {
                 'kline': kline_points,
                 'trades': trade_points,
-                'name': stock_code  # 添加股票名称
+                'name': stock_code,  # 添加股票名称
+                # 添加技术指标数据
+                'rsi': rsi_data,
+                'macd': {
+                    'dif': macd_data,
+                    'dea': macd_signal_data,
+                    'histogram': macd_histogram_data
+                },
+                # 添加布林带数据
+                'bb_upper': bb_upper_data,
+                'bb_middle': bb_middle_data,
+                'bb_lower': bb_lower_data
             }
         
         return kline_data
-    
+
     def _calculate_buy_and_hold_benchmark(self) -> Tuple[float, float, float]:
         """
         计算买入持有基准收益（基于实际股票池表现）
@@ -1908,8 +1972,11 @@ class BacktestEngine:
             Tuple[float, float, float]: (总收益率%, 年化收益率%, 最大回撤%)
         """
         try:
+            print(f"🔍 基准计算开始 - 股票数据数量: {len(self.stock_data) if self.stock_data else 0}")
+            print(f"🔍 回测日期范围: {self.start_date} 到 {self.end_date}")
+            
             if not self.stock_data:
-                # 如果没有股票数据，返回默认值
+                print("⚠️ 没有股票数据，使用默认基准值")
                 return 45.0, 12.0, -18.0
             
             # 计算等权重买入持有策略的表现

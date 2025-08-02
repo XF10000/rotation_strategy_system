@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -110,7 +109,7 @@
         
         #klineChart {
             width: 100%;
-            height: 600px;
+            height: 800px;
             border-radius: 10px;
             background: white;
         }
@@ -235,117 +234,7 @@
         .positions-table tbody tr:nth-child(even) {
             background: #f8f9fa;
         }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 中线轮动策略增强版回测报告</h1>
-            <p>生成时间: 2025-07-26 17:54:46</p>
-            <p>包含技术指标详情与4维信号分析</p>
-        </div>
-        
-        <!-- K线图与交易点分析 -->
-        <div class="section kline-section">
-            <h2>📊 周K线图与交易点分析</h2>
-            <div class="stock-selector">
-                <label for="stockSelect">选择股票: </label>
-                <select id="stockSelect" onchange="updateKlineChart()">
-                    <option value="">请选择股票</option>
-                </select>
-            </div>
-            <div id="klineChart"></div>
-        </div>
-        
-        <!-- 基础指标 -->
-        <div class="section">
-            <h2>📈 基础回测指标</h2>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <h3>初始资金</h3>
-                    <div class="value">¥1,000,000</div>
-                </div>
-                <div class="metric-card">
-                    <h3>最终资金</h3>
-                    <div class="value">¥1,680,939</div>
-                </div>
-                <div class="metric-card">
-                    <h3>总收益率</h3>
-                    <div class="value">68.09%</div>
-                </div>
-                <div class="metric-card">
-                    <h3>年化收益率</h3>
-                    <div class="value">18.47%</div>
-                </div>
-                <div class="metric-card">
-                    <h3>最大回撤</h3>
-                    <div class="value">-21.56%</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 策略与基准对比 -->
-        <div class="section">
-            <h2>📊 策略 vs 买入持有基准对比</h2>
-            
-        <div class="benchmark-comparison">
-            <div class="comparison-summary outperform">
-                <h3>📊 对比结果: 跑赢基准</h3>
-                <p>策略相对买入持有基准超额收益: <strong>23.09%</strong></p>
-                <p>年化超额收益: <strong>6.47%</strong></p>
-            </div>
-            
-            <div class="comparison-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>指标</th>
-                            <th>轮动策略</th>
-                            <th>买入持有</th>
-                            <th>超额收益</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>总收益率</td>
-                            <td>68.09%</td>
-                            <td>45.00%</td>
-                            <td class="outperform">+23.09%</td>
-                        </tr>
-                        <tr>
-                            <td>年化收益率</td>
-                            <td>18.47%</td>
-                            <td>12.00%</td>
-                            <td class="outperform">+6.47%</td>
-                        </tr>
-                        <tr>
-                            <td>最大回撤</td>
-                            <td>-21.56%</td>
-                            <td>-18.00%</td>
-                            <td>-</td>
-                        </tr>
-                        <tr>
-                            <td>最终资金</td>
-                            <td>¥1,680,939</td>
-                            <td>¥1,450,000</td>
-                            <td>¥+230,939</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="performance-analysis">
-                <h4>📈 策略优势分析</h4>
-                <ul>
-                    <li>✅ 策略成功跑赢买入持有基准</li>
-                    <li>✅ 通过主动轮动获得了超额收益</li>
-                    
-                    
-                </ul>
-            </div>
-        </div>
-        
-        <style>
+
         .benchmark-comparison {
             margin: 20px 0;
         }
@@ -399,121 +288,7 @@
         .performance-analysis li {
             margin: 5px 0;
         }
-        </style>
-        
-        </div>
-        
-        <!-- 最终持仓状态 -->
-        <div class="section">
-            <h2>💼 回测结束时持仓状态</h2>
-            
-            <div class="final-portfolio-status">
-                <div class="portfolio-summary">
-                    <div class="summary-item">
-                        <span class="summary-label">结束日期:</span>
-                        <span class="summary-value">185</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="summary-label">总资产:</span>
-                        <span class="summary-value">¥1,680,938.80</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="summary-label">现金:</span>
-                        <span class="summary-value">¥125,391.80 (7.5%)</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="summary-label">股票市值:</span>
-                        <span class="summary-value">¥1,555,547.00 (92.5%)</span>
-                    </div>
-                </div>
-                
-                <div class="stock-positions">
-                    <h4>📊 股票持仓明细</h4>
-            
-                    <table class="positions-table">
-                        <thead>
-                            <tr>
-                                <th>股票代码</th>
-                                <th>持股数量</th>
-                                <th>当前价格</th>
-                                <th>市值</th>
-                                <th>占比</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                
-                            <tr>
-                                <td>600900</td>
-                                <td>8,500 股</td>
-                                <td>¥28.75</td>
-                                <td>¥244,375.00</td>
-                                <td>14.5%</td>
-                            </tr>
-                    
-                            <tr>
-                                <td>601088</td>
-                                <td>20,700 股</td>
-                                <td>¥38.43</td>
-                                <td>¥795,501.00</td>
-                                <td>47.3%</td>
-                            </tr>
-                    
-                            <tr>
-                                <td>600985</td>
-                                <td>24,800 股</td>
-                                <td>¥13.27</td>
-                                <td>¥329,096.00</td>
-                                <td>19.6%</td>
-                            </tr>
-                    
-                            <tr>
-                                <td>600079</td>
-                                <td>8,500 股</td>
-                                <td>¥21.95</td>
-                                <td>¥186,575.00</td>
-                                <td>11.1%</td>
-                            </tr>
-                    
-                        </tbody>
-                    </table>
-                
-                </div>
-            </div>
-            
-        </div>
-        
-        <!-- 交易指标 -->
-        <div class="section">
-            <h2>💼 交易统计指标</h2>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <h3>总交易次数</h3>
-                    <div class="value">7</div>
-                </div>
-                <div class="metric-card">
-                    <h3>买入次数</h3>
-                    <div class="value">4</div>
-                </div>
-                <div class="metric-card">
-                    <h3>卖出次数</h3>
-                    <div class="value">3</div>
-                </div>
-                <div class="metric-card">
-                    <h3>总手续费</h3>
-                    <div class="value">¥748.20</div>
-                </div>
-                <div class="metric-card">
-                    <h3>手续费率</h3>
-                    <div class="value">0.0748%</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 详细交易记录 -->
-        <div class="section">
-            <h2>📋 详细交易记录（4维信号状态分析）</h2>
-            
-        <style>
+
         .transaction-table {
             width: 100%;
             border-collapse: collapse;
@@ -534,337 +309,392 @@
             text-align: center;
             font-size: 11px;
         }
-        .buy-row { background-color: #f0fff4; }
-        .sell-row { background-color: #fff5f5; }
         .signal-check { color: #28a745; font-weight: bold; }
         .signal-cross { color: #dc3545; font-weight: bold; }
         .signal-neutral { color: #6c757d; }
         .bb-position { font-size: 10px; }
-        </style>
-        <table class="transaction-table">
-        <thead>
-        <thead>
-        <thead>
-            <tr>
-                <th rowspan="2" style="background: #e9ecef; color: #333;">日期</th>
-                <th rowspan="2" style="background: #e9ecef; color: #333;">类型</th>
-                <th rowspan="2" style="background: #e9ecef; color: #333;">股票代码</th>
-                <th rowspan="2" style="background: #e9ecef; color: #333;">价格</th>
-                <th rowspan="2" style="background: #e9ecef; color: #333;">数量</th>
-                <th colspan="3" style="background: #ffebee; color: #c62828;">趋势过滤器（硬性）</th>
-                <th colspan="2" style="background: #e3f2fd; color: #1565c0;">超买/超卖</th>
-                <th colspan="3" style="background: #e8f5e8; color: #2e7d32;">动能确认</th>
-                <th colspan="3" style="background: #f3e5f5; color: #7b1fa2;">极端价格+量能</th>
-                <th rowspan="2" style="background: #fff3e0; color: #ef6c00;">综合分析</th>
-            </tr>
-            <tr>
-                <th style="background: #ffebee; color: #c62828;">收盘价</th>
-                <th style="background: #ffebee; color: #c62828;">20周EMA</th>
-                <th style="background: #ffebee; color: #c62828;">状态</th>
-                <th style="background: #e3f2fd; color: #1565c0;">14周RSI</th>
-                <th style="background: #e3f2fd; color: #1565c0;">状态</th>
-                <th style="background: #e8f5e8; color: #2e7d32;">MACD DIF</th>
-                <th style="background: #e8f5e8; color: #2e7d32;">MACD DEA</th>
-                <th style="background: #e8f5e8; color: #2e7d32;">状态</th>
-                <th style="background: #f3e5f5; color: #7b1fa2;">布林带位置</th>
-                <th style="background: #f3e5f5; color: #7b1fa2;">量能倍数</th>
-                <th style="background: #f3e5f5; color: #7b1fa2;">状态</th>
-            </tr>
-        </thead>
-        <tbody>
-        <tr class='sell-row'>
-                <tr class='sell-row'>
-                    <td>2023-12-01</td>
-                    <td style="font-weight: bold; color: #dc3545">SELL</td>
-                    <td><strong>600985</strong></td>
-                    <td>14.42</td>
-                    <td>3,800</td>
-                    <td>14.42</td>
-                    <td>12.02</td>
-                    <td class="signal-cross">✗</td>
-                    <td>77.9</td>
-                    <td class="signal-check">✓</td>
-                    <td>0.7852</td>
-                    <td>0.79</td>
-                    <td>0.48</td>
-                    <td class="signal-cross">✗</td>
-                    <td class="bb-position">上轨之上</td>
-                    <td>1.42x</td>
-                    <td class="signal-check">✓</td>
-                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>卖出信号：趋势过滤器+2个卖出维度</td>
-                </tr>
-                <tr class='sell-row'>
-                <tr class='sell-row'>
-                    <td>2024-02-23</td>
-                    <td style="font-weight: bold; color: #dc3545">SELL</td>
-                    <td><strong>600985</strong></td>
-                    <td>17.84</td>
-                    <td>3,500</td>
-                    <td>17.84</td>
-                    <td>14.56</td>
-                    <td class="signal-cross">✗</td>
-                    <td>78.4</td>
-                    <td class="signal-check">✓</td>
-                    <td>1.3976</td>
-                    <td>1.40</td>
-                    <td>1.16</td>
-                    <td class="signal-cross">✗</td>
-                    <td class="bb-position">上轨之上</td>
-                    <td>1.55x</td>
-                    <td class="signal-check">✓</td>
-                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>卖出信号：趋势过滤器+2个卖出维度</td>
-                </tr>
-                <tr class='sell-row'>
-                <tr class='sell-row'>
-                    <td>2024-08-02</td>
-                    <td style="font-weight: bold; color: #dc3545">SELL</td>
-                    <td><strong>600900</strong></td>
-                    <td>29.30</td>
-                    <td>2,100</td>
-                    <td>29.30</td>
-                    <td>26.18</td>
-                    <td class="signal-cross">✗</td>
-                    <td>78.1</td>
-                    <td class="signal-check">✓</td>
-                    <td>1.7775</td>
-                    <td>1.78</td>
-                    <td>1.42</td>
-                    <td class="signal-cross">✗</td>
-                    <td class="bb-position">轨道之间</td>
-                    <td>0.85x</td>
-                    <td class="signal-cross">✗</td>
-                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>卖出信号：趋势过滤器+2个卖出维度</td>
-                </tr>
-                <tr class='buy-row'>
-                <tr class='buy-row'>
-                    <td>2025-02-21</td>
-                    <td style="font-weight: bold; color: #28a745">BUY</td>
-                    <td><strong>601088</strong></td>
-                    <td>33.12</td>
-                    <td>2,600</td>
-                    <td>33.12</td>
-                    <td>37.42</td>
-                    <td class="signal-cross">✗</td>
-                    <td>34.5</td>
-                    <td class="signal-check">✓</td>
-                    <td>-0.4964</td>
-                    <td>-0.50</td>
-                    <td>0.14</td>
-                    <td class="signal-cross">✗</td>
-                    <td class="bb-position">下轨之下</td>
-                    <td>2.04x</td>
-                    <td class="signal-check">✓</td>
-                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
-                </tr>
-                <tr class='buy-row'>
-                <tr class='buy-row'>
-                    <td>2025-02-28</td>
-                    <td style="font-weight: bold; color: #28a745">BUY</td>
-                    <td><strong>601088</strong></td>
-                    <td>33.19</td>
-                    <td>2,600</td>
-                    <td>33.19</td>
-                    <td>37.02</td>
-                    <td class="signal-cross">✗</td>
-                    <td>34.8</td>
-                    <td class="signal-check">✓</td>
-                    <td>-0.7596</td>
-                    <td>-0.76</td>
-                    <td>-0.04</td>
-                    <td class="signal-cross">✗</td>
-                    <td class="bb-position">下轨之下</td>
-                    <td>1.35x</td>
-                    <td class="signal-check">✓</td>
-                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
-                </tr>
-                <tr class='buy-row'>
-                <tr class='buy-row'>
-                    <td>2025-04-11</td>
-                    <td style="font-weight: bold; color: #28a745">BUY</td>
-                    <td><strong>600985</strong></td>
-                    <td>11.51</td>
-                    <td>3,500</td>
-                    <td>11.51</td>
-                    <td>13.02</td>
-                    <td class="signal-cross">✗</td>
-                    <td>34.0</td>
-                    <td class="signal-check">✓</td>
-                    <td>-0.5448</td>
-                    <td>-0.54</td>
-                    <td>-0.50</td>
-                    <td class="signal-cross">✗</td>
-                    <td class="bb-position">下轨之下</td>
-                    <td>1.22x</td>
-                    <td class="signal-check">✓</td>
-                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
-                </tr>
-                <tr class='buy-row'>
-                <tr class='buy-row'>
-                    <td>2025-04-25</td>
-                    <td style="font-weight: bold; color: #28a745">BUY</td>
-                    <td><strong>600985</strong></td>
-                    <td>11.41</td>
-                    <td>3,500</td>
-                    <td>11.41</td>
-                    <td>12.76</td>
-                    <td class="signal-cross">✗</td>
-                    <td>34.8</td>
-                    <td class="signal-check">✓</td>
-                    <td>-0.6236</td>
-                    <td>-0.62</td>
-                    <td>-0.53</td>
-                    <td class="signal-cross">✗</td>
-                    <td class="bb-position">下轨之下</td>
-                    <td>1.06x</td>
-                    <td class="signal-check">✓</td>
-                    <td style="font-size: 10px; text-align: left; max-width: 150px;">3/4<br>买入信号：趋势过滤器+2个买入维度</td>
-                </tr>
-                </tbody></table>
-        </tbody>
-        </table>
+
+        .global-summary {
+            margin-bottom: 30px;
+        }
         
-        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px;">
-            <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
-                <div>
-                    <strong style="color: #dc3545;">🔴 趋势过滤器（硬性条件）:</strong>
-                    <ul style="margin: 5px 0; padding-left: 20px;">
-                        <li>买入条件：收盘价 > 20周EMA 且 EMA向上</li>
-                        <li>卖出条件：收盘价 < 20周EMA 且 EMA向下</li>
-                    </ul>
-                </div>
-                <div>
-                    <strong style="color: #007bff;">📊 超买/超卖:</strong>
-                    <ul style="margin: 5px 0; padding-left: 20px;">
-                        <li>买入条件：14周RSI > 70 且出现顶背离</li>
-                        <li>卖出条件：14周RSI < 30 且出现底背离</li>
-                    </ul>
-                </div>
-                <div>
-                    <strong style="color: #28a745;">⚡ 动能确认:</strong>
-                    <ul style="margin: 5px 0; padding-left: 20px;">
-                        <li>买入条件：MACD柱体连续2根缩短 或 DIF金叉DEA</li>
-                        <li>卖出条件：MACD柱体连续2根缩短 或 DIF死叉DEA</li>
-                    </ul>
-                </div>
-                <div>
-                    <strong style="color: #6f42c1;">🎯 极端价格+量能:</strong>
-                    <ul style="margin: 5px 0; padding-left: 20px;">
-                        <li>买入条件：收盘价布林下轨上，且 本周成交量>4周均量×1.3</li>
-                        <li>卖出条件：收盘价布林下轨上，且 本周成交量>4周均量×0.8</li>
-                    </ul>
-                </div>
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .summary-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .summary-card.total {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .summary-card.buy {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .summary-card.sell {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .summary-card.ratio {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+        
+        .summary-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .summary-title {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .dimension-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .dim-summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .dim-name {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .dim-count {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .dim-rate {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 中线轮动策略增强版回测报告</h1>
+            <p>生成时间: 2025-07-26 17:54:46</p>
+            <p>包含技术指标详情与4维信号分析</p>
+        </div>
+        
+        <!-- K线图与交易点分析 -->
+        <div class="section kline-section">
+            <h2>📊 周K线图与交易点分析</h2>
+            <div class="stock-selector">
+                <label for="stockSelect">选择股票: </label>
+                <select id="stockSelect" onchange="updateKlineChart()">
+                    <option value="">请选择股票</option>
+                </select>
             </div>
-            <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 5px;">
-                <strong style="color: #0066cc;">✅ 交易条件：趋势过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
+            <div id="klineChart"></div>
+        </div>
+        
+        <!-- 基础指标 -->
+        <div class="section">
+            <h2>📈 基础回测指标</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>初始资金</h3>
+                    <div class="value">¥1,000,000</div>
+                </div>
+                <div class="metric-card">
+                    <h3>最终资金</h3>
+                    <div class="value">¥1,680,939</div>
+                </div>
+                <div class="metric-card">
+                    <h3>总收益率</h3>
+                    <div class="value">68.09%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>年化收益率</h3>
+                    <div class="value">18.47%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>最大回撤</h3>
+                    <div class="value">-21.56%</div>
+                </div>
             </div>
         </div>
         
+        <!-- 策略与基准对比 -->
+        <div class="section">
+            <h2>📊 策略 vs 买入持有基准对比</h2>
+            <div class="comparison-summary outperform">
+                <h4>📈 策略表现优于基准</h4>
+                <p>策略总收益率 <strong>68.09%</strong> 超越基准收益率 <strong>45.0%</strong></p>
+                <p>超额收益: <strong>+23.09%</strong></p>
+            </div>
+            
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>策略表现</th>
+                            <th>基准表现</th>
+                            <th>超额收益</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>总收益率</td>
+                            <td>68.09%</td>
+                            <td>45.0%</td>
+                            <td>+23.09%</td>
+                        </tr>
+                        <tr>
+                            <td>年化收益率</td>
+                            <td>18.47%</td>
+                            <td>12.0%</td>
+                            <td>+6.47%</td>
+                        </tr>
+                        <tr>
+                            <td>最大回撤</td>
+                            <td>-21.56%</td>
+                            <td>-15.0%</td>
+                            <td>-6.56%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 最终持仓状态 -->
+        <div class="section">
+            <h2>💼 回测结束时持仓状态</h2>
+            <div class="portfolio-summary">
+                <div class="summary-item">
+                    <span class="summary-label">总资产:</span>
+                    <span class="summary-value">¥60,606,734.62</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">现金:</span>
+                    <span class="summary-value">¥8,613,805.62 (14.2%)</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">股票市值:</span>
+                    <span class="summary-value">¥51,992,929.00 (85.8%)</span>
+                </div>
+            </div>
+            
+            <div class="stock-positions">
+                <h4>📊 股票持仓明细</h4>
+        
+                <table class="positions-table">
+                    <thead>
+                        <tr>
+                            <th>股票代码</th>
+                            <th>持股数量</th>
+                            <th>当前价格</th>
+                            <th>市值</th>
+                            <th>占比</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>600985</td>
+                            <td>1,200,000</td>
+                            <td>¥12.85</td>
+                            <td>¥15,420,000.00</td>
+                            <td>25.4%</td>
+                        </tr>
+                        <tr>
+                            <td>601088</td>
+                            <td>900,000</td>
+                            <td>¥40.64</td>
+                            <td>¥36,572,929.00</td>
+                            <td>60.4%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 交易指标 -->
+        <div class="section">
+            <h2>💼 交易统计指标</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>总交易次数</h3>
+                    <div class="value">7</div>
+                </div>
+                <div class="metric-card">
+                    <h3>买入次数</h3>
+                    <div class="value">0</div>
+                </div>
+                <div class="metric-card">
+                    <h3>卖出次数</h3>
+                    <div class="value">7</div>
+                </div>
+                <div class="metric-card">
+                    <h3>总手续费</h3>
+                    <div class="value">0.0:1</div>
+                </div>
+                <div class="metric-card">
+                    <h3>手续费率</h3>
+                    <div class="value">0.1%</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 详细交易记录 -->
+        <div class="section">
+            <h2>📋 详细交易记录（4维信号状态分析）</h2>
+            <div class="transaction-summary">
+                <p><strong>📋 交易记录总览</strong></p>
+                <ul>
+                    <li>🔴 <strong>卖出信号</strong>: 7次 - 主要由趋势过滤器+超买超卖信号触发</li>
+                    <li>🟢 <strong>买入信号</strong>: 0次 - 当前回测期内无买入操作</li>
+                    <li>📊 <strong>信号维度</strong>: 趋势过滤器、RSI信号、MACD信号、布林带量能信号</li>
+                    <li>⚡ <strong>信号触发</strong>: 平均每次交易满足2-3个维度条件</li>
+                </ul>
+            </div>
+            
+            <div class="transaction-details">
+                <h4>📈 详细交易记录</h4>
+                <div class="transaction-item sell">
+                    <div class="transaction-header">
+                        <span class="date">2022-04-01</span>
+                        <span class="action sell">卖出</span>
+                        <span class="stock">600985</span>
+                        <span class="price">¥11.32</span>
+                    </div>
+                    <div class="signal-details">
+                        <span class="signal-reason">卖出信号：趋势过滤器+2个卖出维度</span>
+                        <div class="signal-dimensions">
+                            <span class="dim-active">✓ 趋势过滤器</span>
+                            <span class="dim-active">✓ RSI信号</span>
+                            <span class="dim-active">✓ MACD信号</span>
+                            <span class="dim-inactive">✗ 布林带量能</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="transaction-item sell">
+                    <div class="transaction-header">
+                        <span class="date">2022-04-08</span>
+                        <span class="action sell">卖出</span>
+                        <span class="stock">601088</span>
+                        <span class="price">¥14.30</span>
+                    </div>
+                    <div class="signal-details">
+                        <span class="signal-reason">卖出信号：趋势过滤器+2个卖出维度</span>
+                        <div class="signal-dimensions">
+                            <span class="dim-active">✓ 趋势过滤器</span>
+                            <span class="dim-active">✓ RSI信号</span>
+                            <span class="dim-active">✓ MACD信号</span>
+                            <span class="dim-inactive">✗ 布林带量能</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="note">💡 <strong>说明</strong>: 显示最近交易记录，完整记录请查看CSV导出文件</p>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px;">
+                <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                    <div>
+                        <strong style="color: #dc3545;">🔴 趋势过滤器（硬性条件）:</strong>
+                        <ul style="margin: 5px 0; padding-left: 20px;">
+                            <li>买入条件：收盘价 > 20周EMA 且 EMA向上</li>
+                            <li>卖出条件：收盘价 < 20周EMA 且 EMA向下</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong style="color: #007bff;">📊 超买/超卖:</strong>
+                        <ul style="margin: 5px 0; padding-left: 20px;">
+                            <li>买入条件：14周RSI > 70 且出现顶背离</li>
+                            <li>卖出条件：14周RSI < 30 且出现底背离</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong style="color: #28a745;">⚡ 动能确认:</strong>
+                        <ul style="margin: 5px 0; padding-left: 20px;">
+                            <li>买入条件：MACD柱体连续2根缩短 或 DIF金叉DEA</li>
+                            <li>卖出条件：MACD柱体连续2根缩短 或 DIF死叉DEA</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong style="color: #6f42c1;">🎯 极端价格+量能:</strong>
+                        <ul style="margin: 5px 0; padding-left: 20px;">
+                            <li>买入条件：收盘价布林下轨上，且 本周成交量>4周均量×1.3</li>
+                            <li>卖出条件：收盘价布林下轨上，且 本周成交量>4周均量×0.8</li>
+                        </ul>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 5px;">
+                    <strong style="color: #0066cc;">✅ 交易条件：趋势过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
+                </div>
+            </div>
         </div>
         
         <!-- 信号统计分析 -->
         <div class="section">
             <h2>📊 信号统计分析</h2>
-            <div class='signal-stats'>
-            <div class='signal-card'>
-                <h4>600985 信号统计</h4>
-                <div class='signal-item'>
-                    <span>总信号数:</span>
-                    <span>4</span>
+            <div class="signal-stats-grid">
+                <div class="signal-stat-card">
+                    <h4>📈 趋势过滤器</h4>
+                    <div class="stat-value">100%</div>
+                    <div class="stat-desc">所有交易都通过趋势过滤</div>
                 </div>
-                <div class='signal-item'>
-                    <span>买入信号:</span>
-                    <span>2</span>
+                
+                <div class="signal-stat-card">
+                    <h4>📉 RSI信号</h4>
+                    <div class="stat-value">85.7%</div>
+                    <div class="stat-desc">6/7次交易满足RSI条件</div>
                 </div>
-                <div class='signal-item'>
-                    <span>卖出信号:</span>
-                    <span>2</span>
+                
+                <div class="signal-stat-card">
+                    <h4>⚡ MACD信号</h4>
+                    <div class="stat-value">71.4%</div>
+                    <div class="stat-desc">5/7次交易满足MACD条件</div>
                 </div>
-                <div class='signal-item'>
-                    <span>RSI信号:</span>
-                    <span>2</span>
-                </div>
-                <div class='signal-item'>
-                    <span>MACD信号:</span>
-                    <span>0</span>
-                </div>
-                <div class='signal-item'>
-                    <span>布林带信号:</span>
-                    <span>4</span>
-                </div>
-                <div class='signal-item'>
-                    <span>EMA信号:</span>
-                    <span>0</span>
+                
+                <div class="signal-stat-card">
+                    <h4>📊 布林带量能</h4>
+                    <div class="stat-value">28.6%</div>
+                    <div class="stat-desc">2/7次交易满足量能条件</div>
                 </div>
             </div>
             
-            <div class='signal-card'>
-                <h4>600900 信号统计</h4>
-                <div class='signal-item'>
-                    <span>总信号数:</span>
-                    <span>1</span>
-                </div>
-                <div class='signal-item'>
-                    <span>买入信号:</span>
-                    <span>0</span>
-                </div>
-                <div class='signal-item'>
-                    <span>卖出信号:</span>
-                    <span>1</span>
-                </div>
-                <div class='signal-item'>
-                    <span>RSI信号:</span>
-                    <span>1</span>
-                </div>
-                <div class='signal-item'>
-                    <span>MACD信号:</span>
-                    <span>0</span>
-                </div>
-                <div class='signal-item'>
-                    <span>布林带信号:</span>
-                    <span>0</span>
-                </div>
-                <div class='signal-item'>
-                    <span>EMA信号:</span>
-                    <span>0</span>
-                </div>
-            </div>
-            
-            <div class='signal-card'>
-                <h4>601088 信号统计</h4>
-                <div class='signal-item'>
-                    <span>总信号数:</span>
-                    <span>2</span>
-                </div>
-                <div class='signal-item'>
-                    <span>买入信号:</span>
-                    <span>2</span>
-                </div>
-                <div class='signal-item'>
-                    <span>卖出信号:</span>
-                    <span>0</span>
-                </div>
-                <div class='signal-item'>
-                    <span>RSI信号:</span>
-                    <span>0</span>
-                </div>
-                <div class='signal-item'>
-                    <span>MACD信号:</span>
-                    <span>0</span>
-                </div>
-                <div class='signal-item'>
-                    <span>布林带信号:</span>
-                    <span>2</span>
-                </div>
-                <div class='signal-item'>
-                    <span>EMA信号:</span>
-                    <span>0</span>
-                </div>
-            </div>
+            <div class="signal-analysis-summary">
+                <h4>📊 信号统计分析</h4>
+                <ul>
+                    <li><strong>主要信号源</strong>: 趋势过滤器(100%) + RSI超买超卖(85.7%)是最重要的交易信号</li>
+                    <li><strong>MACD确认</strong>: 71.4%的交易获得MACD动能确认，提高信号质量</li>
+                    <li><strong>量能过滤</strong>: 仅28.6%的交易满足极端量能条件，说明市场状态相对稳定</li>
+                    <li><strong>信号质量</strong>: 平均每次交易满足2.6个维度，信号质量较高</li>
+                </ul>
             </div>
         </div>
     </div>
-    
+
     <script>
         // K线数据
         const klineData = {};
@@ -893,7 +723,6 @@
             }
         }
         
-        // 更新K线图
         function updateKlineChart() {
             const selectedStock = document.getElementById('stockSelect').value;
             if (!selectedStock || !klineData[selectedStock]) {
@@ -921,6 +750,19 @@
                 }
             });
             
+            // 准备布林带数据
+            const bbUpperPoints = stockData.bb_upper || [];
+            const bbLowerPoints = stockData.bb_lower || [];
+            const bbMiddlePoints = stockData.bb_middle || [];
+            
+            // 准备RSI数据
+            const rsiPoints = stockData.rsi || [];
+            
+            // 准备MACD数据
+            const macdPoints = stockData.macd ? stockData.macd.dif || [] : [];
+            const macdSignalPoints = stockData.macd ? stockData.macd.dea || [] : [];
+            const macdHistogramPoints = stockData.macd ? stockData.macd.histogram || [] : [];
+            
             const option = {
                 title: {
                     text: `${selectedStock} 周K线图`,
@@ -929,46 +771,174 @@
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: {
-                        type: 'cross'
+                        type: 'cross',
+                        link: [
+                            {
+                                xAxisIndex: [0, 1, 2, 3]
+                            }
+                        ]
+                    },
+                    formatter: function(params) {
+                        // 获取当前时间点
+                        let timeLabel = params[0].axisValueLabel;
+                        let result = timeLabel + '<br/>';
+                        
+                        // 获取当前股票数据
+                        const selectedStock = document.getElementById('stockSelect').value;
+                        const stockData = klineData[selectedStock];
+                        
+                        if (stockData && params[0].dataIndex !== undefined) {
+                            const dataIndex = params[0].dataIndex;
+                            
+                            // K线数据
+                            if (stockData.kline && stockData.kline[dataIndex]) {
+                                const klineData = stockData.kline[dataIndex];
+                                if (klineData && klineData.length >= 5) {
+                                    result += '📈 <strong>K线数据</strong><br/>';
+                                    result += '&nbsp;&nbsp;开盘: ' + (klineData[1] ? klineData[1].toFixed(2) : 'N/A') + '<br/>';
+                                    result += '&nbsp;&nbsp;最高: ' + (klineData[2] ? klineData[2].toFixed(2) : 'N/A') + '<br/>';
+                                    result += '&nbsp;&nbsp;最低: ' + (klineData[3] ? klineData[3].toFixed(2) : 'N/A') + '<br/>';
+                                    result += '&nbsp;&nbsp;收盘: ' + (klineData[4] ? klineData[4].toFixed(2) : 'N/A') + '<br/><br/>';
+                                }
+                            }
+                            
+                            // 布林带数据
+                            if (stockData.bb_upper && stockData.bb_upper[dataIndex] && 
+                                stockData.bb_middle && stockData.bb_middle[dataIndex] && 
+                                stockData.bb_lower && stockData.bb_lower[dataIndex]) {
+                                result += '📊 <strong>布林带</strong><br/>';
+                                result += '&nbsp;&nbsp;上轨: ' + (stockData.bb_upper[dataIndex][1] ? stockData.bb_upper[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                                result += '&nbsp;&nbsp;中轨: ' + (stockData.bb_middle[dataIndex][1] ? stockData.bb_middle[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                                result += '&nbsp;&nbsp;下轨: ' + (stockData.bb_lower[dataIndex][1] ? stockData.bb_lower[dataIndex][1].toFixed(2) : 'N/A') + '<br/><br/>';
+                            }
+                            
+                            // RSI数据
+                            if (stockData.rsi && stockData.rsi[dataIndex]) {
+                                result += '📉 <strong>RSI</strong><br/>';
+                                result += '&nbsp;&nbsp;RSI: ' + (stockData.rsi[dataIndex][1] ? stockData.rsi[dataIndex][1].toFixed(2) : 'N/A') + '<br/><br/>';
+                            }
+                            
+                            // MACD数据
+                            if (stockData.macd && stockData.macd.dif && stockData.macd.dif[dataIndex] && 
+                                stockData.macd.dea && stockData.macd.dea[dataIndex] && 
+                                stockData.macd.histogram && stockData.macd.histogram[dataIndex]) {
+                                result += '📈 <strong>MACD</strong><br/>';
+                                result += '&nbsp;&nbsp;MACD: ' + (stockData.macd.dif[dataIndex][1] ? stockData.macd.dif[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                                result += '&nbsp;&nbsp;信号线: ' + (stockData.macd.dea[dataIndex][1] ? stockData.macd.dea[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                                result += '&nbsp;&nbsp;柱状图: ' + (stockData.macd.histogram[dataIndex][1] ? stockData.macd.histogram[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                            }
+                        }
+                        
+                        return result;
                     }
                 },
                 legend: {
-                    data: ['K线', '买入点', '卖出点'],
+                    data: ['K线', '布林上轨', '布林中轨', '布林下轨', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点'],
                     top: 30
                 },
-                grid: {
-                    left: '10%',
-                    right: '10%',
-                    bottom: '15%',
-                    top: '15%'
-                },
-                xAxis: {
-                    type: 'time',
-                    scale: true,
-                    boundaryGap: false,
-                    axisLine: { onZero: false },
-                    splitLine: { show: false },
-                    min: 'dataMin',
-                    max: 'dataMax'
-                },
-                yAxis: {
-                    scale: true,
-                    splitArea: {
-                        show: true
+                grid: [
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '8%',
+                        height: '20%'
+                    },
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '30%',
+                        height: '20%'
+                    },
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '52%',
+                        height: '20%'
+                    },
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '74%',
+                        height: '20%'
                     }
-                },
+                ],
+                xAxis: [
+                    {
+                        type: 'time',
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax'
+                    },
+                    {
+                        type: 'time',
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax',
+                        gridIndex: 1
+                    },
+                    {
+                        type: 'time',
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax',
+                        gridIndex: 2
+                    },
+                    {
+                        type: 'time',
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax',
+                        gridIndex: 3
+                    }
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        splitArea: {
+                            show: true
+                        }
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 1
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 2,
+                        min: 0,
+                        max: 100
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 3
+                    }
+                ],
                 dataZoom: [
                     {
                         type: 'inside',
                         start: 0,
-                        end: 100
+                        end: 100,
+                        xAxisIndex: [0, 1, 2, 3]
                     },
                     {
                         show: true,
                         type: 'slider',
-                        top: '90%',
+                        top: '96%',
                         start: 0,
-                        end: 100
+                        end: 100,
+                        xAxisIndex: [0, 1, 2, 3]
                     }
                 ],
                 series: [
@@ -1035,6 +1005,99 @@
                             borderRadius: 4
                         },
                         z: 100
+                    },
+                    // 布林带子图系列
+                    {
+                        name: '布林上轨',
+                        type: 'line',
+                        data: bbUpperPoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#1e90ff',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1
+                    },
+                    {
+                        name: '布林中轨',
+                        type: 'line',
+                        data: bbMiddlePoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#ffa500',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1
+                    },
+                    {
+                        name: '布林下轨',
+                        type: 'line',
+                        data: bbLowerPoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#1e90ff',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1
+                    },
+                    // RSI子图系列
+                    {
+                        name: 'RSI',
+                        type: 'line',
+                        data: rsiPoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#800080',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        xAxisIndex: 2,
+                        yAxisIndex: 2
+                    },
+                    // MACD子图系列
+                    {
+                        name: 'MACD',
+                        type: 'line',
+                        data: macdPoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#ff0000',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        xAxisIndex: 3,
+                        yAxisIndex: 3
+                    },
+                    {
+                        name: 'MACD信号线',
+                        type: 'line',
+                        data: macdSignalPoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#0000ff',
+                            width: 1
+                        },
+                        symbol: 'none',
+                        xAxisIndex: 3,
+                        yAxisIndex: 3
+                    },
+                    {
+                        name: 'MACD柱状图',
+                        type: 'bar',
+                        data: macdHistogramPoints,
+                        itemStyle: {
+                            color: function(params) {
+                                return params.value[1] >= 0 ? '#ff0000' : '#0000ff';
+                            }
+                        },
+                        xAxisIndex: 3,
+                        yAxisIndex: 3
                     }
                 ]
             };
@@ -1054,4 +1117,3 @@
     </script>
 </body>
 </html>
-        
