@@ -1830,7 +1830,7 @@ class BacktestEngine:
             }
     
     def _prepare_kline_data(self) -> Dict[str, Any]:
-        """准备K线数据（包含技术指标）"""
+        """准备K线数据（包含技术指标）- 确保时间轴完全对齐"""
         kline_data = {}
         
         # 调试信息
@@ -1861,9 +1861,21 @@ class BacktestEngine:
                 (weekly_data.index >= start_date) & (weekly_data.index <= end_date)
             ]
             
-            # 准备K线数据点
+            # 获取所有有效的时间戳（确保时间轴完全一致）
+            valid_timestamps = []
+            for idx in filtered_weekly_data.index:
+                try:
+                    if hasattr(idx, 'timestamp'):
+                        timestamp = int(idx.timestamp() * 1000)
+                    else:
+                        timestamp = int(pd.to_datetime(idx).timestamp() * 1000)
+                    valid_timestamps.append((timestamp, idx))
+                except Exception as e:
+                    self.logger.warning(f"时间戳转换失败: {e}, 索引: {idx}")
+                    continue
+            
+            # 准备所有数据数组
             kline_points = []
-            # 准备技术指标数据
             rsi_data = []
             macd_data = []
             macd_signal_data = []
@@ -1872,47 +1884,82 @@ class BacktestEngine:
             bb_middle_data = []
             bb_lower_data = []
             
-            for idx, row in filtered_weekly_data.iterrows():
+            # 为每个有效时间戳准备数据，确保所有指标都有对应的数据点
+            for timestamp, idx in valid_timestamps:
                 try:
-                    # 确保时间戳格式正确
-                    if hasattr(idx, 'timestamp'):
-                        timestamp = int(idx.timestamp() * 1000)
-                    else:
-                        # 如果idx不是datetime，尝试转换
-                        timestamp = int(pd.to_datetime(idx).timestamp() * 1000)
+                    row = filtered_weekly_data.loc[idx]
                     
-                    # K线数据
+                    # K线数据（必须有效）
                     kline_points.append([
-                        timestamp,  # 时间戳（毫秒）
+                        timestamp,
                         float(row['open']),
                         float(row['close']),
                         float(row['low']),
                         float(row['high'])
                     ])
                     
-                    # RSI数据
-                    if 'rsi' in row and pd.notna(row['rsi']):
-                        rsi_data.append([timestamp, float(row['rsi'])])
+                    # 技术指标数据 - 使用安全获取方法，确保每个时间点都有数据
+                    def safe_get_indicator_value(field_name, default_value, row_data, data_index):
+                        """安全获取技术指标值，处理NaN和缺失值"""
+                        try:
+                            if field_name not in filtered_weekly_data.columns:
+                                return default_value
+                            
+                            current_value = row_data.get(field_name)
+                            
+                            # 如果当前值有效，直接返回
+                            if current_value is not None and pd.notna(current_value) and current_value != 0:
+                                return float(current_value)
+                            
+                            # 当前值无效，向前查找最近的有效值
+                            current_idx = filtered_weekly_data.index.get_loc(data_index)
+                            for i in range(current_idx - 1, max(0, current_idx - 20), -1):
+                                try:
+                                    hist_value = filtered_weekly_data.iloc[i][field_name]
+                                    if hist_value is not None and pd.notna(hist_value) and hist_value != 0:
+                                        return float(hist_value)
+                                except:
+                                    continue
+                            
+                            # 如果向前查找失败，向后查找
+                            for i in range(current_idx + 1, min(len(filtered_weekly_data), current_idx + 20)):
+                                try:
+                                    future_value = filtered_weekly_data.iloc[i][field_name]
+                                    if future_value is not None and pd.notna(future_value) and future_value != 0:
+                                        return float(future_value)
+                                except:
+                                    continue
+                            
+                            # 都找不到有效值，返回默认值
+                            return default_value
+                            
+                        except Exception as e:
+                            self.logger.debug(f"获取指标 {field_name} 失败: {e}")
+                            return default_value
                     
-                    # MACD数据
-                    if 'macd' in row and pd.notna(row['macd']):
-                        macd_data.append([timestamp, float(row['macd'])])
+                    # RSI数据 - 确保每个时间点都有数据
+                    rsi_value = safe_get_indicator_value('rsi', 50.0, row, idx)
+                    rsi_data.append([timestamp, rsi_value])
                     
-                    if 'macd_signal' in row and pd.notna(row['macd_signal']):
-                        macd_signal_data.append([timestamp, float(row['macd_signal'])])
+                    # MACD数据 - 确保每个时间点都有数据
+                    macd_dif_value = safe_get_indicator_value('macd', 0.0, row, idx)
+                    macd_data.append([timestamp, macd_dif_value])
                     
-                    if 'macd_histogram' in row and pd.notna(row['macd_histogram']):
-                        macd_histogram_data.append([timestamp, float(row['macd_histogram'])])
+                    macd_signal_value = safe_get_indicator_value('macd_signal', 0.0, row, idx)
+                    macd_signal_data.append([timestamp, macd_signal_value])
                     
-                    # 布林带数据
-                    if 'bb_upper' in row and pd.notna(row['bb_upper']):
-                        bb_upper_data.append([timestamp, float(row['bb_upper'])])
+                    macd_hist_value = safe_get_indicator_value('macd_histogram', 0.0, row, idx)
+                    macd_histogram_data.append([timestamp, macd_hist_value])
                     
-                    if 'bb_middle' in row and pd.notna(row['bb_middle']):
-                        bb_middle_data.append([timestamp, float(row['bb_middle'])])
+                    # 布林带数据 - 确保每个时间点都有数据
+                    close_price = float(row['close'])
+                    bb_upper_value = safe_get_indicator_value('bb_upper', close_price * 1.02, row, idx)
+                    bb_middle_value = safe_get_indicator_value('bb_middle', close_price, row, idx)
+                    bb_lower_value = safe_get_indicator_value('bb_lower', close_price * 0.98, row, idx)
                     
-                    if 'bb_lower' in row and pd.notna(row['bb_lower']):
-                        bb_lower_data.append([timestamp, float(row['bb_lower'])])
+                    bb_upper_data.append([timestamp, bb_upper_value])
+                    bb_middle_data.append([timestamp, bb_middle_value])
+                    bb_lower_data.append([timestamp, bb_lower_value])
                         
                 except Exception as e:
                     self.logger.warning(f"处理K线数据点失败: {e}, 索引: {idx}")

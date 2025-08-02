@@ -760,7 +760,12 @@
                             {
                                 xAxisIndex: [0, 1, 2, 3]
                             }
-                        ]
+                        ],
+                        lineStyle: {
+                            color: '#999',
+                            width: 1,
+                            type: 'dashed'
+                        }
                     },
                     formatter: function(params) {
                         // 获取当前时间点
@@ -817,7 +822,7 @@
                     }
                 },
                 legend: {
-                    data: ['K线', '布林上轨', '布林中轨', '布林下轨', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点'],
+                    data: ['K线', '布林上轨(主图)', '布林中轨(主图)', '布林下轨(主图)', '布林上轨', '布林中轨', '布林下轨', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点'],
                     top: 30
                 },
                 grid: [
@@ -853,8 +858,7 @@
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
-                        min: 'dataMin',
-                        max: 'dataMax'
+                        axisLabel: { show: true }
                     },
                     {
                         type: 'time',
@@ -862,8 +866,7 @@
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
-                        min: 'dataMin',
-                        max: 'dataMax',
+                        axisLabel: { show: false },
                         gridIndex: 1
                     },
                     {
@@ -872,8 +875,7 @@
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
-                        min: 'dataMin',
-                        max: 'dataMax',
+                        axisLabel: { show: false },
                         gridIndex: 2
                     },
                     {
@@ -882,8 +884,7 @@
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
-                        min: 'dataMin',
-                        max: 'dataMax',
+                        axisLabel: { show: true },
                         gridIndex: 3
                     }
                 ],
@@ -914,7 +915,8 @@
                         type: 'inside',
                         start: 0,
                         end: 100,
-                        xAxisIndex: [0, 1, 2, 3]
+                        xAxisIndex: [0, 1, 2, 3],
+                        filterMode: 'none'
                     },
                     {
                         show: true,
@@ -922,7 +924,8 @@
                         top: '96%',
                         start: 0,
                         end: 100,
-                        xAxisIndex: [0, 1, 2, 3]
+                        xAxisIndex: [0, 1, 2, 3],
+                        filterMode: 'none'
                     }
                 ],
                 series: [
@@ -936,6 +939,45 @@
                             borderColor: '#ff4757',    // 阳线边框
                             borderColor0: '#2ed573'    // 阴线边框
                         }
+                    },
+                    // K线主图上的布林带
+                    {
+                        name: '布林上轨(主图)',
+                        type: 'line',
+                        data: bbUpperPoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#1e90ff',
+                            width: 1,
+                            type: 'dashed'
+                        },
+                        symbol: 'none',
+                        showSymbol: false
+                    },
+                    {
+                        name: '布林中轨(主图)',
+                        type: 'line',
+                        data: bbMiddlePoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#ffa500',
+                            width: 1.5
+                        },
+                        symbol: 'none',
+                        showSymbol: false
+                    },
+                    {
+                        name: '布林下轨(主图)',
+                        type: 'line',
+                        data: bbLowerPoints,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#1e90ff',
+                            width: 1,
+                            type: 'dashed'
+                        },
+                        symbol: 'none',
+                        showSymbol: false
                     },
                     {
                         name: '买入点',
