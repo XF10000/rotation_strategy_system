@@ -686,6 +686,26 @@
         // 初始化图表
         const klineChart = echarts.init(document.getElementById('klineChart'));
         
+        // 股票代码到股票名称的映射
+        const stockNameMapping = {
+            '601088': '中国神华',
+            '601225': '陕西煤业',
+            '600985': '淮北矿业',
+            '002738': '中矿资源',
+            '002460': '赣锋锂业',
+            '000933': '神火股份',
+            '000807': '云铝股份',
+            '600079': '人福医药',
+            '603345': '安井食品',
+            '601898': '中煤能源'
+        };
+        
+        // 获取股票显示名称
+        function getStockDisplayName(stockCode) {
+            const stockName = stockNameMapping[stockCode];
+            return stockName ? `${stockName}(${stockCode})` : stockCode;
+        }
+        
         // 初始化股票选择器
         function initStockSelector() {
             const select = document.getElementById('stockSelect');
@@ -695,8 +715,8 @@
             
             stocks.forEach(stock => {
                 const option = document.createElement('option');
-                option.value = stock;
-                option.textContent = stock;
+                option.value = stock;  // 保持value为股票代码
+                option.textContent = getStockDisplayName(stock);  // 显示股票名称
                 select.appendChild(option);
             });
             
@@ -1166,7 +1186,7 @@
                         data: macdHistogramPoints,
                         itemStyle: {
                             color: function(params) {
-                                return params.value[1] >= 0 ? '#ff0000' : '#0000ff';
+                                return params.value[1] >= 0 ? '#ff0000' : '#00aa00';
                             }
                         },
                         xAxisIndex: 3,
