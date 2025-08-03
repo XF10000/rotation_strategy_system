@@ -35,7 +35,7 @@ class SignalGenerator:
     信号规则（共4维，硬性前提 + 3选2）：
     1. 趋势过滤器（硬性）：卖出信号=20周EMA方向向下或走平，买入信号=20周EMA方向向上或走平
     2. 超买/超卖：卖出信号=14周RSI>70且出现顶背离，买入信号=14周RSI<30且出现底背离
-    3. 动能确认：卖出信号=MACD柱体连续2根缩短或DIF死叉DEA，买入信号=MACD柱体连续2根缩短或DIF金叉DEA
+    3. 动能确认：卖出信号=MACD红色柱体连续2根缩短或MACD柱体已为绿色或DIF死叉DEA，买入信号=MACD绿色柱体连续2根缩短或MACD柱体已为红色或DIF金叉DEA
     4. 极端价格+量能：卖出信号=收盘价≥布林上轨且本周量≥4周均量×1.3，买入信号=收盘价≤布林下轨且本周量≥4周均量×0.8
     
     EMA趋势定义（使用线性回归法）：
@@ -302,7 +302,7 @@ class SignalGenerator:
                     df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
                     for _, row in df.iterrows():
                         if str(row['Stock_number']).strip() == stock_code:
-                            dcf_value = float(row['DCF_value'])
+                            dcf_value = float(row['DCF_value_per_share'])
                             self.logger.debug(f"从配置文件获取 {stock_code} DCF估值: {dcf_value}")
                             break
                 except Exception as e:
@@ -450,9 +450,19 @@ class SignalGenerator:
                 hist_prev1 = macd_data['HIST'].iloc[-2]
                 hist_prev2 = macd_data['HIST'].iloc[-3]
                 
-                # 连续2根柱体缩短
-                hist_shrinking = (abs(hist_current) < abs(hist_prev1) and 
-                                abs(hist_prev1) < abs(hist_prev2))
+                # 红色柱体连续2根缩短（用于卖出信号）
+                red_hist_shrinking = False
+                if hist_current > 0 and hist_prev1 > 0 and hist_prev2 > 0:
+                    red_hist_shrinking = hist_current < hist_prev1 < hist_prev2
+                
+                # 绿色柱体连续2根缩短（用于买入信号）
+                green_hist_shrinking = False
+                if hist_current < 0 and hist_prev1 < 0 and hist_prev2 < 0:
+                    green_hist_shrinking = abs(hist_current) < abs(hist_prev1) < abs(hist_prev2)
+                
+                # MACD柱体颜色状态
+                macd_is_green = hist_current < 0  # 当前为绿色柱体
+                macd_is_red = hist_current > 0    # 当前为红色柱体
                 
                 # 金叉死叉
                 if len(macd_data['DIF']) >= 2:
@@ -464,13 +474,19 @@ class SignalGenerator:
                     dif_cross_up = False
                     dif_cross_down = False
                 
-                # 阶段高点：MACD柱体连续2根缩短 或 DIF死叉DEA
-                if hist_shrinking or dif_cross_down:
+                # 阶段高点（卖出）：MACD红色柱体连续2根缩短 或 MACD柱体已为绿色 或 DIF死叉DEA
+                sell_conditions = [red_hist_shrinking, macd_is_green, dif_cross_down]
+                if any(sell_conditions):
                     scores['momentum_high'] = True
                 
-                # 阶段低点：MACD柱体连续2根缩短 或 DIF金叉DEA
-                if hist_shrinking or dif_cross_up:
+                # 阶段低点（买入）：MACD绿色柱体连续2根缩短 或 MACD柱体已为红色 或 DIF金叉DEA
+                buy_conditions = [green_hist_shrinking, macd_is_red, dif_cross_up]
+                if any(buy_conditions):
                     scores['momentum_low'] = True
+                
+                # 调试日志
+                self.logger.debug(f"动能确认 - 卖出条件: 红色缩短={red_hist_shrinking}, 已转绿色={macd_is_green}, DIF死叉={dif_cross_down}")
+                self.logger.debug(f"动能确认 - 买入条件: 绿色缩短={green_hist_shrinking}, 已转红色={macd_is_red}, DIF金叉={dif_cross_up}")
             
             # 4. 极端价格 + 量能
             bb_upper = indicators['bb']['upper'].iloc[-1]
@@ -782,7 +798,7 @@ class SignalGenerator:
             explanation += "\n4维度评分详情:\n"
             explanation += f"1. 趋势过滤器: 支持卖出={scores['trend_filter_high']}, 支持买入={scores['trend_filter_low']}\n"
             explanation += f"2. 超买超卖: 支持卖出={scores['overbought_oversold_high']}, 支持买入={scores['overbought_oversold_low']}\n"
-            explanation += f"3. 动能确认: 支持卖出={scores['momentum_high']}, 支持买入={scores['momentum_low']}\n"
+            explanation += f"3. 动能确认: 支持卖出={scores['momentum_high']}, 支持买入={scores['momentum_low']} (红色缩短/转绿色/死叉 | 绿色缩短/转红色/金叉)\n"
             explanation += f"4. 极端价格+量能: 支持卖出={scores['extreme_price_volume_high']}, 支持买入={scores['extreme_price_volume_low']}\n"
             
             return explanation

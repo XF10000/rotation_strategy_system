@@ -551,8 +551,8 @@ class IntegratedReportGenerator:
                             <div>
                                 <strong style="color: #28a745;">⚡ 动能确认:</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：MACD柱体连续2根缩短 或 DIF金叉DEA</li>
-                                    <li>卖出条件：MACD柱体连续2根缩短 或 DIF死叉DEA</li>
+                                    <li>买入条件：MACD绿色柱体连续2根缩短 或 MACD柱体已为红色 或 DIF金叉DEA</li>
+                                    <li>卖出条件：MACD红色柱体连续2根缩短 或 MACD柱体已为绿色 或 DIF死叉DEA</li>
                                 </ul>
                             </div>
                             <div>

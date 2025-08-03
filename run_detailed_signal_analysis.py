@@ -208,8 +208,8 @@ def analyze_detailed_signals():
                     print(f"      - 买入信号: {'✅' if scores.get('overbought_oversold_low', False) else '❌'}")
                     
                     print(f"   3️⃣ 动能确认:")
-                    print(f"      - 卖出信号: {'✅' if scores.get('momentum_high', False) else '❌'}")
-                    print(f"      - 买入信号: {'✅' if scores.get('momentum_low', False) else '❌'}")
+                    print(f"      - 卖出信号: {'✅' if scores.get('momentum_high', False) else '❌'} (红色缩短/转绿色/死叉)")
+                    print(f"      - 买入信号: {'✅' if scores.get('momentum_low', False) else '❌'} (绿色缩短/转红色/金叉)")
                     
                     print(f"   4️⃣ 极端价格+量能:")
                     print(f"      - 卖出信号: {'✅' if scores.get('extreme_price_volume_high', False) else '❌'}")
