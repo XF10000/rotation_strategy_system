@@ -3,12 +3,15 @@ import json
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import pandas as pd
+from utils.stock_name_mapper import get_cached_stock_mapping, get_stock_display_name
 
 class IntegratedReportGenerator:
     """集成HTML模板的回测报告生成器 - 修复版"""
     
     def __init__(self):
         self.template_path = "config/backtest_report_template.html"
+        # 加载股票名称映射
+        self.stock_mapping = get_cached_stock_mapping()
         # 确保模板文件存在
         if not os.path.exists(self.template_path):
             print(f"警告: HTML模板文件不存在: {self.template_path}")
@@ -61,6 +64,8 @@ class IntegratedReportGenerator:
             performance_metrics = backtest_results.get('performance_metrics', {})
             signal_analysis = backtest_results.get('signal_analysis', {})
             kline_data = backtest_results.get('kline_data', {})
+            # 提取DCF估值数据
+            self._dcf_values = backtest_results.get('dcf_values', {})
             
             # 生成报告内容
             html_content = self._fill_template_safe(
@@ -362,9 +367,10 @@ class IntegratedReportGenerator:
                     market_value = actual_shares * current_price
                     ratio = (market_value / total_value * 100) if total_value > 0 else 0
                     
+                    stock_display_name = get_stock_display_name(stock_code, self.stock_mapping)
                     row = f"""
                                 <tr>
-                                    <td>{stock_code}</td>
+                                    <td>{stock_display_name}</td>
                                     <td>{actual_shares:,} 股</td>
                                     <td>¥{current_price:.2f}</td>
                                     <td>¥{market_value:,.2f}</td>
@@ -459,7 +465,11 @@ class IntegratedReportGenerator:
                 
                 # 提取技术指标
                 close_price = technical_indicators.get('close', price)
-                ema_20w = technical_indicators.get('ema_20w', 0)
+                # 获取DCF估值数据（从backtest_results中获取）
+                dcf_values = getattr(self, '_dcf_values', {})
+                dcf_value = dcf_values.get(stock_code, 0)
+                # 计算价值比
+                price_value_ratio = (close_price / dcf_value * 100) if dcf_value > 0 else 0
                 rsi_14w = technical_indicators.get('rsi_14w', 50)
                 macd_dif = technical_indicators.get('macd_dif', 0)
                 macd_dea = technical_indicators.get('macd_dea', 0)
@@ -494,16 +504,19 @@ class IntegratedReportGenerator:
                 row_class = 'buy-row' if trade_type == 'BUY' else 'sell-row'
                 type_color = '#28a745' if trade_type == 'BUY' else '#dc3545'
                 
+                # 获取股票显示名称
+                stock_display_name = get_stock_display_name(stock_code, self.stock_mapping)
+                
                 row = f"""
         <tr class='{row_class}'>
             <td>{date}</td>
             <td style="font-weight: bold; color: {type_color}">{trade_type}</td>
-            <td><strong>{stock_code}</strong></td>
+            <td><strong>{stock_display_name}</strong></td>
             <td>{price:.2f}</td>
             <td>{shares:,}</td>
             <td>{close_price:.2f}</td>
-            <td>{ema_20w:.2f}</td>
-            <td class="signal-check">{trend_filter}</td>
+            <td>{dcf_value:.2f}</td>
+            <td>{price_value_ratio:.1f}%</td>
             <td>{rsi_14w:.2f}</td>
             <td class="signal-check">{rsi_signal}</td>
             <td>{macd_dif:.4f}</td>
@@ -522,10 +535,10 @@ class IntegratedReportGenerator:
                         <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
                             <div>
-                                <strong style="color: #dc3545;">🔴 趋势过滤器（硬性条件）:</strong>
+                                <strong style="color: #dc3545;">🔴 价值比过滤器（硬性条件）:</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：收盘价 > 20周EMA 且 EMA向上</li>
-                                    <li>卖出条件：收盘价 < 20周EMA 且 EMA向下</li>
+                                    <li>买入条件：价值比 < 70%（价格低于DCF估值70%）</li>
+                                    <li>卖出条件：价值比 > 80%（价格高于DCF估值80%）</li>
                                 </ul>
                             </div>
                             <div>
@@ -551,7 +564,7 @@ class IntegratedReportGenerator:
                             </div>
                         </div>
                         <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 5px;">
-                            <strong style="color: #0066cc;">✅ 交易条件：趋势过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
+                            <strong style="color: #0066cc;">✅ 交易条件：价值比过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
                         </div>
                     </div>'''
             
@@ -579,8 +592,8 @@ class IntegratedReportGenerator:
                                     <th>价格</th>
                                     <th>股数</th>
                                     <th>收盘价</th>
-                                    <th>EMA20W</th>
-                                    <th>趋势</th>
+                                    <th>DCF估值</th>
+                                    <th>价值比</th>
                                     <th>RSI14W</th>
                                     <th>RSI信号</th>
                                     <th>MACD DIF</th>
@@ -672,10 +685,11 @@ class IntegratedReportGenerator:
                 dimension_stats['ema'] += ema_signals
                 
                 # 生成股票卡片
+                stock_display_name = get_stock_display_name(stock_code, self.stock_mapping)
                 card_html = f"""
                 <div class="signal-card">
                     <div class="card-header">
-                        <h4>{stock_code}</h4>
+                        <h4>{stock_display_name}</h4>
                         <div class="total-badge">{total_signals}个信号</div>
                     </div>
                     <div class="signal-summary">
@@ -690,7 +704,7 @@ class IntegratedReportGenerator:
                     </div>
                     <div class="dimension-stats">
                         <div class="dimension-item">
-                            <span class="dim-label">📈 趋势过滤</span>
+                            <span class="dim-label">💰 价值比过滤</span>
                             <div class="dim-progress">
                                 <div class="progress-bar" style="width: {(ema_signals/total_signals*100) if total_signals > 0 else 0}%"></div>
                                 <span class="progress-text">{ema_signals}/{total_signals} ({ema_rate})</span>
@@ -745,7 +759,7 @@ class IntegratedReportGenerator:
                 </div>
                 <div class="dimension-summary">
                     <div class="dim-summary-item">
-                        <span class="dim-name">📈 趋势过滤器</span>
+                        <span class="dim-name">💰 价值比过滤器</span>
                         <span class="dim-count">{dimension_stats['ema']}/{total_all_signals}</span>
                         <span class="dim-rate">({(dimension_stats['ema']/total_all_signals*100):.1f}%)</span>
                     </div>

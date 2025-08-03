@@ -46,15 +46,19 @@ class SignalGenerator:
     触发逻辑：先满足「趋势过滤器」→ 再在其余3条里至少满足2条 → 生成信号
     """
     
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, dcf_values: Dict[str, float] = None):
         """
         初始化信号生成器
         
         Args:
             config: 配置参数
+            dcf_values: DCF估值数据字典 {股票代码: DCF估值}
         """
         self.config = config
         self.logger = logging.getLogger("strategy.SignalGenerator")
+        
+        # 存储DCF估值数据
+        self.dcf_values = dcf_values or {}
         
         # 默认参数
         self.default_params = {
@@ -70,7 +74,10 @@ class SignalGenerator:
             'volume_ma_period': 4,      # 成交量均线周期
             'volume_buy_ratio': 0.8,    # 买入成交量比例
             'volume_sell_ratio': 1.3,   # 卖出成交量比例
-            'min_data_length': 60       # 最小数据长度
+            'min_data_length': 60,      # 最小数据长度
+            # V1.1新增：价值比过滤器阈值
+            'value_ratio_sell_threshold': 80.0,  # 卖出阈值：价值比 > 80%
+            'value_ratio_buy_threshold': 70.0,   # 买入阈值：价值比 < 70%
         }
         
         # 合并配置
@@ -82,6 +89,13 @@ class SignalGenerator:
         
         self.logger.info("信号生成器初始化完成")
         self.logger.info("行业信息缓存已启用，将显著提升回测性能")
+        
+        # 记录DCF数据状态
+        if self.dcf_values:
+            self.logger.info(f"已加载 {len(self.dcf_values)} 只股票的DCF估值数据")
+            self.logger.info("将使用价值比过滤器 (V1.1策略)")
+        else:
+            self.logger.warning("未提供DCF估值数据，将回退到EMA趋势过滤器")
     
     def generate_signal(self, stock_code: str, data: pd.DataFrame) -> Dict:
         """
@@ -274,57 +288,76 @@ class SignalGenerator:
                 'extreme_price_volume_low': False    # 极端价格+量能支持买入信号
             }
             
-            # 1. 趋势过滤器 (硬性前提)
-            ema_current = indicators['ema'].iloc[-1]
+            # 1. 价值比过滤器 (硬性前提) - V1.1策略更新
+            # 替换原有的EMA趋势过滤器为基于DCF估值的价值比过滤器
             
+            # 获取DCF估值数据
+            dcf_value = None
+            if stock_code and hasattr(self, 'dcf_values') and self.dcf_values:
+                dcf_value = self.dcf_values.get(stock_code)
+            elif stock_code:
+                # 如果signal_generator没有dcf_values，尝试从配置加载
+                try:
+                    # 从portfolio_config中提取DCF估值
+                    df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
+                    for _, row in df.iterrows():
+                        if str(row['Stock_number']).strip() == stock_code:
+                            dcf_value = float(row['DCF_value'])
+                            self.logger.debug(f"从配置文件获取 {stock_code} DCF估值: {dcf_value}")
+                            break
+                except Exception as e:
+                    self.logger.warning(f"无法从配置文件获取股票 {stock_code} 的DCF估值: {e}")
             
-            # 计算EMA趋势方向 - 使用线性回归法判断
-            ema_series = indicators['ema']
-            ema_trend_up = False
-            ema_trend_down = False
-            ema_flat = False
-            
-            try:
-                # 使用新的detect_ema_trend函数判断趋势
-                if len(ema_series) >= 8:
-                    ema_trend = detect_ema_trend(ema_series, 8, 0.003)
-                    ema_trend_up = (ema_trend == "向上")
-                    ema_trend_down = (ema_trend == "向下")
-                    ema_flat = (ema_trend == "走平")
-                    
-                    # 记录调试信息
-                    self.logger.debug(f"EMA趋势判断(线性回归法): 趋势={ema_trend}, 向上={ema_trend_up}, 向下={ema_trend_down}, 走平={ema_flat}")
-                else:
-                    # 数据不足时使用简单方法
-                    if len(ema_series) >= 2 and not pd.isna(ema_series.iloc[-2]):
-                        ema_prev = ema_series.iloc[-2]
-                        # 方向向上: ema20_now > ema20_prev
-                        ema_trend_up = ema_current > ema_prev
-                        # 方向向下: ema20_now < ema20_prev
-                        ema_trend_down = ema_current < ema_prev
+            if dcf_value is None or dcf_value <= 0:
+                self.logger.warning(f"股票 {stock_code} 缺少有效的DCF估值数据，价值比过滤器无法工作")
+                # 如果没有DCF数据，回退到原有的EMA趋势过滤器
+                ema_current = indicators['ema'].iloc[-1]
+                
+                # 计算EMA趋势方向 - 使用线性回归法判断
+                ema_series = indicators['ema']
+                ema_trend_up = False
+                ema_trend_down = False
+                
+                try:
+                    # 使用新的detect_ema_trend函数判断趋势
+                    if len(ema_series) >= 8:
+                        ema_trend = detect_ema_trend(ema_series, 8, 0.003)
+                        ema_trend_up = (ema_trend == "向上")
+                        ema_trend_down = (ema_trend == "向下")
                         
-                        # 数据不足时使用简化方法判断走平
-                        if len(ema_series) >= 3:
-                            recent_ema = ema_series.iloc[-3:].values
-                            max_ema = np.max(recent_ema)
-                            min_ema = np.min(recent_ema)
-                            # 最大值和最小值的相对差异小于阈值
-                            ema_flat = (max_ema - min_ema) / np.mean(recent_ema) < 0.01
-            except Exception as e:
-                # 如果新方法失败，回退到简单方法
-                self.logger.warning(f"线性回归法EMA趋势判断失败: {e}，使用简单方法")
-                if len(ema_series) >= 2 and not pd.isna(ema_series.iloc[-2]):
-                    ema_prev = ema_series.iloc[-2]
-                    ema_trend_up = ema_current > ema_prev
-                    ema_trend_down = ema_current < ema_prev
-            
-            # 支持卖出信号：收盘价 > 20周EMA 且 EMA向上
-            if current_price > ema_current and ema_trend_up:
-                scores['trend_filter_high'] = True
-            
-            # 支持买入信号：收盘价 < 20周EMA 且 EMA向下
-            if current_price < ema_current and ema_trend_down:
-                scores['trend_filter_low'] = True
+                        self.logger.debug(f"回退到EMA趋势过滤器: 趋势={ema_trend}")
+                    else:
+                        # 数据不足时使用简单方法
+                        if len(ema_series) >= 2 and not pd.isna(ema_series.iloc[-2]):
+                            ema_prev = ema_series.iloc[-2]
+                            ema_trend_up = ema_current > ema_prev
+                            ema_trend_down = ema_current < ema_prev
+                except Exception as e:
+                    self.logger.warning(f"EMA趋势判断失败: {e}")
+                
+                # 支持卖出信号：收盘价 > 20周EMA 且 EMA向上
+                if current_price > ema_current and ema_trend_up:
+                    scores['trend_filter_high'] = True
+                
+                # 支持买入信号：收盘价 < 20周EMA 且 EMA向下
+                if current_price < ema_current and ema_trend_down:
+                    scores['trend_filter_low'] = True
+                    
+            else:
+                # 使用价值比过滤器 (V1.1策略)
+                price_value_ratio = (current_price / dcf_value) * 100
+                
+                self.logger.debug(f"价值比过滤器: 收盘价={current_price:.2f}, DCF估值={dcf_value:.2f}, 价值比={price_value_ratio:.1f}%")
+                
+                # 支持卖出信号：收盘价 > DCF每股估值的80% (价值比 > 80%)
+                if price_value_ratio > 80.0:
+                    scores['trend_filter_high'] = True
+                    self.logger.debug(f"价值比过滤器支持卖出: {price_value_ratio:.1f}% > 80%")
+                
+                # 支持买入信号：收盘价 < DCF每股估值的70% (价值比 < 70%)
+                if price_value_ratio < 70.0:
+                    scores['trend_filter_low'] = True
+                    self.logger.debug(f"价值比过滤器支持买入: {price_value_ratio:.1f}% < 70%")
             
             # 2. 超买/超卖 - 支持行业特定阈值
             rsi_current = indicators['rsi'].iloc[-1]
@@ -540,7 +573,7 @@ class SignalGenerator:
                     return {
                         'signal': 'SELL',
                         'confidence': confidence_score,
-                        'reason': f'卖出信号：趋势过滤器+{high_signal_count}个卖出维度',
+                        'reason': f'卖出信号：价值比过滤器+{high_signal_count}个卖出维度',
                         'scores': scores,
                         'details': self._get_signal_details(indicators),
                         'action': '卖出10%'
@@ -564,7 +597,7 @@ class SignalGenerator:
                     return {
                         'signal': 'BUY',
                         'confidence': confidence_score,
-                        'reason': f'买入信号：趋势过滤器+{low_signal_count}个买入维度',
+                        'reason': f'买入信号：价值比过滤器+{low_signal_count}个买入维度',
                         'scores': scores,
                         'details': self._get_signal_details(indicators),
                         'action': '买入10%'

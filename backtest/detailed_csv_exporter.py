@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.industry_classifier import get_stock_industry_auto
 from config.industry_rsi_loader import get_rsi_loader
+from utils.stock_name_mapper import get_cached_stock_mapping, get_stock_display_name
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +18,15 @@ class DetailedCSVExporter:
     
     def __init__(self):
         """初始化CSV导出器"""
+        # 加载股票名称映射
+        self.stock_mapping = get_cached_stock_mapping()
         self.csv_headers = [
-            '日期', '交易类型', '股票代码', '交易股票数量', '交易后持仓数量', 
+            '日期', '交易类型', '股票名称', '交易股票数量', '交易后持仓数量', 
             '交易价格', 'DCF估值', '价值比(%)', '估值状态', '价值比描述',
             '交易金额', '手续费', '交易原因', '收盘价',
-            'EMA20', 'EMA60', 'RSI14', 'MACD_DIF', 'MACD_DEA', 'MACD_HIST',
+            'RSI14', 'MACD_DIF', 'MACD_DEA', 'MACD_HIST',
             '布林上轨', '布林中轨', '布林下轨', '成交量', '量能倍数', '布林带位置',
-            '趋势过滤器', '超买超卖信号', '动能确认', '极端价格量能', '满足维度数', '触发原因',
+            '价值比过滤器', '超买超卖信号', '动能确认', '极端价格量能', '满足维度数', '触发原因',
             '行业', 'RSI超买阈值', 'RSI超卖阈值'
         ]
         logger.info("详细CSV导出器初始化完成")
@@ -96,7 +99,9 @@ class DetailedCSVExporter:
                 date = str(date)
             
             action = '买入' if record.get('type') == 'BUY' else '卖出'
-            symbol = record.get('stock_code', '')
+            stock_code = record.get('stock_code', '')
+            # 使用股票名称显示
+            symbol = get_stock_display_name(stock_code, self.stock_mapping)
             quantity = record.get('shares', 0)
             price = round(record.get('price', 0), 2)
             amount = round(record.get('gross_amount', price * quantity), 2)
@@ -153,8 +158,7 @@ class DetailedCSVExporter:
                     logger.error(f"获取指标 {key} 时发生异常: {e}，使用默认值 {default}")
                     return default
             
-            ema20 = safe_get_indicator('ema_20w', 0, 2)
-            ema60 = safe_get_indicator('ema_60w', 0, 2)
+            # EMA20和EMA60字段已移除（V1.1策略不再使用EMA趋势过滤器）
             rsi14 = safe_get_indicator('rsi_14w', 50, 2)
             macd_dif = safe_get_indicator('macd_dif', 0, 4)
             macd_dea = safe_get_indicator('macd_dea', 0, 4)
@@ -228,7 +232,7 @@ class DetailedCSVExporter:
                 date, action, symbol, quantity, position_after, 
                 price, dcf_value, pvr_display, pvr_status, pvr_description,
                 amount, commission, reason, close_price,
-                ema20, ema60, rsi14, macd_dif, macd_dea, macd_hist,
+                rsi14, macd_dif, macd_dea, macd_hist,
                 bb_upper, bb_middle, bb_lower, volume, volume_ratio, bb_position,
                 trend_filter, overbought_oversold, momentum_confirm, extreme_price_volume, 
                 dimensions_text, trigger_reason,
