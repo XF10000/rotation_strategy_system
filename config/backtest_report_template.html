@@ -350,6 +350,8 @@
             font-weight: 600;
             font-size: 0.875rem;
         }
+        .positive { color: #e53e3e; font-weight: bold; }
+        .negative { color: #38a169; font-weight: bold; }
         .signal-check { color: #38a169; font-weight: bold; }
         .signal-cross { color: #e53e3e; font-weight: bold; }
         .signal-neutral { color: #718096; }
@@ -983,10 +985,10 @@
                         type: 'candlestick',
                         data: klinePoints,
                         itemStyle: {
-                            color: '#ff4757',      // 阳线（涨）- 红色
-                            color0: '#2ed573',     // 阴线（跌）- 绿色
-                            borderColor: '#ff4757',    // 阳线边框
-                            borderColor0: '#2ed573'    // 阴线边框
+                            color: '#e53e3e',      // 阳线（涨）- 红色
+                            color0: '#38a169',     // 阴线（跌）- 绿色
+                            borderColor: '#e53e3e',    // 阳线边框
+                            borderColor0: '#38a169'    // 阴线边框
                         }
                     },
                     // K线主图上的布林带
@@ -1035,10 +1037,10 @@
                         symbol: 'triangle',
                         symbolSize: 20,
                         itemStyle: {
-                            color: '#ff4757',
+                            color: '#e53e3e',
                             borderColor: '#ffffff',
                             borderWidth: 3,
-                            shadowColor: '#ff4757',
+                            shadowColor: '#e53e3e',
                             shadowBlur: 10
                         },
                         label: {
@@ -1048,7 +1050,7 @@
                             color: '#ffffff',
                             fontSize: 12,
                             fontWeight: 'bold',
-                            backgroundColor: '#ff4757',
+                            backgroundColor: '#e53e3e',
                             padding: [4, 8],
                             borderRadius: 4
                         },
@@ -1062,10 +1064,10 @@
                         symbolRotate: 180,
                         symbolSize: 20,
                         itemStyle: {
-                            color: '#2ed573',
+                            color: '#38a169',
                             borderColor: '#ffffff',
                             borderWidth: 3,
-                            shadowColor: '#2ed573',
+                            shadowColor: '#38a169',
                             shadowBlur: 10
                         },
                         label: {
@@ -1075,7 +1077,7 @@
                             color: '#ffffff',
                             fontSize: 12,
                             fontWeight: 'bold',
-                            backgroundColor: '#2ed573',
+                            backgroundColor: '#38a169',
                             padding: [4, 8],
                             borderRadius: 4
                         },
@@ -1186,7 +1188,7 @@
                         data: macdHistogramPoints,
                         itemStyle: {
                             color: function(params) {
-                                return params.value[1] >= 0 ? '#ff0000' : '#00aa00';
+                                return params.value[1] >= 0 ? '#e53e3e' : '#38a169';
                             }
                         },
                         xAxisIndex: 3,
