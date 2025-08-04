@@ -808,9 +808,9 @@
                                 if (klineData && klineData.length >= 5) {
                                     result += '📈 <strong>K线数据</strong><br/>';
                                     result += '&nbsp;&nbsp;开盘: ' + (klineData[1] ? klineData[1].toFixed(2) : 'N/A') + '<br/>';
-                                    result += '&nbsp;&nbsp;最高: ' + (klineData[2] ? klineData[2].toFixed(2) : 'N/A') + '<br/>';
+                                    result += '&nbsp;&nbsp;收盘: ' + (klineData[2] ? klineData[2].toFixed(2) : 'N/A') + '<br/>';
                                     result += '&nbsp;&nbsp;最低: ' + (klineData[3] ? klineData[3].toFixed(2) : 'N/A') + '<br/>';
-                                    result += '&nbsp;&nbsp;收盘: ' + (klineData[4] ? klineData[4].toFixed(2) : 'N/A') + '<br/><br/>';
+                                    result += '&nbsp;&nbsp;最高: ' + (klineData[4] ? klineData[4].toFixed(2) : 'N/A') + '<br/><br/>';
                                 }
                             }
                             
@@ -856,8 +856,8 @@
                                 stockData.macd.dea && stockData.macd.dea[dataIndex] && 
                                 stockData.macd.histogram && stockData.macd.histogram[dataIndex]) {
                                 result += '📈 <strong>MACD</strong><br/>';
-                                result += '&nbsp;&nbsp;MACD: ' + (stockData.macd.dif[dataIndex][1] ? stockData.macd.dif[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
-                                result += '&nbsp;&nbsp;信号线: ' + (stockData.macd.dea[dataIndex][1] ? stockData.macd.dea[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                                result += '&nbsp;&nbsp;DIF: ' + (stockData.macd.dif[dataIndex][1] ? stockData.macd.dif[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                                result += '&nbsp;&nbsp;DEA: ' + (stockData.macd.dea[dataIndex][1] ? stockData.macd.dea[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
                                 result += '&nbsp;&nbsp;柱状图: ' + (stockData.macd.histogram[dataIndex][1] ? stockData.macd.histogram[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
                             }
                         }

@@ -89,457 +89,6 @@ class BacktestEngine:
     
     def _load_dcf_values(self) -> Dict[str, float]:
         """
-        从CSV配置文件加载DCF估值数据
-        
-        Returns:
-            Dict[str, float]: 股票代码到DCF估值的映射
-        """
-        try:
-            import pandas as pd
-            df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
-            dcf_values = {}
-            
-            for _, row in df.iterrows():
-                stock_code = row['Stock_number']
-                if stock_code != 'CASH':  # 排除现金
-                    dcf_value = row.get('DCF_value_per_share', None)
-                    if dcf_value is not None and pd.notna(dcf_value):
-                        dcf_values[stock_code] = float(dcf_value)
-            
-            return dcf_values
-        except Exception as e:
-            self.logger.warning(f"DCF估值数据加载失败: {e}")
-            return {}
-
-    
-    def prepare_data(self) -> bool:
-        """
-        准备回测数据（智能缓存版本）
-        
-        Returns:
-            bool: 数据准备是否成功
-        """
-        try:
-            self.logger.info("🚀 开始准备回测数据（智能缓存模式）...")
-            
-            # 显示缓存统计信息
-            cache_stats = self.data_storage.get_cache_statistics()
-            self.logger.info(f"📊 当前缓存统计: {cache_stats}")
-            
-            for stock_code in self.stock_pool:
-                self.logger.info(f"📈 准备 {stock_code} 的历史数据...")
-                
-                # 1. 智能获取日线数据（优先使用缓存）
-                daily_data = self._get_cached_or_fetch_data(stock_code, self.start_date, self.end_date, 'daily')
-                
-                if daily_data is None or daily_data.empty:
-                    self.logger.warning(f"⚠️ 无法获取 {stock_code} 的数据，跳过该股票")
-                    # 记录失败的股票，但继续处理其他股票
-                    continue
-                
-                # 2. 智能获取或生成周线数据
-                weekly_data = None
-                
-                # 先尝试从缓存获取周线数据
-                try:
-                    weekly_data = self._get_cached_or_fetch_data(stock_code, self.start_date, self.end_date, 'weekly')
-                except:
-                    # 如果周线缓存获取失败，从日线转换
-                    pass
-                
-                if weekly_data is None or weekly_data.empty:
-                    # 从日线数据转换为周线数据
-                    self.logger.info(f"🔄 {stock_code} 从日线数据转换周线数据")
-                    weekly_data = self.data_processor.resample_to_weekly(daily_data)
-                    
-                    if len(weekly_data) < 60:  # 至少需要60周的数据
-                        self.logger.warning(f"⚠️ {stock_code} 数据不足，只有 {len(weekly_data)} 条记录")
-            
-                # 确保技术指标存在（无论是从缓存获取还是新生成的数据）
-                if 'ema_20' not in weekly_data.columns or 'rsi' not in weekly_data.columns:
-                    self.logger.info(f"🔧 {stock_code} 计算技术指标...")
-                    weekly_data = self.data_processor.calculate_technical_indicators(weekly_data)
-                    
-                    # 保存更新后的周线数据到缓存
-                    try:
-                        self.data_storage.save_data(weekly_data, stock_code, 'weekly')
-                        self.logger.info(f"💾 {stock_code} 周线数据（含技术指标）已保存到缓存")
-                    except Exception as e:
-                        self.logger.warning(f"⚠️ {stock_code} 周线数据缓存保存失败: {e}")
-                else:
-                    self.logger.info(f"✅ {stock_code} 技术指标已存在，跳过计算")
-                
-                # 存储到内存中供回测使用
-                self.stock_data[stock_code] = {
-                    'daily': daily_data,
-                    'weekly': weekly_data
-                }
-                
-                self.logger.info(f"✅ {stock_code} 数据准备完成: 日线 {len(daily_data)} 条, 周线 {len(weekly_data)} 条")
-            
-            # 显示最终缓存统计
-            final_cache_stats = self.data_storage.get_cache_statistics()
-            self.logger.info(f"📊 数据准备完成后缓存统计: {final_cache_stats}")
-            self.logger.info(f"🎉 所有股票数据准备完成，共处理 {len(self.stock_data)} 只股票")
-            
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"❌ 数据准备失败: {e}")
-            return False
-    
-    def initialize_portfolio(self) -> bool:
-        """
-        初始化投资组合
-        
-        Returns:
-            bool: 初始化是否成功
-        """
-        try:
-            # 创建投资组合管理器
-            self.portfolio_manager = PortfolioManager(
-                total_capital=self.total_capital,
-                initial_holdings=self.initial_holdings
-            )
-            # 设置成本计算器
-            self.portfolio_manager.cost_calculator = self.cost_calculator
-            
-            # 获取初始价格
-            initial_prices = {}
-            for stock_code in self.stock_pool:
-                if stock_code in self.stock_data:
-                    initial_prices[stock_code] = self.stock_data[stock_code]['weekly'].iloc[0]['close']
-            
-            # 初始化投资组合
-            self.portfolio_manager.initialize_portfolio(initial_prices)
-            
-            self.logger.info("投资组合初始化完成")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"投资组合初始化失败: {e}")
-            return False
-    
-    def run_backtest(self) -> bool:
-        """
-        运行回测
-        
-        Returns:
-            bool: 回测是否成功
-        """
-        try:
-            self.logger.info("开始运行回测...")
-            
-            # 准备数据
-            if not self.prepare_data():
-                return False
-            
-            # 初始化投资组合
-            if not self.initialize_portfolio():
-                return False
-            
-            # 获取所有交易日期（使用第一只股票的日期）
-            first_stock = list(self.stock_data.keys())[0]
-            all_trading_dates = self.stock_data[first_stock]['weekly'].index
-            
-            # 过滤日期范围 - 确保只在回测期间内
-            start_date = pd.to_datetime(self.start_date)
-            end_date = pd.to_datetime(self.end_date)
-            
-            # 过滤交易日期
-            trading_dates = all_trading_dates[
-                (all_trading_dates >= start_date) & (all_trading_dates <= end_date)
-            ]
-            
-            self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
-            self.logger.info(f"有效回测周期数: {len(trading_dates)}")
-            
-            # 逐日回测
-            for i, current_date in enumerate(trading_dates):
-                if i % 10 == 0:
-                    self.logger.info(f"回测进度: {i+1}/{len(trading_dates)} ({current_date.strftime('%Y-%m-%d')})")
-                
-                # 确保当前日期在回测范围内
-                if current_date < start_date or current_date > end_date:
-                    continue
-                
-                # 更新当前价格
-                current_prices = {}
-                for stock_code in self.stock_pool:
-                    if stock_code in self.stock_data:
-                        stock_weekly = self.stock_data[stock_code]['weekly']
-                        if current_date in stock_weekly.index:
-                            current_prices[stock_code] = stock_weekly.loc[current_date, 'close']
-                
-                # 更新投资组合价值
-                self.portfolio_manager.update_prices(current_prices)
-                
-                # 生成交易信号
-                signals = self._generate_signals(current_date)
-                
-                # 执行交易
-                if signals:
-                    executed_trades = self._execute_trades(signals, current_date)
-                    if executed_trades:
-                        self.logger.info(f"{current_date.strftime('%Y-%m-%d')} 执行记录:")
-                        for trade in executed_trades:
-                            self.logger.info(f"  {trade}")
-                
-                # 记录投资组合状态
-                portfolio_value = self.portfolio_manager.get_total_value(current_prices)
-                self.portfolio_history.append({
-                    'date': current_date,
-                    'total_value': portfolio_value,
-                    'cash': self.portfolio_manager.cash,
-                    'positions': self.portfolio_manager.positions.copy()
-                })
-            
-            self.logger.info("回测完成")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"回测运行失败: {e}")
-            return False
-    
-    def _generate_signals(self, current_date: pd.Timestamp) -> Dict[str, str]:
-        """
-        生成交易信号
-        
-        Args:
-            current_date: 当前日期
-            
-        Returns:
-            Dict[str, str]: 股票代码到信号的映射
-        """
-        signals = {}
-        
-        for stock_code in self.stock_pool:
-            if stock_code not in self.stock_data:
-                continue
-            
-            stock_weekly = self.stock_data[stock_code]['weekly']
-            if current_date not in stock_weekly.index:
-                continue
-            
-            # 获取当前数据点
-            current_idx = stock_weekly.index.get_loc(current_date)
-            if current_idx < 20:  # 需要足够的历史数据
-                continue
-            
-            # 获取历史数据用于信号生成
-            historical_data = stock_weekly.iloc[:current_idx+1]
-            
-            # 确保有足够的数据
-            if len(historical_data) < 60:
-                continue
-            
-            # 生成信号
-            try:
-                signal_result = self.signal_generator.generate_signal(stock_code, historical_data)
-                if signal_result and isinstance(signal_result, dict):
-                    signal = signal_result.get('signal', 'HOLD')
-                    if signal and signal != 'HOLD':
-                        signals[stock_code] = signal
-                        # 记录信号详情用于报告
-                        if not hasattr(self, 'signal_details'):
-                            self.signal_details = {}
-                        self.signal_details[f"{stock_code}_{current_date.strftime('%Y-%m-%d')}"] = signal_result
-                elif isinstance(signal_result, str):
-                    # 兼容旧版本返回字符串的情况
-                    if signal_result and signal_result != 'HOLD':
-                        signals[stock_code] = signal_result
-                else:
-                    self.logger.warning(f"{stock_code} 信号生成返回了无效结果: {signal_result}")
-            except Exception as e:
-                self.logger.warning(f"{stock_code} 信号生成失败: {e}")
-                continue
-        
-        return signals
-    
-    def _execute_trades(self, signals: Dict[str, str], current_date: pd.Timestamp) -> List[str]:
-        """
-        执行交易
-        
-        Args:
-            signals: 交易信号
-            current_date: 当前日期
-            
-        Returns:
-            List[str]: 执行的交易记录
-        """
-        executed_trades = []
-        
-        # 获取当前价格
-        current_prices = {}
-        for stock_code in self.stock_pool:
-            if stock_code in self.stock_data:
-                stock_weekly = self.stock_data[stock_code]['weekly']
-                if current_date in stock_weekly.index:
-                    current_prices[stock_code] = stock_weekly.loc[current_date, 'close']
-        
-        # 执行卖出信号
-        for stock_code, signal in signals.items():
-            if signal == 'SELL' and stock_code in current_prices:
-                current_position = self.portfolio_manager.positions.get(stock_code, 0)
-                if current_position > 0:
-                    # 计算卖出数量（按轮动比例）
-                    sell_shares = int(current_position * self.rotation_percentage / 100) * 100
-                    if sell_shares > 0:
-                        price = current_prices[stock_code]
-                        success, trade_info = self.portfolio_manager.sell_stock(
-                            stock_code, sell_shares, price, current_date, "转现金"
-                        )
-                        if success:
-                            self.logger.info(f"执行卖出交易: {stock_code} {sell_shares}股 价格{price}")
-                            self._record_transaction(trade_info, current_date)
-                            executed_trades.append(f"转现金: {stock_code} {sell_shares}股")
-                        else:
-                            self.logger.warning(f"卖出交易失败: {stock_code}")
-        
-        # 执行买入信号
-        for stock_code, signal in signals.items():
-            if signal == 'BUY' and stock_code in current_prices:
-                # 使用可用现金的轮动比例买入
-                available_cash = self.portfolio_manager.cash * self.rotation_percentage
-                if available_cash > 10000:  # 最小买入金额
-                    price = current_prices[stock_code]
-                    max_shares = int(available_cash / price / 100) * 100
-                    if max_shares > 0:
-                        success, trade_info = self.portfolio_manager.buy_stock(
-                            stock_code, max_shares, price, current_date, "现金买入"
-                        )
-                        if success:
-                            self.logger.info(f"执行买入交易: {stock_code} {max_shares}股 价格{price}")
-                            self._record_transaction(trade_info, current_date)
-                            executed_trades.append(f"现金买入: {stock_code} {max_shares}股")
-                        else:
-                            self.logger.warning(f"买入交易失败: {stock_code}")
-        
-        return executed_trades
-    
-    def _record_transaction(self, trade_info: Dict[str, Any], current_date: pd.Timestamp):
-        """
-        记录交易信息
-        
-        Args:
-            trade_info: 交易信息
-            current_date: 交易日期
-        """
-        # 获取技术指标
-        stock_code = trade_info['stock_code']
-        technical_indicators = {}
-        signal_details = {}
-        
-        if stock_code in self.stock_data:
-            stock_weekly = self.stock_data[stock_code]['weekly']
-            if current_date in stock_weekly.index:
-                row = stock_weekly.loc[current_date]
-                # 计算4周平均成交量
-                current_idx = stock_weekly.index.get_loc(current_date)
-                if current_idx >= 3:  # 至少需要4个数据点
-                    volume_4w_data = stock_weekly['volume'].iloc[current_idx-3:current_idx+1]
-                    volume_4w_avg = volume_4w_data.mean()
-                else:
-                    volume_4w_avg = row['volume']  # 数据不足时使用当前成交量
-                
-                # 调试：打印可用的字段名
-                self.logger.debug(f"可用的技术指标字段: {list(row.index)}")
-                
-                # 安全获取技术指标值，处理可能的NaN
-                def safe_get_value(key, default_value):
-                    try:
-                        value = row.get(key, default_value)
-                        if pd.isna(value):
-                            return default_value
-                        return float(value)
-                    except:
-                        return default_value
-                
-"""
-回测引擎模块
-负责执行回测逻辑，管理投资组合，记录交易历史
-"""
-
-import pandas as pd
-import numpy as np
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
-import warnings
-warnings.filterwarnings('ignore')
-
-# 导入其他模块
-from data.data_fetcher import AkshareDataFetcher
-from data.data_processor import DataProcessor
-from data.data_storage import DataStorage
-from strategy.signal_generator import SignalGenerator
-from .portfolio_manager import PortfolioManager
-from .transaction_cost import TransactionCostCalculator
-from .enhanced_report_generator_integrated_fixed import IntegratedReportGenerator
-from .detailed_csv_exporter import DetailedCSVExporter
-
-logger = logging.getLogger(__name__)
-
-class BacktestEngine:
-    """回测引擎类"""
-    
-    def __init__(self, config: Dict[str, Any]):
-        """
-        初始化回测引擎
-        
-        Args:
-            config: 回测配置字典
-        """
-        self.config = config
-        self.logger = logging.getLogger(__name__)
-        
-        # 基本配置
-        self.start_date = config.get('start_date', '2022-01-01')
-        self.end_date = config.get('end_date', '2024-12-31')
-        self.total_capital = config.get('total_capital', 1000000)
-        self.initial_holdings = config.get('initial_holdings', {})
-        
-        # 策略参数
-        strategy_params = config.get('strategy_params', {})
-        self.rotation_percentage = strategy_params.get('rotation_percentage', 0.1)
-        
-        # 成本配置
-        cost_config = config.get('cost_config', {})
-        
-        # 初始化各个组件
-        self.data_fetcher = AkshareDataFetcher()
-        self.data_processor = DataProcessor()
-        self.data_storage = DataStorage()  # 添加数据存储组件
-        # SignalGenerator将在DCF数据加载后初始化
-        self.cost_calculator = TransactionCostCalculator(cost_config)
-        self.portfolio_manager = None
-        
-        # 报告生成器
-        self.report_generator = IntegratedReportGenerator()
-        self.csv_exporter = DetailedCSVExporter()
-        
-        # 回测数据存储
-        self.stock_data = {}
-        self.backtest_results = {}
-        self.transaction_history = []
-        self.portfolio_history = []
-        
-        # 股票池（排除现金）
-        self.stock_pool = [code for code in self.initial_holdings.keys() if code != 'cash']
-        
-        # 加载DCF估值数据
-        self.dcf_values = self._load_dcf_values()
-        
-        # 初始化SignalGenerator，传递DCF数据
-        self.signal_generator = SignalGenerator(config, self.dcf_values)
-        
-        self.logger.info("回测引擎初始化完成")
-        self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
-        self.logger.info(f"股票池: {self.stock_pool}")
-        self.logger.info(f"轮动比例: {self.rotation_percentage:.1%}")
-    
-    def _load_dcf_values(self) -> Dict[str, float]:
-        """
         从Csv配置文件加载DCF估值数据
         
         Returns:
@@ -557,11 +106,11 @@ class BacktestEngine:
                     if dcf_value is not None and pd.notna(dcf_value):
                         dcf_values[stock_code] = float(dcf_value)
             
-            self.logger.info(f"成功加载 {len(dcf_values)} 只股票的DCF估值")
             return dcf_values
         except Exception as e:
             self.logger.warning(f"DCF估值数据加载失败: {e}")
             return {}
+
     
     def prepare_data(self) -> bool:
         """
@@ -573,6 +122,16 @@ class BacktestEngine:
         try:
             self.logger.info("🚀 开始准备回测数据（智能缓存模式）...")
             
+            # 计算扩展的开始日期，确保有足够的历史数据计算技术指标
+            # RSI需要14个周期，MACD需要35个周期(EMA26+DEA9)，为安全起见，向前扩展40周（约280天）
+            from datetime import datetime, timedelta
+            start_date_obj = datetime.strptime(self.start_date, '%Y-%m-%d')
+            extended_start_date = start_date_obj - timedelta(weeks=40)
+            extended_start_date_str = extended_start_date.strftime('%Y-%m-%d')
+            
+            self.logger.info(f"📅 回测期间: {self.start_date} 至 {self.end_date}")
+            self.logger.info(f"📅 数据获取期间（含历史缓冲）: {extended_start_date_str} 至 {self.end_date}")
+            
             # 显示缓存统计信息
             cache_stats = self.data_storage.get_cache_statistics()
             self.logger.info(f"📊 当前缓存统计: {cache_stats}")
@@ -580,8 +139,8 @@ class BacktestEngine:
             for stock_code in self.stock_pool:
                 self.logger.info(f"📈 准备 {stock_code} 的历史数据...")
                 
-                # 1. 智能获取日线数据（优先使用缓存）
-                daily_data = self._get_cached_or_fetch_data(stock_code, self.start_date, self.end_date, 'daily')
+                # 1. 智能获取日线数据（使用扩展的开始日期）
+                daily_data = self._get_cached_or_fetch_data(stock_code, extended_start_date_str, self.end_date, 'daily')
                 
                 if daily_data is None or daily_data.empty:
                     self.logger.warning(f"⚠️ 无法获取 {stock_code} 的数据，跳过该股票")
@@ -591,9 +150,9 @@ class BacktestEngine:
                 # 2. 智能获取或生成周线数据
                 weekly_data = None
                 
-                # 先尝试从缓存获取周线数据
+                # 先尝试从缓存获取周线数据（使用扩展的开始日期）
                 try:
-                    weekly_data = self._get_cached_or_fetch_data(stock_code, self.start_date, self.end_date, 'weekly')
+                    weekly_data = self._get_cached_or_fetch_data(stock_code, extended_start_date_str, self.end_date, 'weekly')
                 except:
                     # 如果周线缓存获取失败，从日线转换
                     pass
@@ -620,13 +179,30 @@ class BacktestEngine:
                 else:
                     self.logger.info(f"✅ {stock_code} 技术指标已存在，跳过计算")
                 
-                # 存储到内存中供回测使用
+                # 裁剪数据到实际回测期间（保留扩展的历史数据用于技术指标计算）
+                # 但在回测时只使用回测期间的数据
+                actual_start_date = pd.to_datetime(self.start_date)
+                
+                # 为日线数据创建裁剪版本（仅用于显示统计）
+                daily_backtest_data = daily_data[daily_data.index >= actual_start_date]
+                
+                # 为周线数据创建裁剪版本（仅用于显示统计）
+                weekly_backtest_data = weekly_data[weekly_data.index >= actual_start_date]
+                
+                # 存储完整数据到内存中供回测使用（包含历史缓冲数据）
                 self.stock_data[stock_code] = {
-                    'daily': daily_data,
-                    'weekly': weekly_data
+                    'daily': daily_data,  # 包含历史缓冲的完整数据
+                    'weekly': weekly_data  # 包含历史缓冲的完整数据
                 }
                 
-                self.logger.info(f"✅ {stock_code} 数据准备完成: 日线 {len(daily_data)} 条, 周线 {len(weekly_data)} 条")
+                # 记录RSI有效值统计
+                rsi_valid_count = weekly_data['rsi'].notna().sum()
+                rsi_nan_count = weekly_data['rsi'].isna().sum()
+                
+                self.logger.info(f"✅ {stock_code} 数据准备完成:")
+                self.logger.info(f"   📊 日线数据: 总计{len(daily_data)}条, 回测期{len(daily_backtest_data)}条")
+                self.logger.info(f"   📊 周线数据: 总计{len(weekly_data)}条, 回测期{len(weekly_backtest_data)}条")
+                self.logger.info(f"   📊 RSI指标: 有效值{rsi_valid_count}个, NaN值{rsi_nan_count}个")
             
             # 显示最终缓存统计
             final_cache_stats = self.data_storage.get_cache_statistics()
@@ -909,18 +485,21 @@ class BacktestEngine:
                                 return default_val
                             
                             value = row.get(field_name)
-                            if value is None or pd.isna(value):
-                                # 查找历史有效值
-                                for i in range(current_idx - 1, max(0, current_idx - 20), -1):
-                                    try:
-                                        hist_val = stock_weekly.iloc[i][field_name]
-                                        if hist_val is not None and not pd.isna(hist_val):
-                                            return float(hist_val)
-                                    except:
-                                        continue
-                                return default_val
                             
-                            return float(value)
+                            # 如果当前值有效，直接返回
+                            if value is not None and pd.notna(value) and value != 0:
+                                return float(value)
+                            
+                            # 当前值无效，向前查找最近的有效值
+                            current_idx = stock_weekly.index.get_loc(current_date)
+                            for i in range(current_idx - 1, max(0, current_idx - 20), -1):
+                                try:
+                                    hist_val = stock_weekly.iloc[i][field_name]
+                                    if hist_val is not None and not pd.isna(hist_val):
+                                        return float(hist_val)
+                                except:
+                                    continue
+                            return default_val
                         except:
                             return default_val
                     
@@ -1518,17 +1097,21 @@ class BacktestEngine:
                             
                             current_value = row.get(field_name)
                             
-                            # 如果当前值有效，直接返回
-                            if current_value is not None and pd.notna(current_value) and current_value != 0:
-                                return float(current_value)
+                            # 如果当前值有效，直接返回（注意：RSI值为0是有效值）
+                            if current_value is not None and pd.notna(current_value):
+                                # 对于RSI，0是有效值；对于其他指标，可能需要特殊处理
+                                if field_name == 'rsi' or not (current_value == 0 and field_name not in ['rsi', 'macd_histogram']):
+                                    return float(current_value)
                             
                             # 当前值无效，向前查找最近的有效值
                             current_idx = filtered_weekly_data.index.get_loc(idx)
                             for i in range(current_idx - 1, max(0, current_idx - 20), -1):
                                 try:
                                     hist_value = filtered_weekly_data.iloc[i][field_name]
-                                    if hist_value is not None and pd.notna(hist_value) and hist_value != 0:
-                                        return float(hist_value)
+                                    if hist_value is not None and pd.notna(hist_value):
+                                        # 对于RSI，0是有效值
+                                        if field_name == 'rsi' or not (hist_value == 0 and field_name not in ['rsi', 'macd_histogram']):
+                                            return float(hist_value)
                                 except:
                                     continue
                             
@@ -1536,8 +1119,10 @@ class BacktestEngine:
                             for i in range(current_idx + 1, min(len(filtered_weekly_data), current_idx + 20)):
                                 try:
                                     future_value = filtered_weekly_data.iloc[i][field_name]
-                                    if future_value is not None and pd.notna(future_value) and future_value != 0:
-                                        return float(future_value)
+                                    if future_value is not None and pd.notna(future_value):
+                                        # 对于RSI，0是有效值
+                                        if field_name == 'rsi' or not (future_value == 0 and field_name not in ['rsi', 'macd_histogram']):
+                                            return float(future_value)
                                 except:
                                     continue
                             
