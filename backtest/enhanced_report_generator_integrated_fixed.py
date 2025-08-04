@@ -199,22 +199,32 @@ class IntegratedReportGenerator:
         
         # 获取基本数据
         strategy_return = metrics.get('total_return', 0)
-        benchmark_return = metrics.get('benchmark_return', 45.0)  # 默认值作为后备
+        
+        # 🔧 修复：直接使用从backtest_engine传入的正确基准值，不再重新计算
+        benchmark_return = metrics.get('benchmark_return', None)
+        benchmark_annual = metrics.get('benchmark_annual_return', None)
+        benchmark_max_drawdown = metrics.get('benchmark_max_drawdown', None)
+        
+        # 如果没有传入基准值，则使用默认值（而不是错误的动态计算）
+        if benchmark_return is None:
+            print("⚠️ 未收到基准收益率，使用默认值")
+            benchmark_return = 0.0  # 100%现金的基准应该是0%
+            benchmark_annual = 0.0
+            benchmark_max_drawdown = 0.0
+        
         excess_return = strategy_return - benchmark_return
         
         print(f"📊 数据检查: 策略{strategy_return:.2f}% vs 基准{benchmark_return:.2f}% = 超额{excess_return:.2f}%")
         
-        # 获取更多基准数据
-        benchmark_annual = metrics.get('benchmark_annual_return', benchmark_return * 0.27)  # 估算年化
-        benchmark_max_drawdown = metrics.get('benchmark_max_drawdown', -15.0)  # 默认值
-        
-        # 计算超额收益
+        # 获取策略的其他指标
         strategy_annual = metrics.get('annual_return', 0)
         strategy_max_drawdown = metrics.get('max_drawdown', 0)
+        
+        # 计算超额指标
         excess_annual = strategy_annual - benchmark_annual
         excess_drawdown = strategy_max_drawdown - benchmark_max_drawdown
         
-        print(f"📊 完整数据检查:")
+        print(f"📊 基准对比详情:")
         print(f"  总收益率: 策略{strategy_return:.2f}% vs 基准{benchmark_return:.2f}% = 超额{excess_return:.2f}%")
         print(f"  年化收益率: 策略{strategy_annual:.2f}% vs 基准{benchmark_annual:.2f}% = 超额{excess_annual:.2f}%")
         print(f"  最大回撤: 策略{strategy_max_drawdown:.2f}% vs 基准{benchmark_max_drawdown:.2f}% = 差值{excess_drawdown:.2f}%")
@@ -271,35 +281,17 @@ class IntegratedReportGenerator:
     
     def _calculate_dynamic_benchmark(self, metrics: Dict) -> tuple:
         """
-        动态计算买入持有基准收益（基于等权重股票池）
+        🚫 已废弃：此方法包含错误的基准计算逻辑
         
-        Args:
-            metrics: 策略绩效指标
-            
-        Returns:
-            tuple: (总收益率%, 年化收益率%, 最大回撤%)
+        原错误逻辑：benchmark_return = strategy_return * 0.7
+        这是完全错误的，基准收益率应该独立计算，不应基于策略收益率
+        
+        正确的基准计算已在 backtest_engine.py 的 _calculate_buy_and_hold_benchmark() 中实现
         """
-        try:
-            # 使用策略收益率的80%作为基准（保守估计）
-            strategy_return = metrics.get('total_return', 0)
-            strategy_annual = metrics.get('annual_return', 0)
-            
-            # 基准收益率设为策略收益率的70%（模拟等权重买入持有）
-            benchmark_return = strategy_return * 0.7
-            benchmark_annual = strategy_annual * 0.75
-            
-            # 基准最大回撤通常比策略小一些（因为没有择时）
-            benchmark_max_drawdown = -abs(benchmark_return * 0.4)  # 估算
-            
-            print(f"📈 动态计算基准: 基于策略收益率{strategy_return:.2f}%计算")
-            print(f"📊 基准结果: 总收益{benchmark_return:.2f}%, 年化{benchmark_annual:.2f}%, 回撤{benchmark_max_drawdown:.2f}%")
-            
-            return benchmark_return, benchmark_annual, benchmark_max_drawdown
-            
-        except Exception as e:
-            print(f"❌ 动态基准计算失败: {e}，使用默认值")
-            # 如果计算失败，返回合理的默认值
-            return 112.0, 18.5, -25.0  # 基于10只股票等权重的合理估算
+        print("⚠️ _calculate_dynamic_benchmark 方法已废弃，请使用 backtest_engine 中的正确基准计算")
+        
+        # 返回默认值，不再进行错误的计算
+        return 0.0, 0.0, 0.0
     
     def _replace_final_portfolio_safe(self, template: str, final_portfolio: Dict) -> str:
         """安全地替换最终持仓状态"""

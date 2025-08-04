@@ -1220,7 +1220,7 @@ class BacktestEngine:
 
     def _calculate_buy_and_hold_benchmark(self) -> Tuple[float, float, float]:
         """
-        计算买入持有基准收益（基于实际股票池表现）
+        计算买入持有基准收益（基于实际投资组合配置）
         
         Returns:
             Tuple[float, float, float]: (总收益率%, 年化收益率%, 最大回撤%)
@@ -1229,19 +1229,86 @@ class BacktestEngine:
             print(f"🔍 基准计算开始 - 股票数据数量: {len(self.stock_data) if self.stock_data else 0}")
             print(f"🔍 回测日期范围: {self.start_date} 到 {self.end_date}")
             
+            # 🔧 修复：检查投资组合配置，判断是否为100%现金
+            try:
+                import pandas as pd
+                df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
+                
+                total_stock_weight = 0
+                cash_weight = 0
+                
+                for _, row in df.iterrows():
+                    code = str(row['Stock_number']).strip()
+                    weight = float(row['Initial_weight'])
+                    
+                    if code.upper() == 'CASH':
+                        cash_weight = weight
+                    else:
+                        total_stock_weight += weight
+                
+                print(f"🔍 投资组合配置检查: 股票权重={total_stock_weight:.1%}, 现金权重={cash_weight:.1%}")
+                
+                # 如果是100%现金或接近100%现金，基准应该是现金收益率
+                if total_stock_weight <= 0.01:  # 股票权重小于等于1%
+                    print("💰 检测到100%现金投资组合，使用现金基准收益率")
+                    return 0.0, 0.0, 0.0  # 现金基准：0%收益率，0%波动率
+                    
+            except Exception as e:
+                print(f"⚠️ 读取投资组合配置失败: {e}，继续使用股票基准计算")
+            
             if not self.stock_data:
                 print("⚠️ 没有股票数据，使用默认基准值")
                 return 45.0, 12.0, -18.0
             
-            # 计算等权重买入持有策略的表现
+            # 🔧 修改：使用与策略收益率相同的计算方法
+            # 基于投资组合总市值变化：(结束日总市值 - 开始日总市值) / 开始日总市值
             start_date = pd.to_datetime(self.start_date)
             end_date = pd.to_datetime(self.end_date)
             
-            # 收集所有股票的收益率
-            stock_returns = {}
+            # 读取投资组合配置，获取初始权重
+            try:
+                import pandas as pd
+                df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
+                
+                initial_weights = {}
+                total_stock_weight = 0
+                cash_weight = 0
+                
+                for _, row in df.iterrows():
+                    code = str(row['Stock_number']).strip()
+                    weight = float(row['Initial_weight'])
+                    
+                    if code.upper() == 'CASH':
+                        cash_weight = weight
+                    else:
+                        initial_weights[code] = weight
+                        total_stock_weight += weight
+                
+                print(f"🔍 基准计算 - 投资组合权重: 股票{total_stock_weight:.1%}, 现金{cash_weight:.1%}")
+                
+                # 如果是100%现金，直接返回0%收益率
+                if total_stock_weight <= 0.01:
+                    print("💰 基准计算 - 100%现金投资组合，基准收益率为0%")
+                    return 0.0, 0.0, 0.0
+                
+            except Exception as e:
+                print(f"⚠️ 读取投资组合配置失败: {e}，使用等权重基准")
+                # 使用等权重作为默认
+                initial_weights = {code: 1.0/len(self.stock_data) for code in self.stock_data.keys()}
+                cash_weight = 0
             
-            for stock_code, data in self.stock_data.items():
-                weekly_data = data['weekly']
+            # 计算基准投资组合的开始和结束市值
+            start_total_value = 0
+            end_total_value = 0
+            
+            # 假设初始投资金额为self.total_capital
+            initial_capital = self.total_capital
+            
+            for stock_code, weight in initial_weights.items():
+                if stock_code not in self.stock_data:
+                    continue
+                    
+                weekly_data = self.stock_data[stock_code]['weekly']
                 
                 # 过滤到回测期间
                 filtered_data = weekly_data[
@@ -1251,36 +1318,52 @@ class BacktestEngine:
                 if len(filtered_data) < 2:
                     continue
                 
-                # 计算该股票的总收益率
+                # 计算该股票的投资金额和股数
                 start_price = filtered_data.iloc[0]['close']
                 end_price = filtered_data.iloc[-1]['close']
-                stock_return = (end_price - start_price) / start_price
-                stock_returns[stock_code] = stock_return
                 
-                self.logger.info(f"买入持有基准 - {stock_code}: {start_price:.2f} -> {end_price:.2f}, 收益率: {stock_return:.2%}")
+                investment_amount = initial_capital * weight
+                shares = investment_amount / start_price
+                
+                # 计算开始和结束市值
+                start_value = shares * start_price
+                end_value = shares * end_price
+                
+                start_total_value += start_value
+                end_total_value += end_value
+                
+                self.logger.info(f"基准 - {stock_code}: 权重{weight:.1%}, {start_price:.2f}->{end_price:.2f}, 市值{start_value:.0f}->{end_value:.0f}")
             
-            if not stock_returns:
+            # 加上现金部分
+            cash_amount = initial_capital * cash_weight
+            start_total_value += cash_amount
+            end_total_value += cash_amount  # 现金不变
+            
+            if start_total_value <= 0:
+                print("⚠️ 基准计算失败，使用默认值")
                 return 45.0, 12.0, -18.0
             
-            # 计算等权重平均收益率
-            avg_return = sum(stock_returns.values()) / len(stock_returns)
+            # 🎯 使用与策略收益率相同的计算公式
+            total_return = (end_total_value - start_total_value) / start_total_value
             
             # 计算年化收益率
             days = (end_date - start_date).days
             if days > 0:
-                annual_return = (1 + avg_return) ** (365.25 / days) - 1
+                annual_return = (end_total_value / start_total_value) ** (365.25 / days) - 1
             else:
                 annual_return = 0
             
-            # 估算最大回撤（简化计算，使用平均值的80%）
-            estimated_max_drawdown = -abs(avg_return * 0.8)
+            # 估算最大回撤（简化计算）
+            estimated_max_drawdown = -abs(total_return * 0.6)  # 假设最大回撤为总收益率的60%
             
             # 转换为百分比
-            total_return_pct = avg_return * 100
+            total_return_pct = total_return * 100
             annual_return_pct = annual_return * 100
             max_drawdown_pct = estimated_max_drawdown * 100
             
-            self.logger.info(f"买入持有基准计算完成:")
+            self.logger.info(f"🎯 基准计算完成 (投资组合市值法):")
+            self.logger.info(f"  开始市值: {start_total_value:,.0f} 元")
+            self.logger.info(f"  结束市值: {end_total_value:,.0f} 元")
             self.logger.info(f"  总收益率: {total_return_pct:.2f}%")
             self.logger.info(f"  年化收益率: {annual_return_pct:.2f}%")
             self.logger.info(f"  估算最大回撤: {max_drawdown_pct:.2f}%")
