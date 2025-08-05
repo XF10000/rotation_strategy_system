@@ -835,46 +835,50 @@ class IntegratedReportGenerator:
                 }}
                 
                 .position-comparison-table th {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
+                    background: #f8fafc;
+                    color: #374151;
                     padding: 12px 8px;
                     text-align: center;
-                    font-weight: bold;
-                    border: 1px solid #5a67d8;
-                    font-size: 11px;
+                    font-weight: 600;
+                    border: 1px solid #e2e8f0;
+                    font-size: 0.875rem;
                 }}
                 
                 .position-comparison-table td {{
-                    padding: 10px 8px;
+                    padding: 12px 16px;
                     text-align: center;
-                    border: 1px solid #e2e8f0;
+                    border-bottom: 1px solid #f1f5f9;
                     vertical-align: middle;
                 }}
                 
                 .position-comparison-table tr:nth-child(even) {{
-                    background-color: #f8f9fa;
+                    background-color: #f8fafc;
                 }}
                 
                 .position-comparison-table tr:hover {{
-                    background-color: #e3f2fd;
+                    background-color: #f8fafc;
+                }}
+                
+                .position-comparison-table tbody tr:last-child td {{
+                    border-bottom: none;
                 }}
                 
                 .subtotal-row {{
-                    background-color: #e8f4fd !important;
-                    font-weight: bold;
-                    border-top: 2px solid #4299e1;
+                    background-color: #f8fafc !important;
+                    font-weight: 600;
+                    border-top: 1px solid #e2e8f0;
                 }}
                 
                 .cash-row {{
-                    background-color: #f0fff4 !important;
-                    font-weight: bold;
+                    background-color: #f8fafc !important;
+                    font-weight: 600;
                 }}
                 
                 .total-row {{
-                    background-color: #fff5f5 !important;
-                    font-weight: bold;
-                    border-top: 3px solid #e53e3e;
-                    border-bottom: 3px solid #e53e3e;
+                    background-color: #f8fafc !important;
+                    font-weight: 600;
+                    border-top: 2px solid #e2e8f0;
+                    border-bottom: 1px solid #e2e8f0;
                 }}
                 
                 .positive {{
@@ -995,17 +999,60 @@ class IntegratedReportGenerator:
             
             print(f"🔍 交易统计数据: 总交易={total_trades}, 买入={buy_count}, 卖出={sell_count}, 手续费={total_fees}")
             
-            # 直接替换HTML模板中的固定数值
-            template = template.replace('<div class="value">7</div>', f'<div class="value">{total_trades}</div>')
-            template = template.replace('<div class="value">4</div>', f'<div class="value">{buy_count}</div>')
-            template = template.replace('<div class="value">3</div>', f'<div class="value">{sell_count}</div>')
-            template = template.replace('<div class="value">¥748.20</div>', f'<div class="value">¥{total_fees:.2f}</div>')
+            print(f"🔄 开始替换交易统计数据...")
+            
+            # 按照HTML模板中的顺序进行精确替换
+            # 1. 总交易次数 (第一个出现的数值)
+            old_total_patterns = ['<div class="value">7</div>', '<div class="value">9</div>']
+            for pattern in old_total_patterns:
+                if pattern in template:
+                    template = template.replace(pattern, f'<div class="value">{total_trades}</div>', 1)
+                    print(f"  ✓ 总交易次数: {pattern} -> {total_trades}")
+                    break
+            
+            # 2. 买入次数 (第二个出现的数值)
+            old_buy_patterns = ['<div class="value">0</div>', '<div class="value">4</div>', '<div class="value">7</div>']
+            for pattern in old_buy_patterns:
+                if pattern in template:
+                    template = template.replace(pattern, f'<div class="value">{buy_count}</div>', 1)
+                    print(f"  ✓ 买入次数: {pattern} -> {buy_count}")
+                    break
+            
+            # 3. 卖出次数 (第三个出现的数值)
+            old_sell_patterns = ['<div class="value">3</div>', '<div class="value">7</div>', '<div class="value">9</div>']
+            for pattern in old_sell_patterns:
+                if pattern in template:
+                    template = template.replace(pattern, f'<div class="value">{sell_count}</div>', 1)
+                    print(f"  ✓ 卖出次数: {pattern} -> {sell_count}")
+                    break
+            
+            # 4. 总手续费 (第四个出现的数值)
+            old_fee_patterns = [
+                '<div class="value">¥748.20</div>', 
+                '<div class="value">0.0:1</div>',
+                '<div class="value">¥9791.18</div>'
+            ]
+            for pattern in old_fee_patterns:
+                if pattern in template:
+                    template = template.replace(pattern, f'<div class="value">¥{total_fees:.2f}</div>', 1)
+                    print(f"  ✓ 总手续费: {pattern} -> ¥{total_fees:.2f}")
+                    break
             
             # 计算手续费率
             if total_trades > 0:
-                fee_rate = (total_fees / 1000000) * 100  # 相对于初始资金的百分比
-                template = template.replace('<div class="value">0.0748%</div>', f'<div class="value">{fee_rate:.4f}%</div>')
+                fee_rate = (total_fees / 15000000) * 100  # 相对于初始资金1500万的百分比
+                fee_rate_replacements = [
+                    ('<div class="value">0.0748%</div>', f'<div class="value">{fee_rate:.4f}%</div>'),
+                    ('<div class="value">0.1%</div>', f'<div class="value">{fee_rate:.4f}%</div>'),
+                ]
+                
+                for old_rate, new_rate in fee_rate_replacements:
+                    if old_rate in template:
+                        template = template.replace(old_rate, new_rate)
+                        print(f"  ✓ 手续费率: {old_rate} -> {new_rate}")
+                        break
             
+            print(f"✅ 交易统计替换完成")
             return template
         except Exception as e:
             print(f"❌ 交易统计替换错误: {e}")
@@ -1384,14 +1431,18 @@ class IntegratedReportGenerator:
             }}
             
             .summary-card {{
-                background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-                border-radius: 10px;
+                background: #f8fafc;
+                border-radius: 8px;
                 padding: 20px;
                 text-align: center;
-                color: white;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(66, 153, 225, 0.2);
+                color: #1a202c;
+                border: 1px solid #e2e8f0;
+                transition: all 0.2s ease;
+            }}
+            
+            .summary-card:hover {{
+                background: #f1f5f9;
+                border-color: #cbd5e0;
             }}
             
             .summary-card.total {{ background: #f8fafc; border-left: 4px solid #3182ce; }}
@@ -1400,14 +1451,16 @@ class IntegratedReportGenerator:
             .summary-card.ratio {{ background: #f8fafc; border-left: 4px solid #7c3aed; }}
             
             .summary-number {{
-                font-size: 28px;
-                font-weight: bold;
+                font-size: 2rem;
+                font-weight: 700;
                 margin-bottom: 8px;
+                color: #1a202c;
             }}
             
             .summary-title {{
-                font-size: 14px;
-                opacity: 0.9;
+                font-size: 0.875rem;
+                color: #4a5568;
+                font-weight: 500;
             }}
             
             .dimension-summary {{
@@ -1453,29 +1506,29 @@ class IntegratedReportGenerator:
             }}
             
             .signal-card {{
-                background: rgba(255, 255, 255, 0.95);
-                border-radius: 15px;
+                background: #ffffff;
+                border-radius: 12px;
                 padding: 0;
-                color: #2d3748;
-                box-shadow: 0 4px 20px rgba(74, 85, 104, 0.08);
-                border: 1px solid rgba(226, 232, 240, 0.6);
+                color: #1a202c;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e2e8f0;
                 overflow: hidden;
-                transition: transform 0.3s ease;
+                transition: all 0.2s ease;
             }}
             
             .signal-card:hover {{
-                transform: translateY(-5px);
-                box-shadow: 0 8px 25px rgba(74, 85, 104, 0.12);
+                background: #f8fafc;
+                border-color: #cbd5e0;
             }}
             
             .card-header {{
-                background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+                background: #f8fafc;
                 padding: 20px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-                color: white;
+                border-bottom: 1px solid #e2e8f0;
+                color: #1a202c;
             }}
             
             .card-header h4 {{
@@ -1502,29 +1555,33 @@ class IntegratedReportGenerator:
             .summary-item {{
                 flex: 1;
                 text-align: center;
-                padding: 10px;
+                padding: 12px;
                 border-radius: 8px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
             }}
             
             .summary-item.buy {{
-                background: rgba(39, 174, 96, 0.3);
+                border-left: 3px solid #059669;
             }}
             
             .summary-item.sell {{
-                background: rgba(231, 76, 60, 0.3);
+                border-left: 3px solid #dc2626;
             }}
             
             .summary-label {{
                 display: block;
-                font-size: 12px;
-                opacity: 0.8;
+                font-size: 0.875rem;
+                color: #4a5568;
                 margin-bottom: 5px;
+                font-weight: 500;
             }}
             
             .summary-value {{
                 display: block;
-                font-size: 24px;
-                font-weight: bold;
+                font-size: 1.5rem;
+                font-weight: 600;
+                color: #1a202c;
             }}
             
             .dimension-stats {{
@@ -1541,23 +1598,25 @@ class IntegratedReportGenerator:
             
             .dim-label {{
                 display: block;
-                font-size: 14px;
-                font-weight: bold;
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: #4a5568;
                 margin-bottom: 8px;
             }}
             
             .dim-progress {{
                 position: relative;
-                background: rgba(255,255,255,0.2);
-                border-radius: 10px;
-                height: 25px;
+                background: #f1f5f9;
+                border-radius: 8px;
+                height: 24px;
                 overflow: hidden;
+                border: 1px solid #e2e8f0;
             }}
             
             .progress-bar {{
                 height: 100%;
-                background: linear-gradient(90deg, #27ae60, #2ecc71);
-                border-radius: 10px;
+                background: #3182ce;
+                border-radius: 8px;
                 transition: width 0.5s ease;
             }}
             
@@ -1566,9 +1625,9 @@ class IntegratedReportGenerator:
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                font-size: 12px;
-                font-weight: bold;
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: #1a202c;
             }}
             </style>"""
             

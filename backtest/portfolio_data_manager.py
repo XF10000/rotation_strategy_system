@@ -224,6 +224,16 @@ class PortfolioDataManager:
         total_return = final_value - initial_value
         total_return_rate = (total_return / initial_value) * 100
         
+        # 计算年化收益率
+        start_date = pd.to_datetime(initial_state['date'])
+        end_date = pd.to_datetime(final_state['date'])
+        days = (end_date - start_date).days
+        
+        if days > 0:
+            annual_return = (final_value / initial_value) ** (365.25 / days) - 1
+        else:
+            annual_return = 0
+        
         # 计算日收益率序列
         daily_returns = []
         for i in range(1, len(self._portfolio_states)):
@@ -239,11 +249,19 @@ class PortfolioDataManager:
         else:
             volatility = 0
         
+        logger.info(f"📊 性能指标计算完成:")
+        logger.info(f"  初始价值: {initial_value:,.2f}")
+        logger.info(f"  最终价值: {final_value:,.2f}")
+        logger.info(f"  总收益率: {total_return_rate:.2f}%")
+        logger.info(f"  年化收益率: {annual_return*100:.2f}%")
+        logger.info(f"  交易天数: {days}")
+        
         return {
             'initial_value': initial_value,
             'final_value': final_value,
             'total_return': total_return,
             'total_return_rate': total_return_rate,
+            'annual_return': annual_return,  # 添加年化收益率
             'volatility': volatility,
             'trading_days': len(self._portfolio_states)
         }
