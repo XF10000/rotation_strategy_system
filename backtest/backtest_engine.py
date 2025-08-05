@@ -17,6 +17,7 @@ from data.data_processor import DataProcessor
 from data.data_storage import DataStorage
 from strategy.signal_generator import SignalGenerator
 from .portfolio_manager import PortfolioManager
+from .portfolio_data_manager import PortfolioDataManager
 from .transaction_cost import TransactionCostCalculator
 from .enhanced_report_generator_integrated_fixed import IntegratedReportGenerator
 from .detailed_csv_exporter import DetailedCSVExporter
@@ -59,6 +60,9 @@ class BacktestEngine:
         self.cost_calculator = TransactionCostCalculator(cost_config)
         self.portfolio_manager = None
         
+        # 统一的Portfolio数据管理器
+        self.portfolio_data_manager = PortfolioDataManager(self.total_capital)
+        
         # 报告生成器
         self.report_generator = IntegratedReportGenerator()
         self.csv_exporter = DetailedCSVExporter()
@@ -67,8 +71,6 @@ class BacktestEngine:
         self.stock_data = {}
         self.backtest_results = {}
         self.transaction_history = []
-        self.portfolio_history = []
-        self.initial_prices = {}  # 保存初始价格数据
         
         # 股票池（排除现金）
         self.stock_pool = [code for code in self.initial_holdings.keys() if code != 'cash']
@@ -232,15 +234,20 @@ class BacktestEngine:
             # 设置成本计算器
             self.portfolio_manager.cost_calculator = self.cost_calculator
             
-            # 获取初始价格
+            # 获取初始价格并设置到数据管理器
             initial_prices = {}
             for stock_code in self.stock_pool:
                 if stock_code in self.stock_data:
-                    initial_prices[stock_code] = self.stock_data[stock_code]['weekly'].iloc[0]['close']
-            
-            # 🔧 保存初始价格数据供报告生成器使用
-            self.initial_prices = initial_prices.copy()
-            self.logger.info(f"💰 保存初始价格数据: {self.initial_prices}")
+                    weekly_data = self.stock_data[stock_code]['weekly']
+                    initial_price = weekly_data.iloc[0]['close']
+                    initial_prices[stock_code] = initial_price
+                    
+                    # 将价格数据设置到统一数据管理器
+                    price_data = {}
+                    for idx, row in weekly_data.iterrows():
+                        date_str = idx.strftime('%Y-%m-%d')
+                        price_data[date_str] = row['close']
+                    self.portfolio_data_manager.set_price_data(stock_code, price_data)
             
             # 初始化投资组合
             self.portfolio_manager.initialize_portfolio(initial_prices)
@@ -317,14 +324,14 @@ class BacktestEngine:
                         for trade in executed_trades:
                             self.logger.info(f"  {trade}")
                 
-                # 记录投资组合状态
-                portfolio_value = self.portfolio_manager.get_total_value(current_prices)
-                self.portfolio_history.append({
-                    'date': current_date,
-                    'total_value': portfolio_value,
-                    'cash': self.portfolio_manager.cash,
-                    'positions': self.portfolio_manager.positions.copy()
-                })
+                # 记录投资组合状态到统一数据管理器
+                date_str = current_date.strftime('%Y-%m-%d')
+                self.portfolio_data_manager.record_portfolio_state(
+                    date=date_str,
+                    positions=self.portfolio_manager.positions.copy(),
+                    cash=self.portfolio_manager.cash,
+                    prices=current_prices
+                )
             
             self.logger.info("回测完成")
             return True
@@ -723,12 +730,11 @@ class BacktestEngine:
         Returns:
             Dict[str, Any]: 回测结果
         """
-        if not self.portfolio_history:
-            return {}
+        # 从统一数据管理器获取portfolio历史
+        portfolio_df = self.portfolio_data_manager.get_portfolio_history()
         
-        # 转换为DataFrame便于分析
-        portfolio_df = pd.DataFrame(self.portfolio_history)
-        portfolio_df.set_index('date', inplace=True)
+        if portfolio_df.empty:
+            return {}
         
         # 计算基本指标
         initial_value = portfolio_df['total_value'].iloc[0]
@@ -812,7 +818,7 @@ class BacktestEngine:
     
     def _prepare_integrated_results(self, backtest_results: Dict[str, Any]) -> Dict[str, Any]:
         """
-        准备集成报告所需的数据结构
+        准备集成报告所需的数据结构 - 使用统一数据管理器
         
         Args:
             backtest_results: 原始回测结果
@@ -826,8 +832,8 @@ class BacktestEngine:
             basic_metrics = backtest_results.get('basic_metrics', {})
             trading_metrics = backtest_results.get('trading_metrics', {})
             
-            # 投资组合历史
-            portfolio_history = backtest_results.get('portfolio_history', pd.DataFrame())
+            # 从统一数据管理器获取投资组合历史
+            portfolio_history = self.portfolio_data_manager.get_portfolio_history()
             
             # 交易历史
             transaction_history = backtest_results.get('transaction_history', pd.DataFrame())
@@ -845,6 +851,13 @@ class BacktestEngine:
             # K线数据
             kline_data = self._prepare_kline_data()
             
+            # 从统一数据管理器获取初始价格
+            initial_prices = {}
+            for stock_code in self.stock_pool:
+                initial_price = self.portfolio_data_manager.get_initial_price(stock_code)
+                if initial_price:
+                    initial_prices[stock_code] = initial_price
+            
             return {
                 'portfolio_history': portfolio_history.to_dict('records') if not portfolio_history.empty else [],
                 'transactions': transaction_history.to_dict('records') if not transaction_history.empty else [],
@@ -853,7 +866,7 @@ class BacktestEngine:
                 'signal_analysis': signal_analysis,
                 'kline_data': kline_data,
                 'dcf_values': getattr(self, 'dcf_values', {}),
-                'initial_prices': getattr(self, 'initial_prices', {})  # 🔧 传递真实的初始价格数据
+                'initial_prices': initial_prices  # 从统一数据管理器获取
             }
             
         except Exception as e:
@@ -861,126 +874,98 @@ class BacktestEngine:
             return {}
     
     def _get_final_portfolio_status(self, portfolio_history: pd.DataFrame) -> Dict[str, Any]:
-        """获取最终投资组合状态"""
+        """获取最终投资组合状态 - 使用统一数据管理器"""
         print(f"🔍 _get_final_portfolio_status 调试:")
-        print(f"  portfolio_history 是否为空: {portfolio_history.empty}")
         
-        if portfolio_history.empty:
-            print("⚠️ portfolio_history 为空，返回空字典")
+        # 直接从统一数据管理器获取最终状态
+        final_state = self.portfolio_data_manager.get_final_portfolio_state()
+        
+        if not final_state:
+            print("⚠️ 无法从数据管理器获取最终状态")
             return {}
         
-        print(f"  portfolio_history 长度: {len(portfolio_history)}")
-        print(f"  portfolio_history 列: {list(portfolio_history.columns)}")
+        print(f"  从数据管理器获取最终状态: {final_state}")
         
-        final_row = portfolio_history.iloc[-1]
-        final_positions = final_row.get('positions', {})
-        
-        print(f"  最终行日期: {final_row.name}")
-        print(f"  最终行总资产: {final_row['total_value']}")
-        print(f"  最终行现金: {final_row['cash']}")
-        print(f"  最终持仓: {final_positions}")
-        
-        # 🔧 修复：使用回测结束日期获取准确的股价
-        end_date = pd.to_datetime(self.end_date)
-        print(f"  回测结束日期: {end_date}")
-        
-        # 计算股票市值
-        stock_value = 0
-        positions_detail = {}
-        
-        for stock_code, shares in final_positions.items():
-            if stock_code != 'cash' and shares > 0:
-                # 🎯 修复：获取回测结束日的准确价格
-                current_price = 0
-                if stock_code in self.stock_data:
-                    stock_weekly = self.stock_data[stock_code]['weekly']
-                    
-                    # 过滤到回测期间
-                    start_date = pd.to_datetime(self.start_date)
-                    backtest_data = stock_weekly[
-                        (stock_weekly.index >= start_date) & (stock_weekly.index <= end_date)
-                    ]
-                    
-                    if not backtest_data.empty:
-                        # 使用回测期间的最后一个价格
-                        current_price = backtest_data.iloc[-1]['close']
-                        print(f"  {stock_code} 回测结束价格: {current_price}")
-                    else:
-                        # 降级：使用所有数据的最后价格
-                        current_price = stock_weekly.iloc[-1]['close']
-                        print(f"  {stock_code} 降级使用最后价格: {current_price}")
-                else:
-                    print(f"  ⚠️ {stock_code} 不在股票数据中")
-                
-                market_value = shares * current_price
-                stock_value += market_value
-                
-                positions_detail[stock_code] = {
-                    'shares': shares,
-                    'current_price': current_price,
-                    'market_value': market_value
-                }
-                
-                print(f"  {stock_code}: {shares}股 × {current_price} = {market_value}")
-        
-        # 🔧 修复：重新计算总资产，确保数据一致性
-        calculated_total_value = final_row['cash'] + stock_value
-        original_total_value = final_row['total_value']
-        
-        print(f"  计算的总资产: {calculated_total_value}")
-        print(f"  原始总资产: {original_total_value}")
-        print(f"  差异: {abs(calculated_total_value - original_total_value)}")
-        
-        # 使用重新计算的总资产，确保数据一致性
-        final_total_value = calculated_total_value
-        
+        # 转换为报告需要的格式
         result = {
-            'end_date': final_row.name.strftime('%Y-%m-%d') if hasattr(final_row.name, 'strftime') else str(final_row.name),
-            'total_value': final_total_value,  # 使用重新计算的值
-            'cash': final_row['cash'],
-            'stock_value': stock_value,
-            'positions': positions_detail
+            'end_date': final_state['date'],
+            'total_value': final_state['total_value'],
+            'cash': final_state['cash'],
+            'stock_value': final_state['stock_value'],
+            'positions': {}
         }
         
-        print(f"  最终结果: {result}")
+        # 转换持仓详情格式
+        for stock_code, market_info in final_state.get('market_values', {}).items():
+            result['positions'][stock_code] = {
+                'shares': market_info['shares'],
+                'current_price': market_info['price'],
+                'market_value': market_info['market_value']
+            }
+        
+        print(f"  转换后的最终结果: {result}")
+        return result
+    
+    def _get_initial_portfolio_status(self, portfolio_history: pd.DataFrame) -> Dict[str, Any]:
+        """
+        获取初始投资组合状态 - 使用统一数据管理器
+        
+        Args:
+            portfolio_history: 投资组合历史数据（兼容性参数）
+            
+        Returns:
+            Dict[str, Any]: 初始投资组合状态详情
+        """
+        print(f"🔍 _get_initial_portfolio_status 调试:")
+        
+        # 直接从统一数据管理器获取初始状态
+        initial_state = self.portfolio_data_manager.get_initial_portfolio_state()
+        
+        if not initial_state:
+            print("⚠️ 无法从数据管理器获取初始状态")
+            return {}
+        
+        print(f"  从数据管理器获取初始状态: {initial_state}")
+        
+        # 转换为报告需要的格式
+        result = {
+            'start_date': initial_state['date'],
+            'total_value': initial_state['total_value'],
+            'cash': initial_state['cash'],
+            'stock_value': initial_state['stock_value'],
+            'positions': {}
+        }
+        
+        # 转换持仓详情格式
+        for stock_code, market_info in initial_state.get('market_values', {}).items():
+            result['positions'][stock_code] = {
+                'shares': market_info['shares'],
+                'initial_price': market_info['price'],
+                'market_value': market_info['market_value']
+            }
+        
+        print(f"  转换后的初始结果: {result}")
         return result
     
     def _calculate_performance_metrics(self, basic_metrics: Dict, trading_metrics: Dict) -> Dict[str, Any]:
-        """计算绩效指标"""
+        """计算绩效指标 - 使用统一数据管理器"""
         print(f"🔍 _calculate_performance_metrics 调试:")
         print(f"  basic_metrics: {basic_metrics}")
         print(f"  trading_metrics: {trading_metrics}")
         
-        # 🔧 修复：使用正确的初始资金
-        # 从配置文件获取真实的初始资金，而不是从basic_metrics
-        initial_capital = self.total_capital  # 使用配置的初始资金
-        final_value = basic_metrics.get('final_value', initial_capital)
+        # 从统一数据管理器获取性能指标
+        performance_metrics = self.portfolio_data_manager.calculate_performance_metrics()
         
-        print(f"  修正后初始资金: {initial_capital}")
-        print(f"  最终资产: {final_value}")
+        if not performance_metrics:
+            print("⚠️ 无法从数据管理器获取性能指标")
+            return {}
         
-        # 🔧 修复：重新计算收益率，确保使用正确的初始资金
-        if initial_capital > 0:
-            total_return = ((final_value - initial_capital) / initial_capital) * 100
-        else:
-            total_return = 0
+        print(f"  从数据管理器获取的性能指标: {performance_metrics}")
         
-        # 重新计算年化收益率
-        start_date = pd.to_datetime(self.start_date)
-        end_date = pd.to_datetime(self.end_date)
-        days = (end_date - start_date).days
-        
-        if days > 0 and initial_capital > 0:
-            annual_return = ((final_value / initial_capital) ** (365.25 / days) - 1) * 100
-        else:
-            annual_return = 0
-        
-        # 最大回撤保持原有计算
+        # 转换为百分比格式
+        total_return = performance_metrics.get('total_return_rate', 0)
+        annual_return = performance_metrics.get('annual_return', 0) * 100  # 转换为百分比
         max_drawdown = basic_metrics.get('max_drawdown', 0) * 100
-        
-        print(f"  重新计算的总收益率: {total_return:.2f}%")
-        print(f"  重新计算的年化收益率: {annual_return:.2f}%")
-        print(f"  最大回撤: {max_drawdown:.2f}%")
         
         # 计算买入持有基准收益（基于实际股票池表现）
         print(f"🔍 开始计算买入持有基准...")
@@ -988,14 +973,16 @@ class BacktestEngine:
         print(f"📊 基准计算结果: 总收益率{benchmark_return:.2f}%, 年化{benchmark_annual_return:.2f}%, 最大回撤{benchmark_max_drawdown:.2f}%")
         
         result = {
-            'initial_capital': initial_capital,
-            'final_value': final_value,
+            'initial_capital': performance_metrics.get('initial_value', self.total_capital),
+            'final_value': performance_metrics.get('final_value', self.total_capital),
             'total_return': total_return,
             'annual_return': annual_return,
             'max_drawdown': max_drawdown,
             'benchmark_return': benchmark_return,
             'benchmark_annual_return': benchmark_annual_return,
-            'benchmark_max_drawdown': benchmark_max_drawdown
+            'benchmark_max_drawdown': benchmark_max_drawdown,
+            'volatility': performance_metrics.get('volatility', 0) * 100,  # 转换为百分比
+            'trading_days': performance_metrics.get('trading_days', 0)
         }
         
         print(f"  最终绩效指标: {result}")
