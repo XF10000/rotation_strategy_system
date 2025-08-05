@@ -217,63 +217,85 @@
         
         .final-portfolio-status {
             margin: 20px 0;
-            padding: 20px;
-            background: #f7fafc;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
+            padding: 0;
         }
         
         .portfolio-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 15px 0;
+            gap: 16px;
+            margin: 16px 0;
         }
         
         .summary-item {
             display: flex;
             justify-content: space-between;
-            padding: 12px;
-            background: white;
+            align-items: center;
+            padding: 16px;
+            background: #f8fafc;
             border-radius: 8px;
             border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .summary-item:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e0;
         }
         
         .summary-label {
-            font-weight: bold;
+            font-weight: 500;
             color: #4a5568;
+            font-size: 0.875rem;
         }
         
         .summary-value {
-            color: #3182ce;
-            font-weight: bold;
+            color: #1a202c;
+            font-weight: 600;
+            font-size: 0.875rem;
         }
         
         .stock-positions {
             margin-top: 20px;
         }
         
+        .stock-positions h4 {
+            color: #1a202c;
+            margin-bottom: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
         .positions-table {
             width: 100%;
-            margin-top: 10px;
+            margin-top: 16px;
             border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
         }
         
         .positions-table th,
         .positions-table td {
-            padding: 8px 12px;
+            padding: 12px 16px;
             text-align: left;
-            border: 1px solid #dee2e6;
+            border-bottom: 1px solid #f1f5f9;
         }
         
         .positions-table th {
-            background: #e9ecef;
-            font-weight: bold;
+            background: #f8fafc;
+            color: #374151;
+            font-weight: 600;
+            font-size: 0.875rem;
         }
         
-        .positions-table tbody tr:nth-child(even) {
-            background: #f8f9fa;
+        .positions-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+        
+        .positions-table tbody tr:last-child td {
+            border-bottom: none;
         }
 
         .benchmark-comparison {

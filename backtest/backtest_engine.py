@@ -489,7 +489,7 @@ class BacktestEngine:
             if signal == 'SELL' and stock_code in current_prices:
                 current_position = self.portfolio_manager.positions.get(stock_code, 0)
                 if current_position > 0:
-                    # 计算卖出数量（按轮动比例）
+                    # 修复：计算卖出数量（按轮动比例，不需要除以100）
                     sell_shares = int(current_position * self.rotation_percentage / 100) * 100
                     if sell_shares > 0:
                         price = current_prices[stock_code]
@@ -497,7 +497,7 @@ class BacktestEngine:
                             stock_code, sell_shares, price, current_date, "转现金"
                         )
                         if success:
-                            self.logger.info(f"执行卖出交易: {stock_code} {sell_shares}股 价格{price}")
+                            self.logger.info(f"执行卖出交易: {stock_code} {sell_shares}股 价格{price:.2f} (持仓{current_position}股的{self.rotation_percentage:.1%})")
                             self._record_transaction(trade_info, current_date)
                             executed_trades.append(f"转现金: {stock_code} {sell_shares}股")
                         else:
@@ -506,21 +506,44 @@ class BacktestEngine:
         # 执行买入信号
         for stock_code, signal in signals.items():
             if signal == 'BUY' and stock_code in current_prices:
-                # 使用可用现金的轮动比例买入
-                available_cash = self.portfolio_manager.cash * self.rotation_percentage
-                if available_cash > 10000:  # 最小买入金额
-                    price = current_prices[stock_code]
-                    max_shares = int(available_cash / price / 100) * 100
-                    if max_shares > 0:
+                current_position = self.portfolio_manager.positions.get(stock_code, 0)
+                price = current_prices[stock_code]
+                
+                if current_position > 0:
+                    # 修复：基于当前持仓价值的轮动比例买入
+                    current_position_value = current_position * price
+                    target_buy_amount = current_position_value * self.rotation_percentage
+                    buy_shares = int(target_buy_amount / price / 100) * 100
+                    
+                    self.logger.info(f"买入计算: {stock_code} 当前持仓{current_position}股, 价值{current_position_value:.2f}元, 目标买入金额{target_buy_amount:.2f}元")
+                    
+                    if buy_shares > 0 and target_buy_amount > 10000:  # 最小买入金额
                         success, trade_info = self.portfolio_manager.buy_stock(
-                            stock_code, max_shares, price, current_date, "现金买入"
+                            stock_code, buy_shares, price, current_date, "持仓增持"
                         )
                         if success:
-                            self.logger.info(f"执行买入交易: {stock_code} {max_shares}股 价格{price}")
+                            self.logger.info(f"执行买入交易: {stock_code} {buy_shares}股 价格{price:.2f} (基于持仓{current_position}股的{self.rotation_percentage:.1%})")
                             self._record_transaction(trade_info, current_date)
-                            executed_trades.append(f"现金买入: {stock_code} {max_shares}股")
+                            executed_trades.append(f"持仓增持: {stock_code} {buy_shares}股")
                         else:
                             self.logger.warning(f"买入交易失败: {stock_code}")
+                    else:
+                        self.logger.info(f"买入金额不足: {stock_code} 计算买入{buy_shares}股, 金额{target_buy_amount:.2f}元")
+                else:
+                    # 如果当前没有持仓，使用可用现金的轮动比例买入
+                    available_cash = self.portfolio_manager.cash * self.rotation_percentage
+                    if available_cash > 10000:  # 最小买入金额
+                        buy_shares = int(available_cash / price / 100) * 100
+                        if buy_shares > 0:
+                            success, trade_info = self.portfolio_manager.buy_stock(
+                                stock_code, buy_shares, price, current_date, "现金买入"
+                            )
+                            if success:
+                                self.logger.info(f"执行买入交易: {stock_code} {buy_shares}股 价格{price:.2f} (现金{available_cash:.2f}元的买入)")
+                                self._record_transaction(trade_info, current_date)
+                                executed_trades.append(f"现金买入: {stock_code} {buy_shares}股")
+                            else:
+                                self.logger.warning(f"买入交易失败: {stock_code}")
         
         return executed_trades
     
@@ -1032,6 +1055,7 @@ class BacktestEngine:
         
         # 转换为百分比格式
         total_return = performance_metrics.get('total_return_rate', 0)
+        # 修复：正确获取年化收益率并转换为百分比
         annual_return = performance_metrics.get('annual_return', 0) * 100  # 转换为百分比
         max_drawdown = basic_metrics.get('max_drawdown', 0) * 100
         
@@ -1054,6 +1078,7 @@ class BacktestEngine:
         }
         
         print(f"  最终绩效指标: {result}")
+        print(f"  🎯 年化收益率修复验证: {annual_return:.2f}%")
         return result
     
     def _extract_signal_analysis(self, transaction_history: pd.DataFrame) -> Dict[str, Any]:
