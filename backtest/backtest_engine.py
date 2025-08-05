@@ -221,42 +221,110 @@ class BacktestEngine:
     def initialize_portfolio(self) -> bool:
         """
         初始化投资组合
-        
+        按照新的计算逻辑：
+        1. 获取总资产金额
+        2. 获取各股票持仓比例，并计算出合理的持仓股数
+        3. 从持仓股数推算得各股票市值和总的股票市值
+        4. 从总资产金额减去总的股票市值得到现金值
+
         Returns:
             bool: 初始化是否成功
         """
         try:
-            # 创建投资组合管理器
-            self.portfolio_manager = PortfolioManager(
-                total_capital=self.total_capital,
-                initial_holdings=self.initial_holdings
-            )
-            # 设置成本计算器
-            self.portfolio_manager.cost_calculator = self.cost_calculator
-            
+            # 1. 获取总资产金额
+            total_capital = self.total_capital
+            self.logger.info(f"💰 总资产金额: {total_capital:,.2f}")
+
             # 获取初始价格并设置到数据管理器
             initial_prices = {}
+            start_date_obj = pd.to_datetime(self.start_date)
+
             for stock_code in self.stock_pool:
                 if stock_code in self.stock_data:
                     weekly_data = self.stock_data[stock_code]['weekly']
-                    initial_price = weekly_data.iloc[0]['close']
-                    initial_prices[stock_code] = initial_price
-                    
+
+                    # 筛选出回测开始日期之后的数据，使用正确的初始价格
+                    backtest_data = weekly_data[weekly_data.index >= start_date_obj]
+
+                    if not backtest_data.empty:
+                        # 使用回测开始日期对应的第一个交易日价格
+                        initial_price = backtest_data.iloc[0]['close']
+                        initial_prices[stock_code] = initial_price
+
+                        self.logger.info(f"🎯 {stock_code} 初始价格: {initial_price:.2f} (日期: {backtest_data.index[0].strftime('%Y-%m-%d')})")
+                    else:
+                        self.logger.error(f"❌ 股票 {stock_code} 在回测开始日期后没有数据")
+                        return False
+
                     # 将价格数据设置到统一数据管理器
                     price_data = {}
                     for idx, row in weekly_data.iterrows():
                         date_str = idx.strftime('%Y-%m-%d')
                         price_data[date_str] = row['close']
                     self.portfolio_data_manager.set_price_data(stock_code, price_data)
+
+            # 2. 获取各股票持仓比例，并计算出合理的持仓股数
+            holdings = {}
+            stock_market_values = {}
+            total_stock_market_value = 0.0
+
+            for stock_code in self.stock_pool:
+                if stock_code in self.initial_holdings and stock_code in initial_prices:
+                    weight = self.initial_holdings[stock_code]
+                    if weight <= 0:
+                        continue
+
+                    # 计算目标股票价值
+                    target_stock_value = total_capital * weight
+                    price = initial_prices[stock_code]
+
+                    # 计算股数（向下取整到100股的整数倍）
+                    shares = int(target_stock_value / price / 100) * 100
+
+                    if shares > 0:
+                        holdings[stock_code] = shares
+                        # 3. 从持仓股数推算得各股票市值
+                        actual_market_value = shares * price
+                        stock_market_values[stock_code] = actual_market_value
+                        total_stock_market_value += actual_market_value
+
+                        self.logger.info(f"📊 {stock_code}: 目标权重 {weight:.1%}, 持仓 {shares:,}股, 实际市值 {actual_market_value:,.2f}")
+
+            # 4. 从总资产金额减去总的股票市值得到现金值
+            cash_value = total_capital - total_stock_market_value
+
+            self.logger.info(f"📈 总股票市值: {total_stock_market_value:,.2f}")
+            self.logger.info(f"💵 计算得出现金值: {cash_value:,.2f}")
+
+            # 创建投资组合管理器（不使用initial_holdings，直接设置计算结果）
+            self.portfolio_manager = PortfolioManager(
+                total_capital=total_capital,
+                initial_holdings={}  # 空字典，我们将直接设置计算结果
+            )
             
-            # 初始化投资组合
-            self.portfolio_manager.initialize_portfolio(initial_prices)
-            
-            self.logger.info("投资组合初始化完成")
+            # 设置成本计算器
+            self.portfolio_manager.cost_calculator = self.cost_calculator
+
+            # 直接设置计算得出的持仓和现金
+            self.portfolio_manager.holdings = holdings.copy()
+            self.portfolio_manager.cash = cash_value
+            self.portfolio_manager.initial_prices = initial_prices.copy()
+
+            # 验证总价值
+            calculated_total_value = self.portfolio_manager.get_total_value(initial_prices)
+
+            self.logger.info("✅ 投资组合初始化完成")
+            self.logger.info(f"💰 总资产: {total_capital:,.2f}")
+            self.logger.info(f"📈 股票市值: {total_stock_market_value:,.2f}")
+            self.logger.info(f"💵 现金: {cash_value:,.2f}")
+            self.logger.info(f"🔍 计算总价值: {calculated_total_value:,.2f}")
+            self.logger.info(f"✓ 价值验证: {'通过' if abs(calculated_total_value - total_capital) < 0.01 else '失败'}")
+            self.logger.info(f"📋 持仓详情: {holdings}")
+
             return True
-            
+
         except Exception as e:
-            self.logger.error(f"投资组合初始化失败: {e}")
+            self.logger.error(f"❌ 投资组合初始化失败: {e}")
             return False
     
     def run_backtest(self) -> bool:
