@@ -131,32 +131,35 @@ class PortfolioManager:
     
     def can_sell(self, stock_code: str, sell_ratio: float, current_price: float) -> Tuple[bool, int, float]:
         """
-        检查是否可以卖出指定比例的股票
+        检查是否可以卖出股票（新逻辑：卖出当前持仓市值的20%）
         
         Args:
             stock_code: 股票代码
-            sell_ratio: 卖出比例（相对于总投资组合）
+            sell_ratio: 卖出比例（这个参数保留兼容性，实际使用20%）
             current_price: 当前价格
             
         Returns:
             (是否可以卖出, 卖出股数, 卖出金额)
         """
-        if stock_code not in self.holdings:
-            return False, 0, 0.0
-        
-        current_shares = self.holdings[stock_code]
+        # 如果持仓数量为0，忽略卖出信号
+        current_shares = self.holdings.get(stock_code, 0)
         if current_shares <= 0:
             return False, 0, 0.0
         
-        # 计算目标卖出金额
-        total_value = self.get_total_value({stock_code: current_price})
-        target_sell_value = total_value * sell_ratio
+        # 计算当前持仓市值
+        current_holding_value = current_shares * current_price
+        
+        # 卖出当前持仓市值的20%
+        target_sell_value = current_holding_value * 0.20
         
         # 计算卖出股数（向下取整到100股的整数倍）
         target_shares = int(target_sell_value / current_price / 100) * 100
+        
+        # 确保不超过当前持仓
         actual_shares = min(target_shares, current_shares)
         
-        if actual_shares <= 0:
+        # 最小交易检查：少于100股不交易
+        if actual_shares < 100:
             return False, 0, 0.0
         
         actual_value = actual_shares * current_price
@@ -164,19 +167,25 @@ class PortfolioManager:
     
     def can_buy(self, stock_code: str, buy_ratio: float, current_price: float) -> Tuple[bool, int, float]:
         """
-        检查是否可以买入指定比例的股票
+        检查是否可以买入股票（新逻辑：根据持仓状态决定买入金额）
         
         Args:
             stock_code: 股票代码
-            buy_ratio: 买入比例（相对于总投资组合）
+            buy_ratio: 买入比例（这个参数保留兼容性，实际使用20%）
             current_price: 当前价格
             
         Returns:
             (是否可以买入, 买入股数, 买入金额)
         """
-        # 计算目标买入金额
-        total_value = self.get_total_value({stock_code: current_price})
-        target_buy_value = total_value * buy_ratio
+        current_shares = self.holdings.get(stock_code, 0)
+        
+        if current_shares == 0:
+            # 如果持仓数量为0，则买入持有现金的20%金额
+            target_buy_value = self.cash * 0.20
+        else:
+            # 如果持仓数量非0，则买入当前持仓市值的20%金额
+            current_holding_value = current_shares * current_price
+            target_buy_value = current_holding_value * 0.20
         
         # 检查现金是否足够
         if self.cash < target_buy_value:
@@ -185,10 +194,16 @@ class PortfolioManager:
         # 计算买入股数（向下取整到100股的整数倍）
         target_shares = int(target_buy_value / current_price / 100) * 100
         
-        if target_shares <= 0:
+        # 最小交易检查：少于100股不交易
+        if target_shares < 100:
             return False, 0, 0.0
         
         actual_value = target_shares * current_price
+        
+        # 最终检查现金是否足够
+        if actual_value > self.cash:
+            return False, 0, 0.0
+        
         return True, target_shares, actual_value
     
     def execute_sell(self, stock_code: str, shares: int, price: float, 
