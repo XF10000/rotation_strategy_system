@@ -41,6 +41,7 @@ class PortfolioManager:
         # 交易记录
         self.transaction_history = []
         self.portfolio_history = []
+        self.dividend_events = []  # 分红配股事件记录
         
         logger.info(f"投资组合管理器初始化完成，总资金: {total_capital:,.2f}")
     
@@ -590,6 +591,154 @@ class PortfolioManager:
         }
         
         return success, trade_info
+    
+    def process_dividend_events(self, date, dividend_data):
+        """
+        处理分红配股事件
+        
+        Args:
+            date: 处理日期
+            dividend_data: 分红配股数据字典 {stock_code: dividend_info}
+        """
+        try:
+            if not dividend_data:
+                return
+            
+            for stock_code, dividend_info in dividend_data.items():
+                # 检查是否持有该股票
+                if stock_code not in self.holdings or self.holdings[stock_code] <= 0:
+                    continue
+                
+                current_shares = self.holdings[stock_code]
+                shares_before = current_shares
+                cash_before = self.cash
+                
+                # 获取分红配股信息
+                dividend_amount = dividend_info.get('dividend_amount', 0)  # 每股分红金额
+                bonus_ratio = dividend_info.get('bonus_ratio', 0)  # 10送X股
+                transfer_ratio = dividend_info.get('transfer_ratio', 0)  # 10转X股
+                allotment_ratio = dividend_info.get('allotment_ratio', 0)  # 10配X股
+                allotment_price = dividend_info.get('allotment_price', 0)  # 配股价格
+                
+                cash_change = 0
+                shares_change = 0
+                
+                # 1. 处理分红（现金分红）
+                if dividend_amount > 0:
+                    dividend_cash = current_shares * dividend_amount
+                    self.cash += dividend_cash
+                    cash_change += dividend_cash
+                    
+                    # 记录分红交易
+                    self.transaction_history.append({
+                        'date': date,
+                        'type': 'DIVIDEND',
+                        'stock_code': stock_code,
+                        'shares': 0,
+                        'price': 0,
+                        'amount': dividend_cash,
+                        'commission': 0,
+                        'reason': f'分红: 每股{dividend_amount:.3f}元'
+                    })
+                
+                # 2. 处理送股（股票分红）
+                if bonus_ratio > 0:
+                    bonus_shares = int(current_shares * bonus_ratio / 10)
+                    if bonus_shares > 0:
+                        self.holdings[stock_code] += bonus_shares
+                        shares_change += bonus_shares
+                        
+                        # 记录送股交易
+                        self.transaction_history.append({
+                            'date': date,
+                            'type': 'BONUS',
+                            'stock_code': stock_code,
+                            'shares': bonus_shares,
+                            'price': 0,
+                            'amount': 0,
+                            'commission': 0,
+                            'reason': f'送股: 10送{bonus_ratio}'
+                        })
+                
+                # 3. 处理转增（资本公积金转股本）
+                if transfer_ratio > 0:
+                    transfer_shares = int(current_shares * transfer_ratio / 10)
+                    if transfer_shares > 0:
+                        self.holdings[stock_code] += transfer_shares
+                        shares_change += transfer_shares
+                        
+                        # 记录转增交易
+                        self.transaction_history.append({
+                            'date': date,
+                            'type': 'TRANSFER',
+                            'stock_code': stock_code,
+                            'shares': transfer_shares,
+                            'price': 0,
+                            'amount': 0,
+                            'commission': 0,
+                            'reason': f'转增: 10转{transfer_ratio}'
+                        })
+                
+                # 4. 处理配股（有偿增发）
+                if allotment_ratio > 0 and allotment_price > 0:
+                    allotment_shares = int(current_shares * allotment_ratio / 10)
+                    if allotment_shares > 0:
+                        allotment_cost = allotment_shares * allotment_price
+                        
+                        # 检查现金是否足够
+                        if self.cash >= allotment_cost:
+                            self.holdings[stock_code] += allotment_shares
+                            self.cash -= allotment_cost
+                            shares_change += allotment_shares
+                            cash_change -= allotment_cost
+                            
+                            # 记录配股交易
+                            self.transaction_history.append({
+                                'date': date,
+                                'type': 'ALLOTMENT',
+                                'stock_code': stock_code,
+                                'shares': allotment_shares,
+                                'price': allotment_price,
+                                'amount': allotment_cost,
+                                'commission': 0,
+                                'reason': f'配股: 10配{allotment_ratio}, 价格{allotment_price:.2f}'
+                            })
+                        else:
+                            logger.warning(f"现金不足，无法参与配股: {stock_code}, 需要{allotment_cost:.2f}, 剩余{self.cash:.2f}")
+                
+                # 记录分红配股事件
+                if dividend_amount > 0 or bonus_ratio > 0 or transfer_ratio > 0 or allotment_ratio > 0:
+                    event_record = {
+                        'date': str(date.date()) if hasattr(date, 'date') else str(date),
+                        'stock_code': stock_code,
+                        'mapped_date': str(date.date()) if hasattr(date, 'date') else str(date),
+                        'dividend_amount': dividend_amount,
+                        'bonus_ratio': bonus_ratio,
+                        'transfer_ratio': transfer_ratio,
+                        'allotment_ratio': allotment_ratio,
+                        'allotment_price': allotment_price,
+                        'shares_before': shares_before,
+                        'shares_after': self.holdings[stock_code],
+                        'cash_change': cash_change
+                    }
+                    
+                    self.dividend_events.append(event_record)
+                    
+                    logger.info(f"处理分红配股事件: {stock_code} 在 {date.date()}, "
+                               f"持股数: {shares_before} -> {self.holdings[stock_code]}, "
+                               f"现金变化: {cash_change:.2f}")
+        
+        except Exception as e:
+            logger.error(f"处理分红配股事件失败: {str(e)}")
+    
+    def get_dividend_events(self):
+        """
+        获取分红配股事件列表
+        
+        Returns:
+            list: 分红配股事件列表
+        """
+        return self.dividend_events.copy()
 
 if __name__ == "__main__":
     # 测试代码

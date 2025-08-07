@@ -182,6 +182,27 @@ class BacktestEngine:
                 else:
                     self.logger.info(f"✅ {stock_code} 技术指标已存在，跳过计算")
                 
+                # 3. 获取分红配股数据并对齐到周线数据
+                self.logger.info(f"💰 {stock_code} 获取分红配股数据...")
+                try:
+                    dividend_data = self.data_fetcher.get_dividend_data(stock_code, extended_start_date_str, self.end_date)
+                    if not dividend_data.empty:
+                        self.logger.info(f"✅ {stock_code} 获取到 {len(dividend_data)} 条分红记录")
+                        # 将分红数据对齐到周线数据
+                        weekly_data = self.data_fetcher.align_dividend_with_weekly_data(weekly_data, dividend_data)
+                        self.logger.info(f"✅ {stock_code} 分红数据已对齐到周线数据")
+                        
+                        # 检查对齐后的分红事件
+                        dividend_weeks = weekly_data[weekly_data['dividend_amount'] > 0]
+                        if not dividend_weeks.empty:
+                            self.logger.info(f"💰 {stock_code} 对齐到 {len(dividend_weeks)} 个分红事件")
+                            for date, row in dividend_weeks.iterrows():
+                                self.logger.info(f"  {date.strftime('%Y-%m-%d')}: 派息 {row['dividend_amount']}元")
+                    else:
+                        self.logger.info(f"⚠️ {stock_code} 未获取到分红数据")
+                except Exception as e:
+                    self.logger.warning(f"⚠️ {stock_code} 分红数据获取失败: {e}")
+                
                 # 裁剪数据到实际回测期间（保留扩展的历史数据用于技术指标计算）
                 # 但在回测时只使用回测期间的数据
                 actual_start_date = pd.to_datetime(self.start_date)
@@ -381,6 +402,9 @@ class BacktestEngine:
                 # 更新投资组合价值
                 self.portfolio_manager.update_prices(current_prices)
                 
+                # 处理分红配股事件
+                self._process_dividend_events(current_date)
+                
                 # 生成交易信号
                 signals = self._generate_signals(current_date)
                 
@@ -407,6 +431,48 @@ class BacktestEngine:
         except Exception as e:
             self.logger.error(f"回测运行失败: {e}")
             return False
+    
+    def _process_dividend_events(self, current_date: pd.Timestamp) -> None:
+        """
+        处理当前日期的分红配股事件
+        
+        Args:
+            current_date: 当前日期
+        """
+        try:
+            # 检查所有持仓股票的分红事件
+            dividend_events_today = {}
+            
+            for stock_code in self.stock_pool:
+                if stock_code not in self.stock_data:
+                    continue
+                
+                # 获取股票的周线数据
+                stock_weekly = self.stock_data[stock_code]['weekly']
+                
+                # 检查当前日期是否有分红事件
+                if current_date in stock_weekly.index:
+                    row = stock_weekly.loc[current_date]
+                    
+                    # 检查是否有分红配股事件
+                    has_dividend = (
+                        row.get('dividend_amount', 0) > 0 or
+                        row.get('bonus_ratio', 0) > 0 or
+                        row.get('transfer_ratio', 0) > 0 or
+                        row.get('allotment_ratio', 0) > 0
+                    )
+                    
+                    if has_dividend:
+                        dividend_events_today[stock_code] = row
+                        self.logger.info(f"💰 {current_date.strftime('%Y-%m-%d')} 发现 {stock_code} 分红事件: 派息{row.get('dividend_amount', 0)}元")
+            
+            # 如果有分红事件，则处理
+            if dividend_events_today:
+                self.portfolio_manager.process_dividend_events(current_date, dividend_events_today)
+                self.logger.info(f"✅ {current_date.strftime('%Y-%m-%d')} 分红事件处理完成，共 {len(dividend_events_today)} 个事件")
+                
+        except Exception as e:
+            self.logger.warning(f"⚠️ {current_date.strftime('%Y-%m-%d')} 分红事件处理失败: {e}")
     
     def _generate_signals(self, current_date: pd.Timestamp) -> Dict[str, str]:
         """
@@ -861,7 +927,8 @@ class BacktestEngine:
                 'sell_trades': sell_trades
             },
             'portfolio_history': portfolio_df,
-            'transaction_history': pd.DataFrame(self.transaction_history) if self.transaction_history else pd.DataFrame()
+            'transaction_history': pd.DataFrame(self.transaction_history) if self.transaction_history else pd.DataFrame(),
+            'dividend_events': self.portfolio_manager.get_dividend_events() if hasattr(self.portfolio_manager, 'get_dividend_events') else []
         }
     
     def generate_reports(self) -> Dict[str, str]:
@@ -898,9 +965,23 @@ class BacktestEngine:
             
             csv_report_path = self.csv_exporter.export_trading_records(transactions_for_csv)
             
+            # 导出分红配股事件CSV
+            dividend_events = backtest_results.get('dividend_events', [])
+            dividend_csv_path = None
+            if dividend_events:
+                self.logger.info(f"开始导出分红配股事件，共 {len(dividend_events)} 个事件")
+                dividend_csv_path = self.csv_exporter.export_dividend_events(dividend_events)
+                if dividend_csv_path:
+                    self.logger.info(f"分红配股事件CSV导出成功: {dividend_csv_path}")
+                else:
+                    self.logger.warning("分红配股事件CSV导出失败")
+            else:
+                self.logger.info("未发现分红配股事件，跳过CSV导出")
+            
             return {
                 'html_report': html_report_path,
-                'csv_report': csv_report_path
+                'csv_report': csv_report_path,
+                'dividend_csv_report': dividend_csv_path
             }
             
         except Exception as e:
