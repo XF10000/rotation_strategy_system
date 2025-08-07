@@ -30,6 +30,13 @@ class DetailedCSVExporter:
             '行业', 'RSI超买阈值', 'RSI超卖阈值'
         ]
         logger.info("详细CSV导出器初始化完成")
+        
+        # 分红配股事件CSV表头
+        self.dividend_csv_headers = [
+            '日期', '股票代码', '股票名称', '事件类型', '映射日期',
+            '分红金额(元/股)', '送股比例(10送X)', '转增比例(10转X)', '配股比例(10配X)', '配股价格(元)',
+            '事件前持股数', '事件后持股数', '现金变化(元)', '备注'
+        ]
     
     def export_trading_records(self, trading_records, output_dir='reports'):
         """
@@ -279,3 +286,131 @@ class DetailedCSVExporter:
             return '下轨之下'
         else:
             return '轨道之间'
+    
+    def export_dividend_events(self, dividend_events, output_dir='reports'):
+        """
+        导出分红配股事件到CSV文件
+        
+        Args:
+            dividend_events: 分红配股事件列表
+            output_dir: 输出目录
+            
+        Returns:
+            str: CSV文件路径
+        """
+        try:
+            # 确保输出目录存在
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # 生成文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            csv_filename = f"dividend_allotment_events_{timestamp}.csv"
+            csv_path = os.path.join(output_dir, csv_filename)
+            
+            logger.info(f"开始导出分红配股事件CSV，事件数量: {len(dividend_events)}")
+            
+            # 写入CSV文件
+            with open(csv_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
+                writer = csv.writer(csvfile)
+                
+                # 写入表头
+                writer.writerow(self.dividend_csv_headers)
+                
+                # 写入分红配股事件
+                valid_events = 0
+                for i, event in enumerate(dividend_events):
+                    try:
+                        logger.debug(f"处理第{i+1}个事件: {event.get('date', 'N/A')} {event.get('stock_code', 'N/A')}")
+                        row_data = self._format_dividend_event(event)
+                        if row_data and any(str(x).strip() for x in row_data):  # 确保不是空行
+                            writer.writerow(row_data)
+                            valid_events += 1
+                    except Exception as e:
+                        logger.error(f"处理第{i+1}个事件失败: {str(e)}")
+                        continue
+            
+            logger.info(f"分红配股事件CSV文件已生成: {csv_path}")
+            logger.info(f"包含 {valid_events} 个有效事件记录")
+            
+            return csv_path
+            
+        except Exception as e:
+            logger.error(f"分红配股事件CSV导出失败: {str(e)}")
+            return None
+    
+    def _format_dividend_event(self, event):
+        """
+        格式化分红配股事件为CSV行数据
+        
+        Args:
+            event: 分红配股事件字典
+            
+        Returns:
+            list: CSV行数据
+        """
+        try:
+            # 获取基本信息
+            date = event.get('date', '')
+            stock_code = event.get('stock_code', '')
+            mapped_date = event.get('mapped_date', '')
+            
+            # 获取股票名称
+            stock_name = get_stock_display_name(stock_code, self.stock_mapping)
+            
+            # 分红配股信息
+            dividend_amount = event.get('dividend_amount', 0)
+            bonus_ratio = event.get('bonus_ratio', 0)
+            transfer_ratio = event.get('transfer_ratio', 0)
+            allotment_ratio = event.get('allotment_ratio', 0)
+            allotment_price = event.get('allotment_price', 0)
+            
+            # 持股数变化
+            shares_before = event.get('shares_before', 0)
+            shares_after = event.get('shares_after', 0)
+            cash_change = event.get('cash_change', 0)
+            
+            # 确定事件类型
+            event_types = []
+            if dividend_amount > 0:
+                event_types.append('分红')
+            if bonus_ratio > 0:
+                event_types.append('送股')
+            if transfer_ratio > 0:
+                event_types.append('转增')
+            if allotment_ratio > 0:
+                event_types.append('配股')
+            
+            event_type = '+'.join(event_types) if event_types else '无事件'
+            
+            # 生成备注
+            remarks = []
+            if dividend_amount > 0:
+                remarks.append(f'每股分红{dividend_amount:.3f}元')
+            if bonus_ratio > 0:
+                remarks.append(f'10送{bonus_ratio}股')
+            if transfer_ratio > 0:
+                remarks.append(f'10转{transfer_ratio}股')
+            if allotment_ratio > 0:
+                remarks.append(f'10配{allotment_ratio}股，配股价{allotment_price:.2f}元')
+            
+            remark = '; '.join(remarks) if remarks else '无特殊事件'
+            
+            # 返回格式化的行数据
+            return [
+                date, stock_code, stock_name, event_type, mapped_date,
+                f'{dividend_amount:.3f}' if dividend_amount > 0 else '0.000',
+                f'{bonus_ratio:.1f}' if bonus_ratio > 0 else '0.0',
+                f'{transfer_ratio:.1f}' if transfer_ratio > 0 else '0.0',
+                f'{allotment_ratio:.1f}' if allotment_ratio > 0 else '0.0',
+                f'{allotment_price:.2f}' if allotment_price > 0 else '0.00',
+                f'{shares_before:.0f}',
+                f'{shares_after:.0f}',
+                f'{cash_change:.2f}',
+                remark
+            ]
+            
+        except Exception as e:
+            logger.error(f"格式化分红配股事件失败: {str(e)}")
+            logger.error(f"事件内容: {event}")
+            # 返回空行以避免程序崩溃
+            return [''] * len(self.dividend_csv_headers)

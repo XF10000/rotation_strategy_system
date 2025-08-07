@@ -18,6 +18,8 @@ class DataProcessor:
     def __init__(self):
         """初始化数据处理器"""
         self.required_columns = ['open', 'high', 'low', 'close', 'volume']
+        self.dividend_columns = ['dividend_amount', 'allotment_ratio', 'allotment_price', 
+                               'bonus_ratio', 'transfer_ratio']
         logger.info("初始化数据处理器")
     
     def validate_data(self, df: pd.DataFrame) -> Tuple[bool, List[str]]:
@@ -42,6 +44,15 @@ class DataProcessor:
             missing_columns = [col for col in self.required_columns if col not in df.columns]
             if missing_columns:
                 issues.append(f"缺少必要列: {missing_columns}")
+            
+            # 检查分红配股列（可选）
+            dividend_columns_present = [col for col in self.dividend_columns if col in df.columns]
+            if dividend_columns_present:
+                logger.debug(f"发现分红配股列: {dividend_columns_present}")
+                # 验证分红配股数据的数值类型
+                for col in dividend_columns_present:
+                    if not pd.api.types.is_numeric_dtype(df[col]):
+                        issues.append(f"分红配股列 {col} 不是数值类型")
             
             # 检查数据类型
             for col in ['open', 'high', 'low', 'close']:
@@ -120,7 +131,25 @@ class DataProcessor:
             cleaned_df = cleaned_df.sort_index()
             
             # 3. 处理缺失值
-            cleaned_df = self._handle_missing_values(cleaned_df)
+            # 对于价格数据，使用前向填充
+            price_columns = ['open', 'high', 'low', 'close']
+            for col in price_columns:
+                if col in cleaned_df.columns:
+                    if cleaned_df[col].isnull().any():
+                        logger.warning(f"发现 {col} 列缺失值，使用前向填充")
+                        cleaned_df[col] = cleaned_df[col].fillna(method='ffill')
+            
+            # 对于成交量，使用0填充
+            if 'volume' in cleaned_df.columns:
+                cleaned_df['volume'] = cleaned_df['volume'].fillna(0)
+            
+            # 对于分红配股数据，使用0填充（表示无分红配股）
+            for col in self.dividend_columns:
+                if col in cleaned_df.columns:
+                    cleaned_df[col] = cleaned_df[col].fillna(0)
+                    # 确保分红配股数据为非负数
+                    if col != 'allotment_price':  # 配股价格可能为0但不应为负
+                        cleaned_df[col] = cleaned_df[col].clip(lower=0)
             
             # 4. 处理异常值
             cleaned_df = self._handle_outliers(cleaned_df)
@@ -593,6 +622,65 @@ class DataProcessor:
             
         except Exception as e:
             return {"error": f"生成数据摘要失败: {str(e)}"}
+    
+    def process_dividend_events(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        处理分红配股事件，计算对股价和持仓的影响
+        
+        Args:
+            df: 包含分红配股信息的数据
+            
+        Returns:
+            pd.DataFrame: 处理后的数据，包含除权除息调整信息
+        """
+        try:
+            if df is None or df.empty:
+                return df
+            
+            processed_df = df.copy()
+            
+            # 添加除权除息标记列
+            processed_df['has_dividend'] = (processed_df.get('dividend_amount', 0) > 0)
+            processed_df['has_allotment'] = (processed_df.get('allotment_ratio', 0) > 0)
+            processed_df['has_bonus'] = (processed_df.get('bonus_ratio', 0) > 0)
+            processed_df['has_transfer'] = (processed_df.get('transfer_ratio', 0) > 0)
+            
+            # 计算除权除息调整因子
+            processed_df['rights_factor'] = 1.0  # 除权因子
+            processed_df['dividend_factor'] = 0.0  # 分红因子
+            
+            for idx in processed_df.index:
+                row = processed_df.loc[idx]
+                
+                # 计算除权因子（送股、转增、配股的影响）
+                bonus_ratio = row.get('bonus_ratio', 0) / 10  # 10送X转换为比例
+                transfer_ratio = row.get('transfer_ratio', 0) / 10  # 10转X转换为比例
+                allotment_ratio = row.get('allotment_ratio', 0) / 10  # 10配X转换为比例
+                
+                # 除权因子 = 1 / (1 + 送股比例 + 转增比例 + 配股比例)
+                rights_factor = 1.0 / (1.0 + bonus_ratio + transfer_ratio + allotment_ratio)
+                processed_df.loc[idx, 'rights_factor'] = rights_factor
+                
+                # 分红因子（每股分红金额）
+                dividend_amount = row.get('dividend_amount', 0)
+                processed_df.loc[idx, 'dividend_factor'] = dividend_amount
+                
+                if (bonus_ratio > 0 or transfer_ratio > 0 or allotment_ratio > 0 or dividend_amount > 0):
+                    logger.debug(f"除权除息事件 {idx.date()}: "
+                               f"送股{bonus_ratio:.3f}, 转增{transfer_ratio:.3f}, "
+                               f"配股{allotment_ratio:.3f}, 分红{dividend_amount:.3f}")
+            
+            logger.info(f"处理分红配股事件完成，共发现 "
+                       f"{processed_df['has_dividend'].sum()} 个分红事件，"
+                       f"{processed_df['has_allotment'].sum()} 个配股事件，"
+                       f"{processed_df['has_bonus'].sum()} 个送股事件，"
+                       f"{processed_df['has_transfer'].sum()} 个转增事件")
+            
+            return processed_df
+            
+        except Exception as e:
+            logger.error(f"处理分红配股事件失败: {str(e)}")
+            return df
 
 if __name__ == "__main__":
     # 测试代码
