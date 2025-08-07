@@ -1543,9 +1543,10 @@ class BacktestEngine:
                 initial_weights = {code: 1.0/len(self.stock_data) for code in self.stock_data.keys()}
                 cash_weight = 0
             
-            # 计算基准投资组合的开始和结束市值
+            # 计算基准投资组合的开始和结束市值（包含分红收入）
             start_total_value = 0
             end_total_value = 0
+            total_dividend_income = 0  # 新增：总分红收入
             
             # 假设初始投资金额为self.total_capital
             initial_capital = self.total_capital
@@ -1569,16 +1570,38 @@ class BacktestEngine:
                 end_price = filtered_data.iloc[-1]['close']
                 
                 investment_amount = initial_capital * weight
-                shares = investment_amount / start_price
+                initial_shares = investment_amount / start_price
+                current_shares = initial_shares  # 当前持股数（会因送股转增而变化）
                 
-                # 计算开始和结束市值
-                start_value = shares * start_price
-                end_value = shares * end_price
+                # 🆕 计算分红收入和股份变化
+                dividend_income = 0
+                for date, row in filtered_data.iterrows():
+                    # 现金分红
+                    if row.get('dividend_amount', 0) > 0:
+                        dividend_income += current_shares * row['dividend_amount']
+                        self.logger.debug(f"基准 - {stock_code} {date.date()}: 分红 {row['dividend_amount']:.3f}元/股, 持股{current_shares:.0f}股, 分红收入{current_shares * row['dividend_amount']:.2f}元")
+                    
+                    # 送股（增加持股数）
+                    if row.get('bonus_ratio', 0) > 0:
+                        bonus_shares = current_shares * row['bonus_ratio']
+                        current_shares += bonus_shares
+                        self.logger.debug(f"基准 - {stock_code} {date.date()}: 送股 {row['bonus_ratio']:.3f}, 新增{bonus_shares:.0f}股, 总持股{current_shares:.0f}股")
+                    
+                    # 转增（增加持股数）
+                    if row.get('transfer_ratio', 0) > 0:
+                        transfer_shares = current_shares * row['transfer_ratio']
+                        current_shares += transfer_shares
+                        self.logger.debug(f"基准 - {stock_code} {date.date()}: 转增 {row['transfer_ratio']:.3f}, 新增{transfer_shares:.0f}股, 总持股{current_shares:.0f}股")
+                
+                # 计算开始和结束市值（结束市值使用调整后的股数）
+                start_value = initial_shares * start_price
+                end_value = current_shares * end_price  # 🆕 使用调整后的股数
                 
                 start_total_value += start_value
                 end_total_value += end_value
+                total_dividend_income += dividend_income
                 
-                self.logger.info(f"基准 - {stock_code}: 权重{weight:.1%}, {start_price:.2f}->{end_price:.2f}, 市值{start_value:.0f}->{end_value:.0f}")
+                self.logger.info(f"基准 - {stock_code}: 权重{weight:.1%}, {start_price:.2f}->{end_price:.2f}, 初始{initial_shares:.0f}股->最终{current_shares:.0f}股, 市值{start_value:.0f}->{end_value:.0f}, 分红{dividend_income:.0f}元")
             
             # 加上现金部分
             cash_amount = initial_capital * cash_weight
@@ -1589,8 +1612,9 @@ class BacktestEngine:
                 print("⚠️ 基准计算失败，使用默认值")
                 return 45.0, 12.0, -18.0
             
-            # 🎯 使用与策略收益率相同的计算公式
-            total_return = (end_total_value - start_total_value) / start_total_value
+            # 🎯 修复：基准收益率 = (结束市值 + 分红收入 - 开始市值) / 开始市值
+            # 这样与策略收益率计算保持一致（策略收益率也包含分红收入）
+            total_return = (end_total_value + total_dividend_income - start_total_value) / start_total_value
             
             # 计算年化收益率
             days = (end_date - start_date).days
@@ -1607,11 +1631,12 @@ class BacktestEngine:
             annual_return_pct = annual_return * 100
             max_drawdown_pct = estimated_max_drawdown * 100
             
-            self.logger.info(f"🎯 基准计算完成 (投资组合市值法):")
+            self.logger.info(f"🎯 基准计算完成 (包含分红收入):")
             self.logger.info(f"  开始市值: {start_total_value:,.0f} 元")
             self.logger.info(f"  结束市值: {end_total_value:,.0f} 元")
-            self.logger.info(f"  总收益率: {total_return_pct:.2f}%")
-            self.logger.info(f"  年化收益率: {annual_return_pct:.2f}%")
+            self.logger.info(f"  💰 总分红收入: {total_dividend_income:,.0f} 元")
+            self.logger.info(f"  📈 总收益率: {total_return_pct:.2f}% (包含分红)")
+            self.logger.info(f"  📈 年化收益率: {annual_return_pct:.2f}% (包含分红)")
             self.logger.info(f"  估算最大回撤: {max_drawdown_pct:.2f}%")
             
             return total_return_pct, annual_return_pct, max_drawdown_pct
