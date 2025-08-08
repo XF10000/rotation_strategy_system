@@ -479,7 +479,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 中线轮动策略增强版回测报告</h1>
-            <p>生成时间: 2025-08-08 14:35:31</p>
+            <p>生成时间: 2025-08-08 14:47:59</p>
             <p>包含技术指标详情与4维信号分析</p>
         </div>
         
@@ -94092,20 +94092,26 @@
                 xAxis: [
                     {
                         type: 'category',
-                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
+                        data: klinePoints.map(point => {
+                            const date = new Date(point[0]);
+                            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                        }),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
                         axisLabel: { 
                             show: true,
-                            rotate: 45,
+                            rotate: 0,
                             interval: 'auto'
                         }
                     },
                     {
                         type: 'category',
-                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
+                        data: klinePoints.map(point => {
+                            const date = new Date(point[0]);
+                            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                        }),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
@@ -94115,7 +94121,10 @@
                     },
                     {
                         type: 'category',
-                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
+                        data: klinePoints.map(point => {
+                            const date = new Date(point[0]);
+                            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                        }),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
@@ -94125,14 +94134,17 @@
                     },
                     {
                         type: 'category',
-                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
+                        data: klinePoints.map(point => {
+                            const date = new Date(point[0]);
+                            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                        }),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
                         axisLabel: { 
                             show: true,
-                            rotate: 45,
+                            rotate: 0,
                             interval: 'auto'
                         },
                         gridIndex: 3
@@ -94238,10 +94250,7 @@
                         name: '买入点',
                         type: 'scatter',
                         data: buyPoints.map((point, index) => {
-                            const dateStr = new Date(point[0]).toISOString().split('T')[0];
-                            const categoryIndex = klinePoints.findIndex(kpoint => 
-                                new Date(kpoint[0]).toISOString().split('T')[0] === dateStr
-                            );
+                            const categoryIndex = klinePoints.findIndex(kpoint => kpoint[0] === point[0]);
                             return [categoryIndex, point[1]];
                         }),
                         symbol: 'triangle',
@@ -94270,10 +94279,7 @@
                         name: '卖出点',
                         type: 'scatter',
                         data: sellPoints.map((point, index) => {
-                            const dateStr = new Date(point[0]).toISOString().split('T')[0];
-                            const categoryIndex = klinePoints.findIndex(kpoint => 
-                                new Date(kpoint[0]).toISOString().split('T')[0] === dateStr
-                            );
+                            const categoryIndex = klinePoints.findIndex(kpoint => kpoint[0] === point[0]);
                             return [categoryIndex, point[1]];
                         }),
                         symbol: 'triangle',
@@ -94304,10 +94310,7 @@
                         name: '分红标志',
                         type: 'scatter',
                         data: dividendPoints.map((point, index) => {
-                            const dateStr = new Date(point[0]).toISOString().split('T')[0];
-                            const categoryIndex = klinePoints.findIndex(kpoint => 
-                                new Date(kpoint[0]).toISOString().split('T')[0] === dateStr
-                            );
+                            const categoryIndex = klinePoints.findIndex(kpoint => kpoint[0] === point[0]);
                             return [categoryIndex, point[1]];
                         }),
                         symbol: 'diamond',
