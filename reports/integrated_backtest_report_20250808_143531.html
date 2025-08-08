@@ -479,7 +479,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 中线轮动策略增强版回测报告</h1>
-            <p>生成时间: 2025-08-08 11:24:35</p>
+            <p>生成时间: 2025-08-08 14:35:31</p>
             <p>包含技术指标详情与4维信号分析</p>
         </div>
         
@@ -93897,12 +93897,17 @@
             const buyPoints = [];
             const sellPoints = [];
             
+            // 计算买卖点在时间轴底部的显示位置
+            let minPrice = Math.min(...klinePoints.map(point => point[3])); // 获取所有K线的最低价
+            let priceRange = Math.max(...klinePoints.map(point => point[4])) - minPrice; // 价格范围
+            let buyYPosition = minPrice - priceRange * 0.15; // 买入点在最低价下方15%的位置
+            let sellYPosition = minPrice - priceRange * 0.2; // 卖出点在最低价下方20%的位置
+            
             tradePoints.forEach(trade => {
-                const point = [trade.timestamp, trade.price];
                 if (trade.type === 'BUY') {
-                    buyPoints.push(point);
+                    buyPoints.push([trade.timestamp, buyYPosition]);
                 } else {
-                    sellPoints.push(point);
+                    sellPoints.push([trade.timestamp, sellYPosition]);
                 }
             });
             
@@ -93925,10 +93930,8 @@
             // 🆕 准备分红标志数据 - 显示在时间轴底部
             const dividendPoints = [];
             if (stockData.dividends && stockData.dividends.length > 0) {
-                // 获取K线数据的最低价格，用于计算分红标志的显示位置
-                let minPrice = Math.min(...klinePoints.map(point => point[3])); // 获取所有K线的最低价
-                let priceRange = Math.max(...klinePoints.map(point => point[4])) - minPrice; // 价格范围
-                let dividendYPosition = minPrice - priceRange * 0.1; // 在最低价下方10%的位置显示分红标志
+                // 分红标志在最低价下方25%的位置显示，避免与买卖点重叠
+                let dividendYPosition = minPrice - priceRange * 0.25;
                 
                 stockData.dividends.forEach(dividend => {
                     dividendPoints.push([dividend.timestamp, dividendYPosition]);
@@ -94088,15 +94091,21 @@
                 ],
                 xAxis: [
                     {
-                        type: 'time',
+                        type: 'category',
+                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
-                        axisLabel: { show: true }
+                        axisLabel: { 
+                            show: true,
+                            rotate: 45,
+                            interval: 'auto'
+                        }
                     },
                     {
-                        type: 'time',
+                        type: 'category',
+                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
@@ -94105,7 +94114,8 @@
                         gridIndex: 1
                     },
                     {
-                        type: 'time',
+                        type: 'category',
+                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
@@ -94114,12 +94124,17 @@
                         gridIndex: 2
                     },
                     {
-                        type: 'time',
+                        type: 'category',
+                        data: klinePoints.map(point => new Date(point[0]).toISOString().split('T')[0]),
                         scale: true,
                         boundaryGap: false,
                         axisLine: { onZero: false },
                         splitLine: { show: false },
-                        axisLabel: { show: true },
+                        axisLabel: { 
+                            show: true,
+                            rotate: 45,
+                            interval: 'auto'
+                        },
                         gridIndex: 3
                     }
                 ],
@@ -94172,7 +94187,7 @@
                     {
                         name: 'K线',
                         type: 'candlestick',
-                        data: klinePoints,
+                        data: klinePoints.map(point => [point[1], point[2], point[3], point[4]]),
                         itemStyle: {
                             color: '#e53e3e',      // 阳线（涨）- 红色
                             color0: '#38a169',     // 阴线（跌）- 绿色
@@ -94184,7 +94199,7 @@
                     {
                         name: '布林上轨(主图)',
                         type: 'line',
-                        data: bbUpperPoints,
+                        data: bbUpperPoints.map(point => point[1]),
                         smooth: true,
                         lineStyle: {
                             color: '#1e90ff',
@@ -94197,7 +94212,7 @@
                     {
                         name: '布林中轨(主图)',
                         type: 'line',
-                        data: bbMiddlePoints,
+                        data: bbMiddlePoints.map(point => point[1]),
                         smooth: true,
                         lineStyle: {
                             color: '#ffa500',
@@ -94209,7 +94224,7 @@
                     {
                         name: '布林下轨(主图)',
                         type: 'line',
-                        data: bbLowerPoints,
+                        data: bbLowerPoints.map(point => point[1]),
                         smooth: true,
                         lineStyle: {
                             color: '#1e90ff',
@@ -94222,9 +94237,15 @@
                     {
                         name: '买入点',
                         type: 'scatter',
-                        data: buyPoints,
+                        data: buyPoints.map((point, index) => {
+                            const dateStr = new Date(point[0]).toISOString().split('T')[0];
+                            const categoryIndex = klinePoints.findIndex(kpoint => 
+                                new Date(kpoint[0]).toISOString().split('T')[0] === dateStr
+                            );
+                            return [categoryIndex, point[1]];
+                        }),
                         symbol: 'triangle',
-                        symbolSize: 20,
+                        symbolSize: 10,
                         itemStyle: {
                             color: '#e53e3e',
                             borderColor: '#ffffff',
@@ -94248,10 +94269,16 @@
                     {
                         name: '卖出点',
                         type: 'scatter',
-                        data: sellPoints,
+                        data: sellPoints.map((point, index) => {
+                            const dateStr = new Date(point[0]).toISOString().split('T')[0];
+                            const categoryIndex = klinePoints.findIndex(kpoint => 
+                                new Date(kpoint[0]).toISOString().split('T')[0] === dateStr
+                            );
+                            return [categoryIndex, point[1]];
+                        }),
                         symbol: 'triangle',
                         symbolRotate: 180,
-                        symbolSize: 20,
+                        symbolSize: 10,
                         itemStyle: {
                             color: '#38a169',
                             borderColor: '#ffffff',
@@ -94276,9 +94303,15 @@
                     {
                         name: '分红标志',
                         type: 'scatter',
-                        data: dividendPoints,
+                        data: dividendPoints.map((point, index) => {
+                            const dateStr = new Date(point[0]).toISOString().split('T')[0];
+                            const categoryIndex = klinePoints.findIndex(kpoint => 
+                                new Date(kpoint[0]).toISOString().split('T')[0] === dateStr
+                            );
+                            return [categoryIndex, point[1]];
+                        }),
                         symbol: 'diamond',
-                        symbolSize: 16,
+                        symbolSize: 8,
                         itemStyle: {
                             color: '#ff6b35',
                             borderColor: '#ffffff',
@@ -94305,7 +94338,7 @@
                     {
                         name: '价值比',
                         type: 'line',
-                        data: pvrPoints,
+                        data: pvrPoints.map(point => point[1]),
                         smooth: true,
                         lineStyle: {
                             color: '#ff6b35',
@@ -94363,7 +94396,7 @@
                     {
                         name: 'RSI',
                         type: 'line',
-                        data: rsiPoints,
+                        data: rsiPoints.map(point => point[1]),
                         smooth: true,
                         lineStyle: {
                             color: '#800080',
@@ -94377,7 +94410,7 @@
                     {
                         name: 'MACD',
                         type: 'line',
-                        data: macdPoints,
+                        data: macdPoints.map(point => point[1]),
                         smooth: true,
                         lineStyle: {
                             color: '#ff0000',
@@ -94390,7 +94423,7 @@
                     {
                         name: 'MACD信号线',
                         type: 'line',
-                        data: macdSignalPoints,
+                        data: macdSignalPoints.map(point => point[1]),
                         smooth: true,
                         lineStyle: {
                             color: '#0000ff',
@@ -94403,10 +94436,10 @@
                     {
                         name: 'MACD柱状图',
                         type: 'bar',
-                        data: macdHistogramPoints,
+                        data: macdHistogramPoints.map(point => point[1]),
                         itemStyle: {
                             color: function(params) {
-                                return params.value[1] >= 0 ? '#e53e3e' : '#38a169';
+                                return params.value >= 0 ? '#e53e3e' : '#38a169';
                             }
                         },
                         xAxisIndex: 3,
