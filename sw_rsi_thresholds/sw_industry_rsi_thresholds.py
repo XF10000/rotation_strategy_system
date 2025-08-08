@@ -12,6 +12,13 @@ import os
 import time
 from typing import Dict, Tuple, List
 
+# 导入配置文件
+try:
+    from .config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG
+except ImportError:
+    # 如果作为脚本直接运行，使用相对导入
+    from config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG
+
 try:
     import talib
     USE_TALIB = True
@@ -63,13 +70,31 @@ class SWIndustryRSIThresholds:
             output_dir: 输出文件目录
         """
         self.output_dir = output_dir
-        self.rsi_period = 14  # RSI计算周期
-        self.lookback_weeks = 104  # 回看周数（2年）
-        self.retry_times = 3  # 重试次数
-        self.retry_delay = 2  # 重试间隔
+        
+        # 从配置文件读取参数
+        self.rsi_period = CALCULATION_PERIODS["rsi_period"]
+        self.lookback_weeks = CALCULATION_PERIODS["lookback_weeks"]
+        self.retry_times = DATA_QUALITY["retry_times"]
+        self.retry_delay = DATA_QUALITY["retry_delay"]
+        self.min_data_points = DATA_QUALITY["min_data_points"]
+        self.min_rsi_points = DATA_QUALITY["min_rsi_points"]
+        
+        # RSI阈值配置
+        self.rsi_thresholds = RSI_THRESHOLDS
+        self.volatility_quantiles = CALCULATION_PERIODS["volatility_quantiles"]
+        
+        # 输出配置
+        self.output_config = OUTPUT_CONFIG
         
         # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
+        
+        # 打印当前配置
+        logger.info("RSI阈值计算配置:")
+        logger.info(f"  历史数据周数: {self.lookback_weeks}")
+        logger.info(f"  RSI计算周期: {self.rsi_period}")
+        logger.info(f"  普通阈值: 超卖{self.rsi_thresholds['普通超卖']}%, 超买{self.rsi_thresholds['普通超买']}%")
+        logger.info(f"  波动率分层: Q1={self.volatility_quantiles['q1']}%, Q3={self.volatility_quantiles['q3']}%")
     
     def get_sw_industry_codes(self) -> pd.DataFrame:
         """
@@ -255,12 +280,15 @@ class SWIndustryRSIThresholds:
             sigma_list: 所有行业的波动率列表
             
         Returns:
-            (q1, q3): 25%和75%分位点
+            (q1, q3): 分位点
         """
-        q1 = np.percentile(sigma_list, 25)
-        q3 = np.percentile(sigma_list, 75)
+        q1_pct = self.volatility_quantiles['q1']
+        q3_pct = self.volatility_quantiles['q3']
         
-        logger.info(f"波动率分层: Q1={q1:.3f}, Q3={q3:.3f}")
+        q1 = np.percentile(sigma_list, q1_pct)
+        q3 = np.percentile(sigma_list, q3_pct)
+        
+        logger.info(f"波动率分层: Q{q1_pct}={q1:.3f}, Q{q3_pct}={q3:.3f}")
         return q1, q3
     
     def get_layer_percentiles(self, sigma: float, q1: float, q3: float) -> Tuple[str, int, int]:
@@ -269,18 +297,28 @@ class SWIndustryRSIThresholds:
         
         Args:
             sigma: 行业波动率
-            q1: 25%分位点
-            q3: 75%分位点
+            q1: 低分位点
+            q3: 高分位点
             
         Returns:
             (layer, pct_low, pct_high): 分层名称和极端分位数
         """
+        extreme_thresholds = self.rsi_thresholds["极端阈值"]
+        
         if sigma >= q3:
-            return '高波动', 5, 95
+            layer = '高波动'
+            pct_low = extreme_thresholds["高波动"]["超卖"]
+            pct_high = extreme_thresholds["高波动"]["超买"]
         elif sigma < q1:
-            return '低波动', 10, 90
+            layer = '低波动'
+            pct_low = extreme_thresholds["低波动"]["超卖"]
+            pct_high = extreme_thresholds["低波动"]["超买"]
         else:
-            return '中波动', 8, 92
+            layer = '中波动'
+            pct_low = extreme_thresholds["中波动"]["超卖"]
+            pct_high = extreme_thresholds["中波动"]["超买"]
+            
+        return layer, pct_low, pct_high
     
     def calculate_single_industry_thresholds(self, rsi_series: pd.Series, 
                                            sigma: float, q1: float, q3: float) -> Dict:
@@ -290,21 +328,25 @@ class SWIndustryRSIThresholds:
         Args:
             rsi_series: RSI时间序列
             sigma: 行业波动率
-            q1: 25%分位点
-            q3: 75%分位点
+            q1: 低分位点
+            q3: 高分位点
             
         Returns:
             包含各种阈值的字典
         """
         layer, pct_low, pct_high = self.get_layer_percentiles(sigma, q1, q3)
         
+        # 从配置文件获取普通阈值分位数
+        normal_oversold = self.rsi_thresholds['普通超卖']
+        normal_overbought = self.rsi_thresholds['普通超买']
+        
         # 计算各种阈值
         thresholds = {
             'layer': layer,
             'volatility': float(sigma),
             'current_rsi': float(rsi_series.iloc[-1]) if len(rsi_series) > 0 else np.nan,
-            '普通超卖': float(np.percentile(rsi_series, 15)),
-            '普通超买': float(np.percentile(rsi_series, 85)),
+            '普通超卖': float(np.percentile(rsi_series, normal_oversold)),
+            '普通超买': float(np.percentile(rsi_series, normal_overbought)),
             '极端超卖': float(np.percentile(rsi_series, pct_low)),
             '极端超买': float(np.percentile(rsi_series, pct_high)),
             'data_points': len(rsi_series)
@@ -339,14 +381,14 @@ class SWIndustryRSIThresholds:
             # 获取周线数据（带重试）
             df = self.get_industry_weekly_data_with_retry(code)
             
-            if df.empty or len(df) < 50:  # 至少需要50周数据
-                logger.warning(f"跳过行业 {code}，数据不足")
+            if df.empty or len(df) < self.min_data_points:
+                logger.warning(f"跳过行业 {code}，数据不足（需要至少{self.min_data_points}周）")
                 continue
             
             # 计算波动率
             rsi_series = df['rsi14'].dropna()
-            if len(rsi_series) < 20:  # 至少需要20个RSI数据点
-                logger.warning(f"跳过行业 {code}，RSI数据不足")
+            if len(rsi_series) < self.min_rsi_points:
+                logger.warning(f"跳过行业 {code}，RSI数据不足（需要至少{self.min_rsi_points}个数据点）")
                 continue
                 
             sigma = rsi_series.std()
@@ -405,22 +447,33 @@ class SWIndustryRSIThresholds:
         
         Args:
             df: 阈值DataFrame
-            filename: 文件名，默认使用固定名称
+            filename: 文件名，默认使用配置文件中的名称
             
         Returns:
             保存的文件路径
         """
         if filename is None:
-            filename = 'sw2_rsi_threshold.csv'
+            filename = self.output_config['output_filename']
         
         filepath = os.path.join(self.output_dir, filename)
         
-        # 添加更新时间列
+        # 添加更新时间列和配置信息
         df_copy = df.copy()
         df_copy['更新时间'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
+        if self.output_config['include_debug_info']:
+            # 添加配置信息作为注释（在文件开头）
+            config_info = [
+                f"# 配置参数: 历史周数={self.lookback_weeks}, RSI周期={self.rsi_period}",
+                f"# 普通阈值: 超卖{self.rsi_thresholds['普通超卖']}%, 超买{self.rsi_thresholds['普通超买']}%",
+                f"# 极端阈值: 高波动({self.rsi_thresholds['极端阈值']['高波动']['超卖']}%,{self.rsi_thresholds['极端阈值']['高波动']['超买']}%), " +
+                f"中波动({self.rsi_thresholds['极端阈值']['中波动']['超卖']}%,{self.rsi_thresholds['极端阈值']['中波动']['超买']}%), " +
+                f"低波动({self.rsi_thresholds['极端阈值']['低波动']['超卖']}%,{self.rsi_thresholds['极端阈值']['低波动']['超买']}%)"
+            ]
+        
         # 保存到CSV（覆盖已存在的文件）
-        df_copy.to_csv(filepath, encoding='utf-8-sig', float_format='%.3f')
+        precision = self.output_config['float_precision']
+        df_copy.to_csv(filepath, encoding='utf-8-sig', float_format=f'%.{precision}f')
         
         logger.info(f"阈值已保存到: {filepath}")
         return filepath

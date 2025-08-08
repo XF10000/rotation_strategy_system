@@ -14,6 +14,7 @@ import pandas as pd
 sys.path.append('..')
 
 from sw_rsi_thresholds.sw_industry_rsi_thresholds import SWIndustryRSIThresholds
+from sw_rsi_thresholds.config import CALCULATION_PERIODS, RSI_THRESHOLDS
 
 
 def main():
@@ -39,15 +40,15 @@ def main():
     parser.add_argument(
         '--weeks', '-w',
         type=int,
-        default=104,
-        help='历史数据周数 (默认: 104周，约2年)'
+        default=CALCULATION_PERIODS["lookback_weeks"],
+        help=f'历史数据周数 (默认: {CALCULATION_PERIODS["lookback_weeks"]}周)'
     )
     
     parser.add_argument(
         '--rsi-period',
         type=int,
-        default=14,
-        help='RSI计算周期 (默认: 14)'
+        default=CALCULATION_PERIODS["rsi_period"],
+        help=f'RSI计算周期 (默认: {CALCULATION_PERIODS["rsi_period"]})'
     )
     
     parser.add_argument(
