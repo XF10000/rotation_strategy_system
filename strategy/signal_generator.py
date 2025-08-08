@@ -22,6 +22,7 @@ from config.industry_rsi_thresholds import get_rsi_thresholds, get_industry_from
 from config.industry_signal_rules import get_industry_signal_rules, should_require_divergence
 from config.comprehensive_industry_rules import get_comprehensive_industry_rules
 from config.industry_rsi_loader import get_industry_rsi_thresholds, get_rsi_loader
+from config.enhanced_industry_rsi_loader import get_enhanced_rsi_loader
 from config.stock_industry_mapping import get_stock_industry
 from utils.industry_classifier import get_stock_industry_auto
 
@@ -363,7 +364,7 @@ class SignalGenerator:
             rsi_current = indicators['rsi'].iloc[-1]
             
             
-            # 获取行业特定的RSI阈值
+            # 获取行业特定的RSI阈值 - 使用增强版加载器
             rsi_overbought = self.params['rsi_overbought']  # 默认阈值
             rsi_oversold = self.params['rsi_oversold']      # 默认阈值
             
@@ -372,22 +373,25 @@ class SignalGenerator:
                     # 使用缓存的行业信息获取方法
                     industry = self._get_stock_industry_cached(stock_code)
                     
-                    # 优先使用CSV配置的RSI阈值
+                    # 优先使用增强版RSI阈值加载器（动态计算的阈值）
                     if industry:
                         try:
-                            rsi_loader = get_rsi_loader()
-                            rsi_thresholds = rsi_loader.get_rsi_thresholds(industry)
+                            enhanced_loader = get_enhanced_rsi_loader()
+                            rsi_thresholds = enhanced_loader.get_rsi_thresholds(industry, use_extreme=False)
                             rsi_overbought = rsi_thresholds['overbought']
                             rsi_oversold = rsi_thresholds['oversold']
-                            self.logger.debug(f"股票 {stock_code} 行业 {industry} CSV RSI阈值: 超买={rsi_overbought}, 超卖={rsi_oversold}")
-                        except Exception as csv_e:
-                            self.logger.warning(f"从CSV加载行业 {industry} RSI阈值失败: {csv_e}，尝试使用旧配置")
-                            # 回退到旧的行业规则
-                            industry_rules = self._get_industry_rules_cached(industry)
-                            if industry_rules:
-                                rsi_overbought = industry_rules['rsi_thresholds']['overbought']
-                                rsi_oversold = industry_rules['rsi_thresholds']['oversold']
-                                self.logger.debug(f"股票 {stock_code} 行业 {industry} 旧配置RSI阈值: 超买={rsi_overbought}, 超卖={rsi_oversold}")
+                            self.logger.debug(f"股票 {stock_code} 行业 {industry} 动态RSI阈值: 超买={rsi_overbought:.2f}, 超卖={rsi_oversold:.2f}")
+                        except Exception as enhanced_e:
+                            self.logger.warning(f"从增强版加载器获取行业 {industry} RSI阈值失败: {enhanced_e}，回退到原有配置")
+                            # 回退到原有的CSV配置
+                            try:
+                                rsi_loader = get_rsi_loader()
+                                rsi_thresholds = rsi_loader.get_rsi_thresholds(industry)
+                                rsi_overbought = rsi_thresholds['overbought']
+                                rsi_oversold = rsi_thresholds['oversold']
+                                self.logger.debug(f"股票 {stock_code} 行业 {industry} 静态RSI阈值: 超买={rsi_overbought}, 超卖={rsi_oversold}")
+                            except Exception as csv_e:
+                                self.logger.warning(f"从静态配置加载行业 {industry} RSI阈值也失败: {csv_e}，使用默认阈值")
                 except Exception as e:
                     self.logger.warning(f"获取股票 {stock_code} 行业RSI阈值失败: {e}，使用默认阈值")
             
