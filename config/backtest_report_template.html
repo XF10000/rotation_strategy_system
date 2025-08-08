@@ -819,12 +819,17 @@
             const buyPoints = [];
             const sellPoints = [];
             
+            // 计算买卖点在时间轴底部的显示位置
+            let minPrice = Math.min(...klinePoints.map(point => point[3])); // 获取所有K线的最低价
+            let priceRange = Math.max(...klinePoints.map(point => point[4])) - minPrice; // 价格范围
+            let buyYPosition = minPrice - priceRange * 0.15; // 买入点在最低价下方15%的位置
+            let sellYPosition = minPrice - priceRange * 0.2; // 卖出点在最低价下方20%的位置
+            
             tradePoints.forEach(trade => {
-                const point = [trade.timestamp, trade.price];
                 if (trade.type === 'BUY') {
-                    buyPoints.push(point);
+                    buyPoints.push([trade.timestamp, buyYPosition]);
                 } else {
-                    sellPoints.push(point);
+                    sellPoints.push([trade.timestamp, sellYPosition]);
                 }
             });
             
@@ -844,13 +849,17 @@
             const macdSignalPoints = stockData.macd ? stockData.macd.dea || [] : [];
             const macdHistogramPoints = stockData.macd ? stockData.macd.histogram || [] : [];
             
-            // 🆕 准备分红标志数据
+            // 🆕 准备分红标志数据 - 显示在时间轴底部
             const dividendPoints = [];
             if (stockData.dividends && stockData.dividends.length > 0) {
+                // 分红标志在最低价下方25%的位置显示，避免与买卖点重叠
+                let dividendYPosition = minPrice - priceRange * 0.25;
+                
                 stockData.dividends.forEach(dividend => {
-                    dividendPoints.push([dividend.timestamp, dividend.close_price]);
+                    dividendPoints.push([dividend.timestamp, dividendYPosition]);
                 });
                 console.log('分红事件数量:', dividendPoints.length);
+                console.log('分红标志显示位置:', dividendYPosition);
             }
             
             const option = {
@@ -1140,7 +1149,7 @@
                         type: 'scatter',
                         data: buyPoints,
                         symbol: 'triangle',
-                        symbolSize: 20,
+                        symbolSize: 10,
                         itemStyle: {
                             color: '#e53e3e',
                             borderColor: '#ffffff',
@@ -1167,7 +1176,7 @@
                         data: sellPoints,
                         symbol: 'triangle',
                         symbolRotate: 180,
-                        symbolSize: 20,
+                        symbolSize: 10,
                         itemStyle: {
                             color: '#38a169',
                             borderColor: '#ffffff',
@@ -1194,7 +1203,7 @@
                         type: 'scatter',
                         data: dividendPoints,
                         symbol: 'diamond',
-                        symbolSize: 16,
+                        symbolSize: 8,
                         itemStyle: {
                             color: '#ff6b35',
                             borderColor: '#ffffff',
