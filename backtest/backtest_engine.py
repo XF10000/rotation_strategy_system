@@ -1464,6 +1464,55 @@ class BacktestEngine:
             self.logger.info(f"股票 {stock_code} 交易点数量: {stock_trade_count}")
             self.logger.info(f"股票 {stock_code} 技术指标数据量: RSI {len(rsi_data)}, MACD {len(macd_data)}, PVR {len(pvr_data)}")
             
+            # 🆕 准备分红数据用于K线图标记
+            dividend_points = []
+            if stock_code in self.stock_data and 'weekly' in self.stock_data[stock_code]:
+                weekly_data = self.stock_data[stock_code]['weekly']
+                filtered_weekly_data = weekly_data[
+                    (weekly_data.index >= start_date) & (weekly_data.index <= end_date)
+                ]
+                
+                # 查找分红事件
+                for timestamp, idx in valid_timestamps:
+                    try:
+                        row = filtered_weekly_data.loc[idx]
+                        
+                        # 检查是否有分红事件
+                        dividend_amount = row.get('dividend_amount', 0)
+                        bonus_ratio = row.get('bonus_ratio', 0)
+                        transfer_ratio = row.get('transfer_ratio', 0)
+                        
+                        if dividend_amount > 0 or bonus_ratio > 0 or transfer_ratio > 0:
+                            # 构建分红事件数据
+                            dividend_event = {
+                                'timestamp': timestamp,
+                                'date': idx.strftime('%Y-%m-%d'),
+                                'dividend_amount': float(dividend_amount) if dividend_amount > 0 else 0,
+                                'bonus_ratio': float(bonus_ratio) if bonus_ratio > 0 else 0,
+                                'transfer_ratio': float(transfer_ratio) if transfer_ratio > 0 else 0,
+                                'close_price': float(row['close'])
+                            }
+                            
+                            # 确定分红事件类型和描述
+                            event_types = []
+                            if dividend_amount > 0:
+                                event_types.append(f"现金分红{dividend_amount:.3f}元/股")
+                            if bonus_ratio > 0:
+                                event_types.append(f"送股{bonus_ratio:.3f}")
+                            if transfer_ratio > 0:
+                                event_types.append(f"转增{transfer_ratio:.3f}")
+                            
+                            dividend_event['description'] = "；".join(event_types)
+                            dividend_event['type'] = 'dividend' if dividend_amount > 0 else ('bonus' if bonus_ratio > 0 else 'transfer')
+                            
+                            dividend_points.append(dividend_event)
+                            
+                    except Exception as e:
+                        self.logger.debug(f"处理分红数据失败: {e}, 索引: {idx}")
+                        continue
+            
+            self.logger.info(f"股票 {stock_code} 分红事件数量: {len(dividend_points)}")
+
             kline_data[stock_code] = {
                 'kline': kline_points,
                 'trades': trade_points,
@@ -1480,7 +1529,9 @@ class BacktestEngine:
                 'bb_middle': bb_middle_data,
                 'bb_lower': bb_lower_data,
                 # 添加价值比数据
-                'pvr': pvr_data
+                'pvr': pvr_data,
+                # 🆕 添加分红数据
+                'dividends': dividend_points
             }
         
         return kline_data
