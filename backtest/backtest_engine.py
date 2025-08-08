@@ -913,22 +913,31 @@ class BacktestEngine:
         buy_trades = len(transaction_df[transaction_df['type'] == 'BUY']) if not transaction_df.empty else 0
         sell_trades = len(transaction_df[transaction_df['type'] == 'SELL']) if not transaction_df.empty else 0
         
+        # 确保基准计算在返回结果之前执行
+        basic_metrics = {
+            'initial_value': initial_value,
+            'final_value': final_value,
+            'total_return': total_return,
+            'annual_return': annual_return,
+            'max_drawdown': max_drawdown
+        }
+        trading_metrics = {
+            'total_trades': total_trades,
+            'buy_trades': buy_trades,
+            'sell_trades': sell_trades
+        }
+        
+        # 执行基准计算以确保基准持仓数据被正确收集
+        print(f"🔍 在get_backtest_results中执行基准计算...")
+        self._calculate_performance_metrics(basic_metrics, trading_metrics)
+        
         return {
-            'basic_metrics': {
-                'initial_value': initial_value,
-                'final_value': final_value,
-                'total_return': total_return,
-                'annual_return': annual_return,
-                'max_drawdown': max_drawdown
-            },
-            'trading_metrics': {
-                'total_trades': total_trades,
-                'buy_trades': buy_trades,
-                'sell_trades': sell_trades
-            },
+            'basic_metrics': basic_metrics,
+            'trading_metrics': trading_metrics,
             'portfolio_history': portfolio_df,
             'transaction_history': pd.DataFrame(self.transaction_history) if self.transaction_history else pd.DataFrame(),
-            'dividend_events': self.portfolio_manager.get_dividend_events() if hasattr(self.portfolio_manager, 'get_dividend_events') else []
+            'dividend_events': self.portfolio_manager.get_dividend_events() if hasattr(self.portfolio_manager, 'get_dividend_events') else [],
+            'benchmark_portfolio_data': getattr(self, 'benchmark_portfolio_data', {})
         }
     
     def generate_reports(self) -> Dict[str, str]:
@@ -1030,6 +1039,10 @@ class BacktestEngine:
                 if initial_price:
                     initial_prices[stock_code] = initial_price
             
+            # 获取基准持仓数据
+            benchmark_portfolio_data = backtest_results.get('benchmark_portfolio_data', {})
+            print(f"🔍 基准持仓数据检查: {list(benchmark_portfolio_data.keys()) if benchmark_portfolio_data else 'None'}")
+            
             return {
                 'portfolio_history': portfolio_history.to_dict('records') if not portfolio_history.empty else [],
                 'transactions': transaction_history.to_dict('records') if not transaction_history.empty else [],
@@ -1038,7 +1051,8 @@ class BacktestEngine:
                 'signal_analysis': signal_analysis,
                 'kline_data': kline_data,
                 'dcf_values': getattr(self, 'dcf_values', {}),
-                'initial_prices': initial_prices  # 从统一数据管理器获取
+                'initial_prices': initial_prices,  # 从统一数据管理器获取
+                'benchmark_portfolio_data': benchmark_portfolio_data  # 基准持仓数据
             }
             
         except Exception as e:
@@ -1144,6 +1158,13 @@ class BacktestEngine:
         print(f"🔍 开始计算买入持有基准...")
         benchmark_return, benchmark_annual_return, benchmark_max_drawdown = self._calculate_buy_and_hold_benchmark()
         print(f"📊 基准计算结果: 总收益率{benchmark_return:.2f}%, 年化{benchmark_annual_return:.2f}%, 最大回撤{benchmark_max_drawdown:.2f}%")
+        
+        # 检查基准持仓数据是否被正确存储
+        benchmark_portfolio_data = getattr(self, 'benchmark_portfolio_data', {})
+        print(f"🔍 基准持仓数据验证: {list(benchmark_portfolio_data.keys()) if benchmark_portfolio_data else 'None'}")
+        if benchmark_portfolio_data:
+            print(f"  总资产: ¥{benchmark_portfolio_data.get('total_value', 0):,.2f}")
+            print(f"  持仓数量: {len(benchmark_portfolio_data.get('positions', {}))}只股票")
         
         result = {
             'initial_capital': performance_metrics.get('initial_value', self.total_capital),
@@ -1570,7 +1591,9 @@ class BacktestEngine:
                 end_price = filtered_data.iloc[-1]['close']
                 
                 investment_amount = initial_capital * weight
-                initial_shares = investment_amount / start_price
+                # 🔧 修复：计算整股数量（100股的整数倍），与策略持仓保持一致
+                raw_shares = investment_amount / start_price
+                initial_shares = int(raw_shares / 100) * 100  # 向下取整到100股的整数倍
                 current_shares = initial_shares  # 当前持股数（会因送股转增而变化）
                 
                 # 🆕 计算分红收入和股份变化
@@ -1638,6 +1661,69 @@ class BacktestEngine:
             self.logger.info(f"  📈 总收益率: {total_return_pct:.2f}% (包含分红)")
             self.logger.info(f"  📈 年化收益率: {annual_return_pct:.2f}% (包含分红)")
             self.logger.info(f"  估算最大回撤: {max_drawdown_pct:.2f}%")
+            
+            # 🆕 收集基准持仓状态数据用于报告生成
+            # 🔧 修复：现金应该是初始现金加上分红收入
+            final_cash = cash_amount + total_dividend_income
+            benchmark_portfolio_data = {
+                'total_value': end_total_value + total_dividend_income,
+                'cash': final_cash,  # 初始现金 + 分红收入
+                'stock_value': end_total_value - cash_amount,  # 纯股票市值（不包含现金）
+                'dividend_income': total_dividend_income,
+                'positions': {},
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d')
+            }
+            
+            # 收集每只股票的详细持仓数据
+            for stock_code, weight in initial_weights.items():
+                if stock_code not in self.stock_data:
+                    continue
+                    
+                weekly_data = self.stock_data[stock_code]['weekly']
+                filtered_data = weekly_data[
+                    (weekly_data.index >= start_date) & (weekly_data.index <= end_date)
+                ]
+                
+                if len(filtered_data) < 2:
+                    continue
+                
+                start_price = filtered_data.iloc[0]['close']
+                end_price = filtered_data.iloc[-1]['close']
+                
+                investment_amount = initial_capital * weight
+                # 🔧 修复：计算整股数量（100股的整数倍），与策略持仓保持一致
+                raw_shares = investment_amount / start_price
+                initial_shares = int(raw_shares / 100) * 100  # 向下取整到100股的整数倍
+                current_shares = initial_shares
+                dividend_income = 0
+                
+                # 重新计算股份变化和分红收入（用于报告）
+                for date, row in filtered_data.iterrows():
+                    if row.get('dividend_amount', 0) > 0:
+                        dividend_income += current_shares * row['dividend_amount']
+                    if row.get('bonus_ratio', 0) > 0:
+                        current_shares += current_shares * row['bonus_ratio']
+                    if row.get('transfer_ratio', 0) > 0:
+                        current_shares += current_shares * row['transfer_ratio']
+                
+                start_value = initial_shares * start_price
+                end_value = current_shares * end_price
+                
+                benchmark_portfolio_data['positions'][stock_code] = {
+                    'initial_shares': initial_shares,
+                    'current_shares': current_shares,
+                    'start_price': start_price,
+                    'end_price': end_price,
+                    'start_value': start_value,
+                    'end_value': end_value,
+                    'dividend_income': dividend_income,
+                    'weight': weight,
+                    'return_rate': (end_value + dividend_income - start_value) / start_value if start_value > 0 else 0
+                }
+            
+            # 存储基准持仓数据供报告生成器使用
+            self.benchmark_portfolio_data = benchmark_portfolio_data
             
             return total_return_pct, annual_return_pct, max_drawdown_pct
             

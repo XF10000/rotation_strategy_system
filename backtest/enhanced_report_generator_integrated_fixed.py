@@ -77,7 +77,8 @@ class IntegratedReportGenerator:
                 final_portfolio,
                 performance_metrics,
                 signal_analysis,
-                kline_data
+                kline_data,
+                backtest_results
             )
             
             # 确定输出路径
@@ -132,7 +133,7 @@ class IntegratedReportGenerator:
     def _fill_template_safe(self, template: str, portfolio_history: List,
                            transactions: List, final_portfolio: Dict,
                            performance_metrics: Dict, signal_analysis: Dict,
-                           kline_data: Dict) -> str:
+                           kline_data: Dict, backtest_results: Dict) -> str:
         """安全地填充HTML模板数据"""
         
         print(f"🔧 开始填充HTML模板，接收到performance_metrics键: {list(performance_metrics.keys()) if performance_metrics else 'None'}")
@@ -146,6 +147,12 @@ class IntegratedReportGenerator:
             
             # 3. 最终持仓状态替换
             template = self._replace_final_portfolio_safe(template, final_portfolio)
+            
+            # 3.5. 基准持仓状态替换
+            print(f"🔍 检查backtest_results中的基准持仓数据: {list(backtest_results.keys())}")
+            benchmark_portfolio = backtest_results.get('benchmark_portfolio_data', {})
+            print(f"🔍 获取到的benchmark_portfolio: {list(benchmark_portfolio.keys()) if benchmark_portfolio else 'None'}")
+            template = self._replace_benchmark_portfolio_safe(template, benchmark_portfolio)
             
             # 4. 交易统计替换
             template = self._replace_trading_stats_safe(template, transactions)
@@ -166,7 +173,9 @@ class IntegratedReportGenerator:
             return template
             
         except Exception as e:
-            print(f"模板填充错误: {e}")
+            print(f"❌ 模板填充错误: {e}")
+            import traceback
+            print(f"❌ 异常详情: {traceback.format_exc()}")
             return template
     
     def _replace_basic_metrics_safe(self, template: str, metrics: Dict) -> str:
@@ -346,7 +355,12 @@ class IntegratedReportGenerator:
                     print(f"  ✓ {old_value} -> {new_value}")
 
             # 替换持仓对比表格（新功能）
-            template = self._replace_position_comparison_table(template, final_portfolio)
+            try:
+                template = self._replace_position_comparison_table(template, final_portfolio)
+            except Exception as e:
+                print(f"⚠️ 持仓对比表格替换失败: {e}")
+                import traceback
+                print(f"⚠️ 异常详情: {traceback.format_exc()}")
 
             print(f"✅ 最终持仓状态替换完成")
             return template
@@ -1748,6 +1762,195 @@ class IntegratedReportGenerator:
         except Exception as e:
             print(f"❌ K线数据替换错误: {e}")
             return template
+    
+    def _replace_benchmark_portfolio_safe(self, template: str, benchmark_portfolio: Dict) -> str:
+        """安全地替换买入持有基准持仓状态"""
+        try:
+            print(f"🔧 基准持仓状态替换开始，接收到的benchmark_portfolio键: {list(benchmark_portfolio.keys()) if benchmark_portfolio else 'None'}")
+            
+            if not benchmark_portfolio:
+                print("⚠️ 没有基准持仓数据，使用默认值")
+                # 使用默认值替换
+                template = template.replace('BENCHMARK_TOTAL_VALUE', '30,000,000.00')
+                template = template.replace('BENCHMARK_CASH (BENCHMARK_CASH_RATIO%)', '3,000,000.00 (10.0%)')
+                template = template.replace('BENCHMARK_STOCK_VALUE (BENCHMARK_STOCK_RATIO%)', '27,000,000.00 (90.0%)')
+                template = template.replace('BENCHMARK_POSITION_COMPARISON_TABLE', '<tr><td colspan="11">暂无基准持仓数据</td></tr>')
+                return template
+            
+            total_value = benchmark_portfolio.get('total_value', 30000000)
+            cash = benchmark_portfolio.get('cash', 3000000)
+            stock_value = benchmark_portfolio.get('stock_value', 27000000)
+            positions = benchmark_portfolio.get('positions', {})
+            
+            # 计算现金和股票占比
+            cash_ratio = (cash / total_value * 100) if total_value > 0 else 0
+            stock_ratio = (stock_value / total_value * 100) if total_value > 0 else 0
+            
+            print(f"🔍 基准持仓状态数据:")
+            print(f"  总资产: ¥{total_value:,.2f}")
+            print(f"  现金: ¥{cash:,.2f} ({cash_ratio:.1f}%)")
+            print(f"  股票市值: ¥{stock_value:,.2f} ({stock_ratio:.1f}%)")
+            print(f"  持仓明细: {len(positions)}只股票")
+            
+            # 替换基本数据
+            template = template.replace('BENCHMARK_TOTAL_VALUE', f'{total_value:,.2f}')
+            template = template.replace('BENCHMARK_CASH (BENCHMARK_CASH_RATIO%)', f'{cash:,.2f} ({cash_ratio:.1f}%)')
+            template = template.replace('BENCHMARK_STOCK_VALUE (BENCHMARK_STOCK_RATIO%)', f'{stock_value:,.2f} ({stock_ratio:.1f}%)')
+            
+            # 生成基准持仓对比表格
+            benchmark_table_html = self._build_benchmark_position_table(positions, total_value, benchmark_portfolio)
+            template = template.replace('BENCHMARK_POSITION_COMPARISON_TABLE', benchmark_table_html)
+            
+            print(f"✅ 基准持仓状态替换完成")
+            return template
+            
+        except Exception as e:
+            print(f"❌ 基准持仓状态替换错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return template
+    
+    def _build_benchmark_position_table(self, positions: Dict, total_value: float, benchmark_portfolio: Dict) -> str:
+        """构建基准持仓对比表格 - 与策略持仓保持一致"""
+        try:
+            if not positions:
+                return '<tr><td colspan="11">暂无基准持仓数据</td></tr>'
+            
+            # 从配置文件获取初始设置，保持与策略持仓一致
+            initial_holdings_config = self._load_initial_holdings_config()
+            
+            # 获取总资金（与策略相同）
+            import pandas as pd
+            settings_df = pd.read_csv('Input/Becktest_settings.csv', encoding='utf-8')
+            initial_total_capital = 15000000  # 默认值
+            for _, row in settings_df.iterrows():
+                if row['Parameter'] == 'total_capital':
+                    initial_total_capital = int(row['Value'])
+                    break
+            
+            # 按照策略持仓的顺序排列股票（按配置文件顺序）
+            ordered_stocks = []
+            for stock_code in initial_holdings_config.keys():
+                if stock_code != 'cash' and stock_code in positions:
+                    ordered_stocks.append(stock_code)
+            
+            print(f"📊 基准持仓股票顺序: {ordered_stocks}")
+            
+            table_rows = []
+            for stock_code in ordered_stocks:
+                position_data = positions[stock_code]
+                
+                # 🔧 修复：重新计算初始股数，与策略持仓保持一致
+                weight = initial_holdings_config.get(stock_code, 0.0)
+                if weight > 0:
+                    # 使用与策略持仓相同的计算逻辑
+                    target_value = initial_total_capital * weight
+                    start_price = position_data.get('start_price', 0)
+                    if start_price > 0:
+                        # 计算整手股数（与策略持仓一致）
+                        target_shares = target_value / start_price
+                        calculated_initial_shares = int(target_shares / 100) * 100
+                        calculated_start_value = calculated_initial_shares * start_price
+                    else:
+                        calculated_initial_shares = 0
+                        calculated_start_value = 0
+                else:
+                    calculated_initial_shares = 0
+                    calculated_start_value = 0
+                
+                # 使用重新计算的初始股数
+                initial_shares = calculated_initial_shares
+                current_shares = position_data.get('current_shares', 0)
+                start_price = position_data.get('start_price', 0)
+                end_price = position_data.get('end_price', 0)
+                start_value = calculated_start_value  # 使用重新计算的初始市值
+                end_value = position_data.get('end_value', 0)
+                dividend_income = position_data.get('dividend_income', 0)
+                return_rate = position_data.get('return_rate', 0)
+                
+                print(f"  📈 {stock_code}: 权重{weight:.1%} -> 初始{initial_shares:,}股, 初始市值¥{start_value:,.0f}")
+                
+                # 计算占比
+                start_ratio = (start_value / total_value * 100) if total_value > 0 else 0
+                end_ratio = (end_value / total_value * 100) if total_value > 0 else 0
+                
+                # 计算变化
+                shares_change = current_shares - initial_shares
+                value_change = end_value - start_value
+                
+                # 获取股票显示名称
+                stock_display_name = get_stock_display_name(stock_code, self.stock_mapping)
+                
+                # 设置样式类
+                shares_change_class = 'positive' if shares_change > 0 else ('negative' if shares_change < 0 else 'neutral')
+                value_change_class = 'positive' if value_change > 0 else ('negative' if value_change < 0 else 'neutral')
+                return_class = 'positive' if return_rate > 0 else ('negative' if return_rate < 0 else 'neutral')
+                
+                # 格式化数值
+                shares_change_text = f"+{shares_change:,.0f}" if shares_change > 0 else f"{shares_change:,.0f}" if shares_change < 0 else "0"
+                value_change_text = f"+¥{value_change:,.0f}" if value_change > 0 else f"¥{value_change:,.0f}" if value_change < 0 else "¥0"
+                return_text = f"+{return_rate:.1%}" if return_rate > 0 else f"{return_rate:.1%}" if return_rate < 0 else "0.0%"
+                
+                row_html = f'''
+                <tr>
+                    <td><strong>{stock_display_name}</strong></td>
+                    <td>{initial_shares:,.0f}</td>
+                    <td>¥{start_price:.2f}</td>
+                    <td>¥{start_value:,.0f}</td>
+                    <td>{start_ratio:.1f}%</td>
+                    <td>{current_shares:,.0f}</td>
+                    <td>¥{end_price:.2f}</td>
+                    <td>¥{end_value:,.0f}</td>
+                    <td>{end_ratio:.1f}%</td>
+                    <td class="{shares_change_class}">{shares_change_text}</td>
+                    <td class="{value_change_class}">{value_change_text}</td>
+                    <td class="{return_class}"><strong>{return_text}</strong></td>
+                </tr>'''
+                
+                table_rows.append(row_html)
+            
+            # 🔧 添加现金行到表格底部
+            # 🔧 修复：使用基准持仓数据中的现金（包含分红收入）
+            benchmark_cash = benchmark_portfolio.get('cash', 0)  # 初始现金 + 分红收入
+            initial_cash = initial_total_capital * initial_holdings_config.get('cash', 0.3)  # 默认30%现金
+            
+            # 计算现金占比
+            initial_cash_ratio = (initial_cash / initial_total_capital * 100) if initial_total_capital > 0 else 0
+            final_cash_ratio = (benchmark_cash / total_value * 100) if total_value > 0 else 0
+            
+            # 计算现金变化
+            cash_change = benchmark_cash - initial_cash
+            cash_change_class = 'positive' if cash_change > 0 else ('negative' if cash_change < 0 else 'neutral')
+            cash_change_text = f"+¥{cash_change:,.0f}" if cash_change > 0 else f"¥{cash_change:,.0f}" if cash_change < 0 else "¥0"
+            
+            # 现金收益率（通常为0，因为现金不产生收益）
+            cash_return_rate = 0.0
+            
+            cash_row_html = f'''
+                <tr style="background-color: #f8f9fa; border-top: 2px solid #dee2e6;">
+                    <td><strong>💰 现金</strong></td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>¥{initial_cash:,.0f}</td>
+                    <td>{initial_cash_ratio:.1f}%</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>¥{benchmark_cash:,.0f}</td>
+                    <td>{final_cash_ratio:.1f}%</td>
+                    <td>-</td>
+                    <td class="{cash_change_class}">{cash_change_text}</td>
+                    <td class="neutral"><strong>{cash_return_rate:.1%}</strong></td>
+                </tr>'''
+            
+            table_rows.append(cash_row_html)
+            
+            print(f"  💰 现金: 初始¥{initial_cash:,.0f} ({initial_cash_ratio:.1f}%) -> 最终¥{benchmark_cash:,.0f} ({final_cash_ratio:.1f}%)")
+            
+            return '\n'.join(table_rows)
+            
+        except Exception as e:
+            print(f"❌ 构建基准持仓表格失败: {e}")
+            return '<tr><td colspan="11">基准持仓表格生成失败</td></tr>'
 
 def create_integrated_report(backtest_results: Dict[str, Any], output_path: str = None) -> str:
     """
