@@ -11,19 +11,24 @@ import os
 
 sys.path.append('..')
 from sw_rsi_thresholds.sw_industry_rsi_thresholds import SWIndustryRSIThresholds, calculate_rsi
+from sw_rsi_thresholds.config import CALCULATION_PERIODS
 
-def generate_mock_industry_data_2021(code: str, name: str, weeks: int = 104) -> pd.DataFrame:
+def generate_mock_industry_data_2021(code: str, name: str, weeks: int = None) -> pd.DataFrame:
     """
     生成模拟的申万2021版行业周线数据
     
     Args:
         code: 行业代码（6位数字）
         name: 行业名称
-        weeks: 周数
+        weeks: 周数，如果为None则使用配置文件中的lookback_weeks
         
     Returns:
         模拟的周线数据DataFrame
     """
+    # 如果没有指定周数，使用配置文件中的参数
+    if weeks is None:
+        weeks = CALCULATION_PERIODS["lookback_weeks"]
+    
     # 生成日期序列
     end_date = datetime.now()
     dates = pd.date_range(end=end_date, periods=weeks, freq='W')
