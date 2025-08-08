@@ -844,6 +844,15 @@
             const macdSignalPoints = stockData.macd ? stockData.macd.dea || [] : [];
             const macdHistogramPoints = stockData.macd ? stockData.macd.histogram || [] : [];
             
+            // 🆕 准备分红标志数据
+            const dividendPoints = [];
+            if (stockData.dividends && stockData.dividends.length > 0) {
+                stockData.dividends.forEach(dividend => {
+                    dividendPoints.push([dividend.timestamp, dividend.close_price]);
+                });
+                console.log('分红事件数量:', dividendPoints.length);
+            }
+            
             const option = {
                 title: {
                     text: `${selectedStock} 周K线图`,
@@ -932,7 +941,31 @@
                                 result += '📈 <strong>MACD</strong><br/>';
                                 result += '&nbsp;&nbsp;DIF: ' + (stockData.macd.dif[dataIndex][1] ? stockData.macd.dif[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
                                 result += '&nbsp;&nbsp;DEA: ' + (stockData.macd.dea[dataIndex][1] ? stockData.macd.dea[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
-                                result += '&nbsp;&nbsp;柱状图: ' + (stockData.macd.histogram[dataIndex][1] ? stockData.macd.histogram[dataIndex][1].toFixed(2) : 'N/A') + '<br/>';
+                                result += '&nbsp;&nbsp;柱状图: ' + (stockData.macd.histogram[dataIndex][1] ? stockData.macd.histogram[dataIndex][1].toFixed(2) : 'N/A') + '<br/><br/>';
+                            }
+                            
+                            // 🆕 分红信息
+                            if (stockData.dividends && stockData.dividends.length > 0) {
+                                // 查找当前时间点的分红事件
+                                const currentTimestamp = stockData.kline[dataIndex][0];
+                                const dividendEvent = stockData.dividends.find(div => div.timestamp === currentTimestamp);
+                                
+                                if (dividendEvent) {
+                                    result += '💰 <strong>分红信息</strong><br/>';
+                                    
+                                    if (dividendEvent.dividend_amount > 0) {
+                                        result += '&nbsp;&nbsp;💵 现金分红: ' + dividendEvent.dividend_amount.toFixed(3) + '元/股<br/>';
+                                    }
+                                    if (dividendEvent.bonus_ratio > 0) {
+                                        result += '&nbsp;&nbsp;🎁 送股比例: ' + dividendEvent.bonus_ratio.toFixed(3) + '<br/>';
+                                    }
+                                    if (dividendEvent.transfer_ratio > 0) {
+                                        result += '&nbsp;&nbsp;📈 转增比例: ' + dividendEvent.transfer_ratio.toFixed(3) + '<br/>';
+                                    }
+                                    
+                                    result += '&nbsp;&nbsp;📅 除权日: ' + dividendEvent.date + '<br/>';
+                                    result += '<br/>';
+                                }
                             }
                         }
                         
@@ -940,7 +973,7 @@
                     }
                 },
                 legend: {
-                    data: ['K线', '布林上轨(主图)', '布林中轨(主图)', '布林下轨(主图)', '价值比', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点'],
+                    data: ['K线', '布林上轨(主图)', '布林中轨(主图)', '布林下轨(主图)', '价值比', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点', '分红标志'],
                     top: 30
                 },
                 grid: [
@@ -1154,6 +1187,35 @@
                             borderRadius: 4
                         },
                         z: 100
+                    },
+                    // 🆕 分红标志系列
+                    {
+                        name: '分红标志',
+                        type: 'scatter',
+                        data: dividendPoints,
+                        symbol: 'diamond',
+                        symbolSize: 16,
+                        itemStyle: {
+                            color: '#ff6b35',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            shadowColor: '#ff6b35',
+                            shadowBlur: 8
+                        },
+                        label: {
+                            show: true,
+                            position: 'bottom',
+                            formatter: '💰',
+                            color: '#ff6b35',
+                            fontSize: 14,
+                            fontWeight: 'bold',
+                            backgroundColor: '#ffffff',
+                            padding: [2, 4],
+                            borderRadius: 3,
+                            borderColor: '#ff6b35',
+                            borderWidth: 1
+                        },
+                        z: 90
                     },
                     // 价值比子图系列
                     {
