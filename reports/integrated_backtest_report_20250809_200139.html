@@ -479,7 +479,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 中线轮动策略增强版回测报告</h1>
-            <p>生成时间: 2025-08-09 19:54:40</p>
+            <p>生成时间: 2025-08-09 20:01:39</p>
             <p>包含技术指标详情与4维信号分析</p>
         </div>
         
@@ -95275,25 +95275,25 @@
                         left: '10%',
                         right: '10%',
                         top: '8%',
-                        height: '20%'
+                        height: '18%'
                     },
                     {
                         left: '10%',
                         right: '10%',
-                        top: '30%',
-                        height: '20%'
+                        top: '28%',
+                        height: '18%'
                     },
                     {
                         left: '10%',
                         right: '10%',
-                        top: '52%',
-                        height: '20%'
+                        top: '48%',
+                        height: '18%'
                     },
                     {
                         left: '10%',
                         right: '10%',
-                        top: '74%',
-                        height: '20%'
+                        top: '68%',
+                        height: '18%'
                     }
                 ],
                 xAxis: [
@@ -95367,8 +95367,12 @@
                     {
                         scale: true,
                         gridIndex: 1,
-                        min: 0,
-                        max: 200,
+                        min: function(value) {
+                            return Math.max(0, Math.floor(value.min * 0.9));
+                        },
+                        max: function(value) {
+                            return Math.ceil(value.max * 1.1);
+                        },
                         name: '价值比(%)',
                         nameLocation: 'middle',
                         nameGap: 50
@@ -95552,11 +95556,15 @@
                         smooth: true,
                         lineStyle: {
                             color: '#ff6b35',
-                            width: 2
+                            width: 3,
+                            shadowColor: 'rgba(255, 107, 53, 0.3)',
+                            shadowBlur: 4,
+                            shadowOffsetY: 2
                         },
                         symbol: 'none',
                         xAxisIndex: 1,
                         yAxisIndex: 1,
+                        z: 110,
                         markLine: {
                             silent: true,
                             data: [
