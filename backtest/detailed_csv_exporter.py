@@ -27,7 +27,7 @@ class DetailedCSVExporter:
             'RSI14', 'MACD_DIF', 'MACD_DEA', 'MACD_HIST',
             '布林上轨', '布林中轨', '布林下轨', '成交量', '量能倍数', '布林带位置',
             '价值比过滤器', '超买超卖信号', '动能确认', '极端价格量能', '满足维度数', '触发原因',
-            '行业', 'RSI超买阈值', 'RSI超卖阈值'
+            '行业', 'RSI超买阈值', 'RSI超卖阈值', 'RSI极端超买阈值', 'RSI极端超卖阈值'
         ]
         logger.info("详细CSV导出器初始化完成")
         
@@ -217,23 +217,40 @@ class DetailedCSVExporter:
             else:
                 dcf_value = f"{dcf_value:.2f}"
             
-            # 获取行业信息和RSI阈值
+            # 获取行业信息和RSI阈值 - 使用动态RSI阈值系统
             try:
-                industry = get_stock_industry_auto(symbol)
-                if not industry:
-                    industry = '未知'
-                
-                # 获取RSI阈值 - 使用新的CSV配置加载器
-                rsi_loader = get_rsi_loader()
-                rsi_thresholds = rsi_loader.get_rsi_thresholds(industry)
-                overbought_threshold = rsi_thresholds.get('overbought', 70)
-                oversold_threshold = rsi_thresholds.get('oversold', 30)
+                # 从交易记录中获取实际使用的RSI阈值（如果有的话）
+                actual_thresholds = record.get('rsi_thresholds', {})
+                if actual_thresholds:
+                    # 使用实际交易时使用的阈值
+                    overbought_threshold = actual_thresholds.get('sell_threshold', 70)
+                    oversold_threshold = actual_thresholds.get('buy_threshold', 30)
+                    extreme_overbought_threshold = actual_thresholds.get('extreme_sell_threshold', 80)
+                    extreme_oversold_threshold = actual_thresholds.get('extreme_buy_threshold', 20)
+                    industry = actual_thresholds.get('industry_name', '未知')
+                    logger.info(f"✅ 使用交易记录中的动态RSI阈值: 买入≤{oversold_threshold}, 卖出≥{overbought_threshold}, 极端买入≤{extreme_oversold_threshold}, 极端卖出≥{extreme_overbought_threshold}, 行业={industry}")
+                else:
+                    # 回退到旧方法
+                    industry = get_stock_industry_auto(symbol)
+                    if not industry:
+                        industry = '未知'
+                    
+                    # 获取RSI阈值 - 使用旧的配置加载器作为回退
+                    rsi_loader = get_rsi_loader()
+                    rsi_thresholds = rsi_loader.get_rsi_thresholds(industry)
+                    overbought_threshold = rsi_thresholds.get('overbought', 70)
+                    oversold_threshold = rsi_thresholds.get('oversold', 30)
+                    extreme_overbought_threshold = rsi_thresholds.get('extreme_overbought', 80)
+                    extreme_oversold_threshold = rsi_thresholds.get('extreme_oversold', 20)
+                    logger.warning(f"⚠️ 交易记录中无动态RSI阈值，使用回退方法: {overbought_threshold}/{oversold_threshold}, 极端: {extreme_overbought_threshold}/{extreme_oversold_threshold}")
                 
             except Exception as e:
                 logger.warning(f"获取股票{symbol}行业信息或RSI阈值失败: {str(e)}")
                 industry = '未知'
                 overbought_threshold = 70
                 oversold_threshold = 30
+                extreme_overbought_threshold = 80
+                extreme_oversold_threshold = 20
             
             return [
                 date, action, symbol, quantity, position_after, 
@@ -243,7 +260,7 @@ class DetailedCSVExporter:
                 bb_upper, bb_middle, bb_lower, volume, volume_ratio, bb_position,
                 trend_filter, overbought_oversold, momentum_confirm, extreme_price_volume, 
                 dimensions_text, trigger_reason,
-                industry, overbought_threshold, oversold_threshold
+                industry, overbought_threshold, oversold_threshold, extreme_overbought_threshold, extreme_oversold_threshold
             ]
             
         except Exception as e:

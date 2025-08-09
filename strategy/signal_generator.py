@@ -47,19 +47,29 @@ class SignalGenerator:
     触发逻辑：先满足「趋势过滤器」→ 再在其余3条里至少满足2条 → 生成信号
     """
     
-    def __init__(self, config: Dict, dcf_values: Dict[str, float] = None):
+    def __init__(self, config: Dict, dcf_values: Dict[str, float] = None, 
+                 rsi_thresholds: Dict[str, Dict[str, float]] = None,
+                 stock_industry_map: Dict[str, Dict[str, str]] = None):
         """
         初始化信号生成器
         
         Args:
             config: 配置参数
             dcf_values: DCF估值数据字典 {股票代码: DCF估值}
+            rsi_thresholds: 行业RSI阈值数据字典 {行业代码: RSI阈值信息}
+            stock_industry_map: 股票-行业映射字典 {股票代码: 行业信息}
         """
         self.config = config
         self.logger = logging.getLogger("strategy.SignalGenerator")
         
         # 存储DCF估值数据
         self.dcf_values = dcf_values or {}
+        
+        # 存储动态RSI阈值数据
+        self.rsi_thresholds = rsi_thresholds or {}
+        
+        # 存储股票-行业映射数据
+        self.stock_industry_map = stock_industry_map or {}
         
         # 默认参数
         self.default_params = {
@@ -91,12 +101,23 @@ class SignalGenerator:
         self.logger.info("信号生成器初始化完成")
         self.logger.info("行业信息缓存已启用，将显著提升回测性能")
         
-        # 记录DCF数据状态
+        # 记录数据加载状态
         if self.dcf_values:
-            self.logger.info(f"已加载 {len(self.dcf_values)} 只股票的DCF估值数据")
+            self.logger.info(f"📊 已加载 {len(self.dcf_values)} 只股票的DCF估值数据")
             self.logger.info("将使用价值比过滤器 (V1.1策略)")
         else:
             self.logger.warning("未提供DCF估值数据，将回退到EMA趋势过滤器")
+            
+        if self.rsi_thresholds:
+            self.logger.info(f"📈 已加载 {len(self.rsi_thresholds)} 个行业的动态RSI阈值")
+            self.logger.info("将使用行业特定的动态RSI阈值进行超买超卖判断")
+        else:
+            self.logger.warning("未提供动态RSI阈值数据，将使用固定阈值(70/30)")
+            
+        if self.stock_industry_map:
+            self.logger.info(f"🏭 已加载 {len(self.stock_industry_map)} 只股票的行业映射")
+        else:
+            self.logger.warning("未提供股票-行业映射数据，动态RSI阈值功能将无法使用")
     
     def generate_signal(self, stock_code: str, data: pd.DataFrame) -> Dict:
         """
@@ -123,10 +144,10 @@ class SignalGenerator:
             indicators = self._calculate_indicators(data)
             
             # 4维度评分 - 传入股票代码以支持行业特定阈值
-            scores = self._calculate_4d_scores(data, indicators, stock_code)
+            scores, actual_rsi_thresholds = self._calculate_4d_scores(data, indicators, stock_code)
             
-            # 生成最终信号
-            signal_result = self._generate_final_signal(stock_code, scores, indicators)
+            # 生成最终信号 - 传递实际使用的RSI阈值
+            signal_result = self._generate_final_signal(stock_code, scores, indicators, actual_rsi_thresholds)
             
             # 将重新计算的技术指标添加到结果中
             extracted_indicators = self._extract_current_indicators(data, indicators)
@@ -364,36 +385,47 @@ class SignalGenerator:
             rsi_current = indicators['rsi'].iloc[-1]
             
             
-            # 获取行业特定的RSI阈值 - 使用增强版加载器
+            # 获取动态RSI阈值（新系统）
             rsi_overbought = self.params['rsi_overbought']  # 默认阈值
             rsi_oversold = self.params['rsi_oversold']      # 默认阈值
             
-            if stock_code:
+            # 初始化极端阈值
+            rsi_extreme_overbought = self.params.get('rsi_extreme_overbought', 80)  # 默认极端超买阈值
+            rsi_extreme_oversold = self.params.get('rsi_extreme_oversold', 20)      # 默认极端超卖阈值
+            
+            # 使用新的动态RSI阈值系统
+            if stock_code and self.stock_industry_map and self.rsi_thresholds:
                 try:
-                    # 使用缓存的行业信息获取方法
-                    industry = self._get_stock_industry_cached(stock_code)
-                    
-                    # 优先使用增强版RSI阈值加载器（动态计算的阈值）
-                    if industry:
-                        try:
-                            enhanced_loader = get_enhanced_rsi_loader()
-                            rsi_thresholds = enhanced_loader.get_rsi_thresholds(industry, use_extreme=False)
-                            rsi_overbought = rsi_thresholds['overbought']
-                            rsi_oversold = rsi_thresholds['oversold']
-                            self.logger.debug(f"股票 {stock_code} 行业 {industry} 动态RSI阈值: 超买={rsi_overbought:.2f}, 超卖={rsi_oversold:.2f}")
-                        except Exception as enhanced_e:
-                            self.logger.warning(f"从增强版加载器获取行业 {industry} RSI阈值失败: {enhanced_e}，回退到原有配置")
-                            # 回退到原有的CSV配置
-                            try:
-                                rsi_loader = get_rsi_loader()
-                                rsi_thresholds = rsi_loader.get_rsi_thresholds(industry)
-                                rsi_overbought = rsi_thresholds['overbought']
-                                rsi_oversold = rsi_thresholds['oversold']
-                                self.logger.debug(f"股票 {stock_code} 行业 {industry} 静态RSI阈值: 超买={rsi_overbought}, 超卖={rsi_oversold}")
-                            except Exception as csv_e:
-                                self.logger.warning(f"从静态配置加载行业 {industry} RSI阈值也失败: {csv_e}，使用默认阈值")
+                    # 从股票-行业映射中获取行业信息
+                    if stock_code in self.stock_industry_map:
+                        industry_info = self.stock_industry_map[stock_code]
+                        industry_code = industry_info['industry_code']
+                        industry_name = industry_info['industry_name']
+                        
+                        # 从RSI阈值数据中获取该行业的动态阈值
+                        if industry_code in self.rsi_thresholds:
+                            threshold_info = self.rsi_thresholds[industry_code]
+                            rsi_overbought = threshold_info['sell_threshold']  # 使用普通超买阈值
+                            rsi_oversold = threshold_info['buy_threshold']     # 使用普通超卖阈值
+                            rsi_extreme_overbought = threshold_info.get('extreme_sell_threshold', 80)  # 极端超买阈值
+                            rsi_extreme_oversold = threshold_info.get('extreme_buy_threshold', 20)     # 极端超卖阈值
+                            
+                            self.logger.debug(f"股票 {stock_code} 行业 {industry_name}({industry_code}) 动态RSI阈值: "
+                                            f"超买={rsi_overbought:.2f}, 超卖={rsi_oversold:.2f}, "
+                                            f"极端超买={rsi_extreme_overbought:.2f}, 极端超卖={rsi_extreme_oversold:.2f}, "
+                                            f"波动率等级={threshold_info['volatility_level']}")
+                        else:
+                            self.logger.debug(f"股票 {stock_code} 行业 {industry_name}({industry_code}) 未找到RSI阈值，使用默认值")
+                    else:
+                        self.logger.debug(f"股票 {stock_code} 未找到行业映射，使用默认RSI阈值")
+                        
                 except Exception as e:
-                    self.logger.warning(f"获取股票 {stock_code} 行业RSI阈值失败: {e}，使用默认阈值")
+                    self.logger.warning(f"获取股票 {stock_code} 动态RSI阈值失败: {e}，使用默认阈值")
+            else:
+                if not self.stock_industry_map:
+                    self.logger.debug("股票-行业映射数据未加载，使用默认RSI阈值")
+                elif not self.rsi_thresholds:
+                    self.logger.debug("动态RSI阈值数据未加载，使用默认RSI阈值")
             
             rsi_divergence = indicators['rsi_divergence']
             
@@ -426,22 +458,40 @@ class SignalGenerator:
                 except Exception as e:
                     self.logger.warning(f"获取股票 {stock_code} 行业信号规则失败: {e}")
             
-            # 阶段高点：14周RSI > 行业特定超买阈值 且 (出现顶背离 或 不要求背离)
-            rsi_high_condition = (not pd.isna(rsi_current) and rsi_current >= rsi_overbought and 
-                                (rsi_divergence['top_divergence'] or not need_divergence_sell))
-            if rsi_high_condition:
-                scores['overbought_oversold_high'] = True
+            # RSI信号逻辑：分为普通阈值和极端阈值两种情况
             
-            # 阶段低点：14周RSI <= 行业特定超卖阈值 且 (出现底背离 或 不要求背离)
-            rsi_low_condition = (not pd.isna(rsi_current) and rsi_current <= rsi_oversold and 
-                               (rsi_divergence['bottom_divergence'] or not need_divergence_buy))
-            if rsi_low_condition:
+            # 1. 极端RSI阈值：强制信号，无需考虑背离
+            extreme_rsi_high_condition = (not pd.isna(rsi_current) and rsi_current >= rsi_extreme_overbought)
+            extreme_rsi_low_condition = (not pd.isna(rsi_current) and rsi_current <= rsi_extreme_oversold)
+            
+            if extreme_rsi_high_condition:
+                scores['overbought_oversold_high'] = True
+                self.logger.debug(f"🔥 极端RSI超买信号: RSI={rsi_current:.2f} >= 极端阈值{rsi_extreme_overbought:.2f}，强制卖出信号")
+            elif extreme_rsi_low_condition:
                 scores['overbought_oversold_low'] = True
+                self.logger.debug(f"🔥 极端RSI超卖信号: RSI={rsi_current:.2f} <= 极端阈值{rsi_extreme_oversold:.2f}，强制买入信号")
+            else:
+                # 2. 普通RSI阈值：需要考虑背离条件
+                # 阶段高点：14周RSI > 行业特定超买阈值 且 (出现顶背离 或 不要求背离)
+                rsi_high_condition = (not pd.isna(rsi_current) and rsi_current >= rsi_overbought and 
+                                    (rsi_divergence['top_divergence'] or not need_divergence_sell))
+                if rsi_high_condition:
+                    scores['overbought_oversold_high'] = True
+                    self.logger.debug(f"📊 普通RSI超买信号: RSI={rsi_current:.2f} >= 阈值{rsi_overbought:.2f}，背离条件满足")
+                
+                # 阶段低点：14周RSI <= 行业特定超卖阈值 且 (出现底背离 或 不要求背离)
+                rsi_low_condition = (not pd.isna(rsi_current) and rsi_current <= rsi_oversold and 
+                                   (rsi_divergence['bottom_divergence'] or not need_divergence_buy))
+                if rsi_low_condition:
+                    scores['overbought_oversold_low'] = True
+                    self.logger.debug(f"📊 普通RSI超卖信号: RSI={rsi_current:.2f} <= 阈值{rsi_oversold:.2f}，背离条件满足")
                 
             # 记录RSI分析详情
-            self.logger.debug(f"RSI分析: 当前值={rsi_current:.2f}, 超买阈值={rsi_overbought}, 超卖阈值={rsi_oversold}")
+            self.logger.debug(f"RSI分析: 当前值={rsi_current:.2f}")
+            self.logger.debug(f"RSI普通阈值: 超买={rsi_overbought:.2f}, 超卖={rsi_oversold:.2f}")
+            self.logger.debug(f"RSI极端阈值: 极端超买={rsi_extreme_overbought:.2f}, 极端超卖={rsi_extreme_oversold:.2f}")
             self.logger.debug(f"RSI背离: 顶背离={rsi_divergence['top_divergence']}, 底背离={rsi_divergence['bottom_divergence']}")
-            self.logger.debug(f"RSI条件: 高点={rsi_high_condition}, 低点={rsi_low_condition}")
+            self.logger.debug(f"RSI信号状态: 极端超买={extreme_rsi_high_condition}, 极端超卖={extreme_rsi_low_condition}")
             
             # 3. 动能确认
             macd_data = indicators['macd']
@@ -544,7 +594,25 @@ class SignalGenerator:
                 current_volume >= volume_ma * self.params['volume_buy_ratio']):
                 scores['extreme_price_volume_low'] = True
             
-            return scores
+            # 构建实际使用的RSI阈值信息
+            actual_rsi_thresholds = {
+                'buy_threshold': rsi_oversold,
+                'sell_threshold': rsi_overbought,
+                'extreme_buy_threshold': rsi_extreme_oversold,
+                'extreme_sell_threshold': rsi_extreme_overbought,
+                'oversold': rsi_oversold,  # 兼容旧格式
+                'overbought': rsi_overbought,  # 兼容旧格式
+                'extreme_oversold': rsi_extreme_oversold,  # 兼容旧格式
+                'extreme_overbought': rsi_extreme_overbought  # 兼容旧格式
+            }
+            
+            # 如果使用了动态阈值，添加行业信息
+            if stock_code and self.stock_industry_map and stock_code in self.stock_industry_map:
+                industry_info = self.stock_industry_map[stock_code]
+                actual_rsi_thresholds['industry_name'] = industry_info['industry_name']
+                actual_rsi_thresholds['industry_code'] = industry_info['industry_code']
+            
+            return scores, actual_rsi_thresholds
             
         except Exception as e:
             raise SignalGenerationError(f"4维度评分计算失败: {str(e)}") from e
@@ -596,7 +664,8 @@ class SignalGenerator:
                         'reason': f'卖出信号：价值比过滤器+{high_signal_count}个卖出维度',
                         'scores': scores,
                         'details': self._get_signal_details(indicators),
-                        'action': '卖出10%'
+                        'action': '卖出10%',
+                        'rsi_thresholds': rsi_thresholds
                     }
             
             # 检查买入信号（买入10%）
@@ -620,7 +689,8 @@ class SignalGenerator:
                         'reason': f'买入信号：价值比过滤器+{low_signal_count}个买入维度',
                         'scores': scores,
                         'details': self._get_signal_details(indicators),
-                        'action': '买入10%'
+                        'action': '买入10%',
+                        'rsi_thresholds': rsi_thresholds
                     }
             
             # 信号不足，持有
@@ -636,7 +706,8 @@ class SignalGenerator:
                 'confidence': 0.0,
                 'reason': f'信号不足(卖出:{high_count},买入:{low_count})',
                 'scores': scores,
-                'details': self._get_signal_details(indicators)
+                'details': self._get_signal_details(indicators),
+                'rsi_thresholds': rsi_thresholds
             }
             
         except Exception as e:
