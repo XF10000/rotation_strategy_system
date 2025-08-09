@@ -883,13 +883,20 @@
                         }
                     },
                     formatter: function(params) {
-                        // 获取当前时间点
-                        let timeLabel = params[0].axisValueLabel;
-                        let result = timeLabel + '<br/>';
-                        
                         // 获取当前股票数据
                         const selectedStock = document.getElementById('stockSelect').value;
                         const stockData = klineData[selectedStock];
+                        
+                        // 获取完整日期信息（包含日）
+                        let timeLabel = params[0].axisValueLabel; // 默认使用轴标签（年-月）
+                        if (stockData && stockData.kline && params[0].dataIndex !== undefined) {
+                            const dataIndex = params[0].dataIndex;
+                            if (stockData.kline[dataIndex] && stockData.kline[dataIndex][0]) {
+                                const fullDate = new Date(stockData.kline[dataIndex][0]);
+                                timeLabel = `${fullDate.getFullYear()}-${String(fullDate.getMonth() + 1).padStart(2, '0')}-${String(fullDate.getDate()).padStart(2, '0')}`;
+                            }
+                        }
+                        let result = timeLabel + '<br/>';
                         
                         if (stockData && params[0].dataIndex !== undefined) {
                             const dataIndex = params[0].dataIndex;

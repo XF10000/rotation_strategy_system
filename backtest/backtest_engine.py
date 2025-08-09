@@ -78,17 +78,35 @@ class BacktestEngine:
         # 加载DCF估值数据
         self.dcf_values = self._load_dcf_values()
         
-        # 现在初始化SignalGenerator，传递DCF数据
-        self.signal_generator = SignalGenerator(config, self.dcf_values)
+        # 加载RSI阈值数据
+        self.rsi_thresholds = self._load_rsi_thresholds()
+        
+        # 加载股票-行业映射数据
+        self.stock_industry_map = self._load_stock_industry_map()
+        
+        # 现在初始化SignalGenerator，传递所有数据
+        self.signal_generator = SignalGenerator(config, self.dcf_values, self.rsi_thresholds, self.stock_industry_map)
         
         self.logger.info("回测引擎初始化完成")
         self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
         self.logger.info(f"股票池: {self.stock_pool}")
         self.logger.info(f"轮动比例: {self.rotation_percentage:.1%}")
+        
+        # 数据加载状态汇总
         if hasattr(self, 'dcf_values'):
-            self.logger.info(f"DCF估值数据: {len(self.dcf_values)} 只股票")
+            self.logger.info(f"📊 DCF估值数据: {len(self.dcf_values)} 只股票")
         else:
             self.logger.warning("DCF估值数据加载失败")
+            
+        if hasattr(self, 'rsi_thresholds'):
+            self.logger.info(f"📈 RSI阈值数据: {len(self.rsi_thresholds)} 个行业")
+        else:
+            self.logger.warning("RSI阈值数据加载失败")
+            
+        if hasattr(self, 'stock_industry_map'):
+            self.logger.info(f"🏭 股票-行业映射: {len(self.stock_industry_map)} 只股票")
+        else:
+            self.logger.warning("股票-行业映射数据加载失败")
     
     def _load_dcf_values(self) -> Dict[str, float]:
         """
@@ -112,6 +130,84 @@ class BacktestEngine:
             return dcf_values
         except Exception as e:
             self.logger.warning(f"DCF估值数据加载失败: {e}")
+            return {}
+
+    def _load_rsi_thresholds(self) -> Dict[str, Dict[str, float]]:
+        """
+        从CSV文件加载申万二级行业RSI阈值数据
+        
+        Returns:
+            Dict[str, Dict[str, float]]: 行业代码到RSI阈值的映射
+        """
+        try:
+            import pandas as pd
+            import os
+            
+            rsi_file_path = 'sw_rsi_thresholds/output/sw2_rsi_threshold.csv'
+            
+            if not os.path.exists(rsi_file_path):
+                self.logger.warning(f"RSI阈值文件不存在: {rsi_file_path}")
+                return {}
+            
+            df = pd.read_csv(rsi_file_path, encoding='utf-8-sig')
+            rsi_thresholds = {}
+            
+            for _, row in df.iterrows():
+                industry_code = str(row['行业代码']).strip()
+                rsi_thresholds[industry_code] = {
+                    'industry_name': row.get('行业名称', ''),
+                    'buy_threshold': float(row.get('普通超卖', 30)),  # 使用普通超卖作为买入阈值
+                    'sell_threshold': float(row.get('普通超买', 70)),  # 使用普通超买作为卖出阈值
+                    'extreme_buy_threshold': float(row.get('极端超卖', 20)),  # 极端买入阈值
+                    'extreme_sell_threshold': float(row.get('极端超买', 80)),  # 极端卖出阈值
+                    'volatility_level': row.get('layer', 'medium'),
+                    'volatility': float(row.get('volatility', 0)),
+                    'current_rsi': float(row.get('current_rsi', 50))
+                }
+            
+            self.logger.info(f"✅ 成功加载 {len(rsi_thresholds)} 个行业的RSI阈值")
+            return rsi_thresholds
+            
+        except Exception as e:
+            self.logger.warning(f"RSI阈值数据加载失败: {e}")
+            return {}
+    
+    def _load_stock_industry_map(self) -> Dict[str, Dict[str, str]]:
+        """
+        从JSON文件加载股票-行业映射数据
+        
+        Returns:
+            Dict[str, Dict[str, str]]: 股票代码到行业信息的映射
+        """
+        try:
+            import json
+            import os
+            
+            map_file_path = 'data_cache/stock_to_industry_map.json'
+            
+            if not os.path.exists(map_file_path):
+                self.logger.warning(f"股票-行业映射文件不存在: {map_file_path}")
+                self.logger.warning("请先运行 'python3 utils/industry_mapper.py' 生成映射缓存")
+                return {}
+            
+            with open(map_file_path, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            
+            if 'mapping' not in cache_data:
+                self.logger.warning("映射文件格式不正确，缺少mapping字段")
+                return {}
+            
+            stock_industry_map = cache_data['mapping']
+            metadata = cache_data.get('metadata', {})
+            
+            self.logger.info(f"✅ 成功加载股票-行业映射")
+            self.logger.info(f"📊 映射股票数量: {len(stock_industry_map)}")
+            self.logger.info(f"🕐 生成时间: {metadata.get('generated_at', '未知')}")
+            
+            return stock_industry_map
+            
+        except Exception as e:
+            self.logger.warning(f"股票-行业映射数据加载失败: {e}")
             return {}
 
     
@@ -707,6 +803,7 @@ class BacktestEngine:
                                     continue
                     
                     # 生成信号详情（尝试从信号生成器获取）
+                    rsi_thresholds_info = {}
                     try:
                         signal_result = self.signal_generator.generate_signal(stock_code, historical_data)
                         if signal_result and isinstance(signal_result, dict):
@@ -716,6 +813,8 @@ class BacktestEngine:
                                 'reason': signal_result.get('reason', ''),
                                 'dimension_status': self._extract_dimension_status(signal_result.get('scores', {}))
                             }
+                            # 提取RSI阈值信息
+                            rsi_thresholds_info = signal_result.get('rsi_thresholds', {})
                         else:
                             signal_details = self._create_default_signal_details(trade_info['type'])
                     except:
@@ -732,10 +831,13 @@ class BacktestEngine:
         except Exception as e:
             self.logger.error(f"从信号生成器获取技术指标失败: {e}")
             # 降级处理
+            rsi_thresholds_info = {}
             self._fallback_get_technical_indicators(stock_code, current_date, technical_indicators, signal_details)
                 
         # 如果技术指标为空，使用降级处理
         if not technical_indicators:
+            if 'rsi_thresholds_info' not in locals():
+                rsi_thresholds_info = {}
             self._fallback_get_technical_indicators(stock_code, current_date, technical_indicators, signal_details)
         
         # 获取交易后持仓数量
@@ -764,7 +866,8 @@ class BacktestEngine:
             'net_amount': trade_info['net_amount'],
             'reason': trade_info['reason'],
             'technical_indicators': technical_indicators,
-            'signal_details': signal_details
+            'signal_details': signal_details,
+            'rsi_thresholds': rsi_thresholds_info  # 添加RSI阈值信息
         }
         
         # 记录价值比信息到日志
