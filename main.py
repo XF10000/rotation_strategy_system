@@ -11,17 +11,16 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import LOGGING_CONFIG, OUTPUT_CONFIG
-from config.stock_pool import STOCK_POOL, validate_stock_pool
 
 def setup_logging():
     """设置日志系统"""
     os.makedirs('logs', exist_ok=True)
     
     logging.basicConfig(
-        level=getattr(logging, LOGGING_CONFIG['level']),
-        format=LOGGING_CONFIG['format'],
+        level=getattr(logging, str(LOGGING_CONFIG['level'])),
+        format=str(LOGGING_CONFIG['format']),
         handlers=[
-            logging.FileHandler(LOGGING_CONFIG['file_path'], encoding='utf-8'),
+            logging.FileHandler(str(LOGGING_CONFIG['file_path']), encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
         ]
     )
@@ -49,13 +48,12 @@ def main():
         # 导入回测相关模块
         from backtest.backtest_engine import BacktestEngine
         from backtest.performance_analyzer import PerformanceAnalyzer
-        from config.backtest_configs import get_config, list_configs
+        from config.csv_config_loader import create_csv_config
         
         # 直接使用CSV配置运行回测
-        config_name = 'csv'
-        logger.info(f"使用CSV配置文件进行回测...")
+        logger.info("使用CSV配置文件进行回测...")
         
-        config = get_config(config_name)
+        config = create_csv_config()
         logger.info(f"配置详情: {config['name']} - {config['description']}")
         logger.info(f"回测期间: {config['start_date']} 至 {config['end_date']}")
         logger.info(f"总资金: {config['total_capital']:,} 元")
