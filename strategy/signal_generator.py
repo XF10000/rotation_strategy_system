@@ -91,9 +91,9 @@ class SignalGenerator:
         # 合并配置
         self.params = {**self.default_params, **config}
         
-        # 确保价值比率阈值存在
-        self.params.setdefault('value_ratio_sell_threshold', 80.0)
-        self.params.setdefault('value_ratio_buy_threshold', 70.0)
+        # 确保价值比率阈值存在 (从配置加载，提供默认值)
+        self.params.setdefault('value_ratio_sell_threshold', 0.8) # 从配置加载，默认为0.8
+        self.params.setdefault('value_ratio_buy_threshold', 0.7)  # 从配置加载，默认为0.7
         
         # 添加行业信息缓存
         self._industry_cache = {}
@@ -154,6 +154,16 @@ class SignalGenerator:
             extracted_indicators = self._extract_current_indicators(data, indicators)
             self.logger.debug(f"提取的技术指标: {extracted_indicators}")
             signal_result['technical_indicators'] = extracted_indicators
+            
+            # 添加价值比信息供动态仓位管理器使用
+            current_price = data['close'].iloc[-1]
+            dcf_value = self.dcf_values.get(stock_code) if stock_code else None
+            if dcf_value and dcf_value > 0:
+                value_price_ratio = current_price / dcf_value
+                signal_result['value_price_ratio'] = value_price_ratio
+                signal_result['dcf_value'] = dcf_value
+                signal_result['current_price'] = current_price
+                self.logger.debug(f"股票 {stock_code} 价值比: {value_price_ratio:.3f} (价格{current_price:.2f}/DCF{dcf_value:.2f})")
             
             self.logger.debug(f"股票 {stock_code} 信号生成完成: {signal_result['signal']}")
             
@@ -367,23 +377,24 @@ class SignalGenerator:
                     scores['trend_filter_low'] = True
                     
             else:
-                # 使用价值比过滤器 (V1.1策略)
-                price_value_ratio = (current_price / dcf_value) * 100
+                # 使用价值比过滤器
+                price_value_ratio = current_price / dcf_value
                 
+                # 从配置中获取阈值
                 sell_threshold = self.params['value_ratio_sell_threshold']
                 buy_threshold = self.params['value_ratio_buy_threshold']
                 
-                self.logger.debug(f"价值比过滤器: 收盘价={current_price:.2f}, DCF估值={dcf_value:.2f}, 价值比={price_value_ratio:.1f}%")
+                self.logger.debug(f"价值比过滤器: 收盘价={current_price:.2f}, DCF估值={dcf_value:.2f}, 价值比={price_value_ratio:.2f}")
                 
                 # 支持卖出信号：价值比 > 卖出阈值
                 if price_value_ratio > sell_threshold:
                     scores['trend_filter_high'] = True
-                    self.logger.debug(f"价值比过滤器支持卖出: {price_value_ratio:.1f}% > {sell_threshold}%")
+                    self.logger.debug(f"价值比过滤器支持卖出: {price_value_ratio:.2f} > {sell_threshold}")
                 
                 # 支持买入信号：价值比 < 买入阈值
                 if price_value_ratio < buy_threshold:
                     scores['trend_filter_low'] = True
-                    self.logger.debug(f"价值比过滤器支持买入: {price_value_ratio:.1f}% < {buy_threshold}%")
+                    self.logger.debug(f"价值比过滤器支持买入: {price_value_ratio:.2f} < {buy_threshold}")
             
             # 2. 超买/超卖 - 支持行业特定阈值
             rsi_current = indicators['rsi'].iloc[-1]

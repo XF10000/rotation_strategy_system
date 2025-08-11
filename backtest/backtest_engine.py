@@ -11,11 +11,12 @@ from typing import Dict, List, Any, Optional, Tuple
 import warnings
 warnings.filterwarnings('ignore')
 
-# 导入其他模块
+        # 导入其他模块
 from data.data_fetcher import AkshareDataFetcher
 from data.data_processor import DataProcessor
 from data.data_storage import DataStorage
 from strategy.signal_generator import SignalGenerator
+from strategy.dynamic_position_manager import DynamicPositionManager
 from .portfolio_manager import PortfolioManager
 from .portfolio_data_manager import PortfolioDataManager
 from .transaction_cost import TransactionCostCalculator
@@ -86,6 +87,9 @@ class BacktestEngine:
         
         # 现在初始化SignalGenerator，传递所有数据
         self.signal_generator = SignalGenerator(config, self.dcf_values, self.rsi_thresholds, self.stock_industry_map)
+        
+        # 初始化动态仓位管理器
+        self.dynamic_position_manager = DynamicPositionManager(config)
         
         self.logger.info("回测引擎初始化完成")
         self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
@@ -627,7 +631,7 @@ class BacktestEngine:
     
     def _execute_trades(self, signals: Dict[str, str], current_date: pd.Timestamp) -> List[str]:
         """
-        执行交易
+        执行交易 - 使用动态仓位管理器
         
         Args:
             signals: 交易信号
@@ -646,24 +650,49 @@ class BacktestEngine:
                 if current_date in stock_weekly.index:
                     current_prices[stock_code] = stock_weekly.loc[current_date, 'close']
         
+        # 计算总资产用于动态仓位管理
+        total_assets = self.portfolio_manager.get_total_value(current_prices)
+        
         # 执行卖出信号
         for stock_code, signal in signals.items():
             if signal == 'SELL' and stock_code in current_prices:
                 current_position = self.portfolio_manager.positions.get(stock_code, 0)
                 if current_position > 0:
-                    # 修复：计算卖出数量（按轮动比例，不需要除以100）
-                    sell_shares = int(current_position * self.rotation_percentage / 100) * 100
-                    if sell_shares > 0:
-                        price = current_prices[stock_code]
-                        success, trade_info = self.portfolio_manager.sell_stock(
-                            stock_code, sell_shares, price, current_date, "转现金"
+                    price = current_prices[stock_code]
+                    
+                    # 获取DCF估值计算价值比
+                    dcf_value = self.dcf_values.get(stock_code)
+                    if dcf_value and dcf_value > 0:
+                        value_price_ratio = price / dcf_value
+                        
+                        # 使用动态仓位管理器计算卖出数量
+                        can_sell, sell_shares, sell_value, reason = self.portfolio_manager.can_sell_dynamic(
+                            stock_code, value_price_ratio, price, self.dynamic_position_manager
                         )
-                        if success:
-                            self.logger.info(f"执行卖出交易: {stock_code} {sell_shares}股 价格{price:.2f} (持仓{current_position}股的{self.rotation_percentage:.1%})")
-                            self._record_transaction(trade_info, current_date)
-                            executed_trades.append(f"转现金: {stock_code} {sell_shares}股")
+                        
+                        if can_sell and sell_shares > 0:
+                            success, trade_info = self.portfolio_manager.sell_stock(
+                                stock_code, sell_shares, price, current_date, reason
+                            )
+                            if success:
+                                self.logger.info(f"执行动态卖出: {stock_code} {sell_shares}股 @ {price:.2f} - {reason}")
+                                self._record_transaction(trade_info, current_date)
+                                executed_trades.append(f"动态卖出: {stock_code} {sell_shares}股 - {reason}")
+                            else:
+                                self.logger.warning(f"动态卖出失败: {stock_code}")
                         else:
-                            self.logger.warning(f"卖出交易失败: {stock_code}")
+                            self.logger.info(f"动态卖出跳过: {stock_code} - {reason}")
+                    else:
+                        # 回退到原有逻辑
+                        sell_shares = int(current_position * self.rotation_percentage / 100) * 100
+                        if sell_shares > 0:
+                            success, trade_info = self.portfolio_manager.sell_stock(
+                                stock_code, sell_shares, price, current_date, "固定比例卖出"
+                            )
+                            if success:
+                                self.logger.info(f"执行固定卖出: {stock_code} {sell_shares}股 @ {price:.2f}")
+                                self._record_transaction(trade_info, current_date)
+                                executed_trades.append(f"固定卖出: {stock_code} {sell_shares}股")
         
         # 执行买入信号
         for stock_code, signal in signals.items():
@@ -671,41 +700,55 @@ class BacktestEngine:
                 current_position = self.portfolio_manager.positions.get(stock_code, 0)
                 price = current_prices[stock_code]
                 
-                if current_position > 0:
-                    # 修复：基于当前持仓价值的轮动比例买入
-                    current_position_value = current_position * price
-                    target_buy_amount = current_position_value * self.rotation_percentage
-                    buy_shares = int(target_buy_amount / price / 100) * 100
+                # 获取DCF估值计算价值比
+                dcf_value = self.dcf_values.get(stock_code)
+                if dcf_value and dcf_value > 0:
+                    value_price_ratio = price / dcf_value
                     
-                    self.logger.info(f"买入计算: {stock_code} 当前持仓{current_position}股, 价值{current_position_value:.2f}元, 目标买入金额{target_buy_amount:.2f}元")
+                    # 使用动态仓位管理器计算买入数量
+                    can_buy, buy_shares, buy_value, reason = self.portfolio_manager.can_buy_dynamic(
+                        stock_code, value_price_ratio, price, self.dynamic_position_manager
+                    )
                     
-                    if buy_shares > 0 and target_buy_amount > 10000:  # 最小买入金额
+                    if can_buy and buy_shares > 0:
                         success, trade_info = self.portfolio_manager.buy_stock(
-                            stock_code, buy_shares, price, current_date, "持仓增持"
+                            stock_code, buy_shares, price, current_date, reason
                         )
                         if success:
-                            self.logger.info(f"执行买入交易: {stock_code} {buy_shares}股 价格{price:.2f} (基于持仓{current_position}股的{self.rotation_percentage:.1%})")
+                            self.logger.info(f"执行动态买入: {stock_code} {buy_shares}股 @ {price:.2f} - {reason}")
                             self._record_transaction(trade_info, current_date)
-                            executed_trades.append(f"持仓增持: {stock_code} {buy_shares}股")
+                            executed_trades.append(f"动态买入: {stock_code} {buy_shares}股 - {reason}")
                         else:
-                            self.logger.warning(f"买入交易失败: {stock_code}")
+                            self.logger.warning(f"动态买入失败: {stock_code}")
                     else:
-                        self.logger.info(f"买入金额不足: {stock_code} 计算买入{buy_shares}股, 金额{target_buy_amount:.2f}元")
+                        self.logger.info(f"动态买入跳过: {stock_code} - {reason}")
                 else:
-                    # 如果当前没有持仓，使用可用现金的轮动比例买入
-                    available_cash = self.portfolio_manager.cash * self.rotation_percentage
-                    if available_cash > 10000:  # 最小买入金额
-                        buy_shares = int(available_cash / price / 100) * 100
-                        if buy_shares > 0:
+                    # 回退到原有逻辑
+                    if current_position > 0:
+                        current_position_value = current_position * price
+                        target_buy_amount = current_position_value * self.rotation_percentage
+                        buy_shares = int(target_buy_amount / price / 100) * 100
+                        
+                        if buy_shares > 0 and target_buy_amount > 10000:
                             success, trade_info = self.portfolio_manager.buy_stock(
-                                stock_code, buy_shares, price, current_date, "现金买入"
+                                stock_code, buy_shares, price, current_date, "固定比例加仓"
                             )
                             if success:
-                                self.logger.info(f"执行买入交易: {stock_code} {buy_shares}股 价格{price:.2f} (现金{available_cash:.2f}元的买入)")
+                                self.logger.info(f"执行固定买入: {stock_code} {buy_shares}股 @ {price:.2f}")
                                 self._record_transaction(trade_info, current_date)
-                                executed_trades.append(f"现金买入: {stock_code} {buy_shares}股")
-                            else:
-                                self.logger.warning(f"买入交易失败: {stock_code}")
+                                executed_trades.append(f"固定买入: {stock_code} {buy_shares}股")
+                    else:
+                        available_cash = self.portfolio_manager.cash * self.rotation_percentage
+                        if available_cash > 10000:
+                            buy_shares = int(available_cash / price / 100) * 100
+                            if buy_shares > 0:
+                                success, trade_info = self.portfolio_manager.buy_stock(
+                                    stock_code, buy_shares, price, current_date, "固定比例开仓"
+                                )
+                                if success:
+                                    self.logger.info(f"执行固定开仓: {stock_code} {buy_shares}股 @ {price:.2f}")
+                                    self._record_transaction(trade_info, current_date)
+                                    executed_trades.append(f"固定开仓: {stock_code} {buy_shares}股")
         
         return executed_trades
     
