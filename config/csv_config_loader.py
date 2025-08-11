@@ -90,6 +90,110 @@ def load_backtest_settings(csv_path: str = 'Input/Becktest_settings.csv') -> Dic
                 settings[param_name] = date_str
             elif param_name == 'rotation_percentage':
                 settings['rotation_percentage'] = float(param_value)
+            # 检查参数是否与比率或阈值相关，如果是，则转换为浮点数
+            elif ('ratio' in param_name or 'threshold' in param_name or 'limit' in param_name):
+                settings[param_name] = float(param_value)
+            else:
+                settings[param_name] = param_value
+            
+            logger.debug(f"加载设置: {param_name} = {param_value}")
+        
+        # 验证必要参数
+        required_params = ['total_capital', 'start_date', 'end_date']
+        for param in required_params:
+            if param not in settings:
+                raise ValueError(f"缺少必要参数: {param}")
+        
+        logger.info("回测设置加载完成")
+        return settings
+        
+    except Exception as e:
+        logger.error(f"加载回测设置失败: {str(e)}")
+        raise
+
+def create_csv_config() -> Dict[str, Any]:
+    """
+    从CSV文件加载投资组合配置
+    
+    Args:
+        csv_path: CSV文件路径
+        
+    Returns:
+        Dict: 初始持仓配置 {股票代码: 权重}
+    """
+    try:
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"投资组合配置文件不存在: {csv_path}")
+        
+        # 读取CSV文件，处理BOM
+        df = pd.read_csv(csv_path, encoding='utf-8-sig')
+        logger.info(f"成功读取投资组合配置文件: {csv_path}")
+        
+        # 转换为initial_holdings格式
+        initial_holdings = {}
+        total_weight = 0
+        
+        for _, row in df.iterrows():
+            code = str(row['Stock_number']).strip()
+            weight = float(row['Initial_weight'])
+            
+            if code.upper() == 'CASH':
+                initial_holdings['cash'] = weight
+            else:
+                initial_holdings[code] = weight
+            
+            total_weight += weight
+            logger.debug(f"加载持仓: {code} = {weight:.2%}")
+        
+        # 验证权重总和
+        if abs(total_weight - 1.0) > 0.01:
+            logger.warning(f"权重总和不等于1.0: {total_weight:.3f}")
+        else:
+            logger.info(f"权重验证通过，总和: {total_weight:.3f}")
+        
+        return initial_holdings
+        
+    except Exception as e:
+        logger.error(f"加载投资组合配置失败: {str(e)}")
+        raise
+
+def load_backtest_settings(csv_path: str = 'Input/Becktest_settings.csv') -> Dict[str, Any]:
+    """
+    从CSV文件加载回测设置
+    
+    Args:
+        csv_path: CSV文件路径
+        
+    Returns:
+        Dict: 回测设置参数
+    """
+    try:
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"回测设置文件不存在: {csv_path}")
+        
+        # 读取CSV文件
+        df = pd.read_csv(csv_path, encoding='utf-8')
+        logger.info(f"成功读取回测设置文件: {csv_path}")
+        
+        # 转换为字典格式
+        settings = {}
+        
+        for _, row in df.iterrows():
+            param_name = str(row['Parameter']).strip()
+            param_value = row['Value']
+            
+            # 根据参数名进行类型转换
+            if param_name == 'total_capital':
+                settings['total_capital'] = int(param_value)
+            elif param_name in ['start_date', 'end_date']:
+                # 处理日期格式，将/转换为-
+                date_str = str(param_value).strip().replace('/', '-')
+                settings[param_name] = date_str
+            elif param_name == 'rotation_percentage':
+                settings['rotation_percentage'] = float(param_value)
+            # 检查参数是否与比率或阈值相关，如果是，则转换为浮点数
+            elif ('ratio' in param_name or 'threshold' in param_name or 'limit' in param_name):
+                settings[param_name] = float(param_value)
             else:
                 settings[param_name] = param_value
             
@@ -125,10 +229,12 @@ def create_csv_config() -> Dict[str, Any]:
         # 导入默认参数
         from config.backtest_configs import DEFAULT_STRATEGY_PARAMS, DEFAULT_COST_CONFIG
         
-        # 合并策略参数（CSV中的rotation_percentage会覆盖默认值）
+        # 合并策略参数（CSV中的参数会覆盖默认值）
         strategy_params = DEFAULT_STRATEGY_PARAMS.copy()
-        if 'rotation_percentage' in backtest_settings:
-            strategy_params['rotation_percentage'] = backtest_settings['rotation_percentage']
+        # 将所有从backtest_settings加载的参数（除了基本信息）都放入strategy_params
+        for key, value in backtest_settings.items():
+            if key not in ['total_capital', 'start_date', 'end_date']:
+                strategy_params[key] = value
         
         # 创建完整配置
         config = {
@@ -138,7 +244,7 @@ def create_csv_config() -> Dict[str, Any]:
             'initial_holdings': initial_holdings,
             'start_date': backtest_settings['start_date'],
             'end_date': backtest_settings['end_date'],
-            'strategy_params': strategy_params,
+            'strategy_params': strategy_params,  # 包含所有策略相关参数
             'cost_config': DEFAULT_COST_CONFIG.copy()
         }
         

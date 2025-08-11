@@ -130,9 +130,54 @@ class PortfolioManager:
         
         return stock_value / total_value if total_value > 0 else 0.0
     
+    def can_sell_dynamic(self, stock_code: str, value_price_ratio: float, current_price: float, 
+                        dynamic_position_manager=None) -> Tuple[bool, int, float, str]:
+        """
+        基于价值比的动态卖出检查（新逻辑）
+        
+        Args:
+            stock_code: 股票代码
+            value_price_ratio: 价值比 (当前价格/DCF估值)
+            current_price: 当前价格
+            dynamic_position_manager: 动态仓位管理器实例
+            
+        Returns:
+            (是否可以卖出, 卖出股数, 卖出金额, 操作原因)
+        """
+        current_shares = self.holdings.get(stock_code, 0)
+        
+        if dynamic_position_manager is None:
+            # 回退到原有逻辑
+            return self.can_sell(stock_code, 0.20, current_price) + ("回退到固定20%逻辑",)
+        
+        # 使用动态仓位管理器
+        action_info = dynamic_position_manager.get_position_action(
+            stock_code=stock_code,
+            value_price_ratio=value_price_ratio,
+            current_shares=current_shares,
+            current_price=current_price,
+            available_cash=self.cash,
+            total_assets=self.get_total_value({stock_code: current_price})
+        )
+        
+        if action_info['action'] == 'SELL':
+            # 验证交易约束
+            is_valid, validation_msg = dynamic_position_manager.validate_trade_constraints(
+                action_info, current_shares, self.cash
+            )
+            
+            if is_valid:
+                sell_value = action_info['shares'] * current_price
+                return True, action_info['shares'], sell_value, action_info['reason']
+            else:
+                return False, 0, 0.0, f"验证失败: {validation_msg}"
+        else:
+            return False, 0, 0.0, action_info['reason']
+    
     def can_sell(self, stock_code: str, sell_ratio: float, current_price: float) -> Tuple[bool, int, float]:
         """
-        检查是否可以卖出股票（新逻辑：卖出当前持仓市值的20%）
+        检查是否可以卖出股票（原有逻辑：卖出当前持仓市值的20%）
+        保留此方法用于向后兼容
         
         Args:
             stock_code: 股票代码
@@ -166,9 +211,63 @@ class PortfolioManager:
         actual_value = actual_shares * current_price
         return True, actual_shares, actual_value
     
+    def can_buy_dynamic(self, stock_code: str, value_price_ratio: float, current_price: float,
+                       dynamic_position_manager=None) -> Tuple[bool, int, float, str]:
+        """
+        基于价值比的动态买入检查（新逻辑）
+        
+        Args:
+            stock_code: 股票代码
+            value_price_ratio: 价值比 (当前价格/DCF估值)
+            current_price: 当前价格
+            dynamic_position_manager: 动态仓位管理器实例
+            
+        Returns:
+            (是否可以买入, 买入股数, 买入金额, 操作原因)
+        """
+        current_shares = self.holdings.get(stock_code, 0)
+        
+        if dynamic_position_manager is None:
+            # 回退到原有逻辑
+            return self.can_buy(stock_code, 0.20, current_price) + ("回退到固定20%逻辑",)
+        
+        # 计算总资产（用于资产上限检查）
+        current_prices = {stock_code: current_price}
+        for other_code, shares in self.holdings.items():
+            if other_code != stock_code and other_code not in current_prices:
+                # 对于其他股票，如果没有价格信息，使用一个估算值
+                current_prices[other_code] = current_price  # 简化处理
+        
+        total_assets = self.get_total_value(current_prices)
+        
+        # 使用动态仓位管理器
+        action_info = dynamic_position_manager.get_position_action(
+            stock_code=stock_code,
+            value_price_ratio=value_price_ratio,
+            current_shares=current_shares,
+            current_price=current_price,
+            available_cash=self.cash,
+            total_assets=total_assets
+        )
+        
+        if action_info['action'] == 'BUY':
+            # 验证交易约束
+            is_valid, validation_msg = dynamic_position_manager.validate_trade_constraints(
+                action_info, current_shares, self.cash
+            )
+            
+            if is_valid:
+                buy_value = action_info['shares'] * current_price
+                return True, action_info['shares'], buy_value, action_info['reason']
+            else:
+                return False, 0, 0.0, f"验证失败: {validation_msg}"
+        else:
+            return False, 0, 0.0, action_info['reason']
+    
     def can_buy(self, stock_code: str, buy_ratio: float, current_price: float) -> Tuple[bool, int, float]:
         """
-        检查是否可以买入股票（新逻辑：根据持仓状态决定买入金额）
+        检查是否可以买入股票（原有逻辑：根据持仓状态决定买入金额）
+        保留此方法用于向后兼容
         
         Args:
             stock_code: 股票代码
