@@ -8,14 +8,14 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from backtest.backtest_engine import BacktestEngine
-from config.backtest_configs import get_config
+from config.csv_config_loader import create_csv_config
 
 def test_benchmark_portfolio_data():
     """测试基准持仓数据是否被正确收集和传递"""
     print("🔍 开始测试基准持仓数据...")
     
     # 获取配置
-    config = get_config('csv')
+    config = create_csv_config()
     
     # 创建回测引擎
     engine = BacktestEngine(config)

@@ -69,11 +69,8 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple/
 
 ### 基本使用
 ```bash
-# 运行标准回测
+# 运行回测（使用CSV配置文件）
 python main.py
-
-# 使用指定配置
-python main.py --config conservative
 ```
 
 ## 📊 输出文件
@@ -166,21 +163,30 @@ MACD_DIF, MACD_DEA, MACD信号状态, 布林带位置, 量能倍数,
 
 ## ⚙️ 配置选项
 
-### 预设配置
-- `standard`: 标准配置 (默认)
-- `conservative`: 保守配置 (更多现金持仓)
-- `aggressive`: 激进配置 (更大轮动比例)
-- `short_test`: 短期测试配置
-- `no_industry_optimization`: 无行业优化配置
+### CSV配置文件
+系统现在使用CSV配置文件进行设置，更加灵活和直观：
 
-### 自定义股票池
-在 `config/stock_pools.py` 中配置你的股票池:
-```python
-STOCK_POOLS = {
-    "煤炭": {"code": "601088", "name": "中国神华", "dcf_value": 45.0},
-    "电解铝": {"code": "600900", "name": "长江电力", "dcf_value": 32.0},
-    # ... 更多股票
-}
+#### 1. 投资组合配置 (`Input/portfolio_config.csv`)
+```csv
+Stock_number,Stock_name,Initial_weight,Industry,DCF_value_per_share
+601088,中国神华,0.0615,煤炭开采,40
+600900,长江电力,0.0577,电力,35
+CASH,现金,0.0093,,
+```
+
+#### 2. 回测设置 (`Input/Becktest_settings.csv`)
+```csv
+Parameter,Value
+total_capital,15000000
+start_date,2021-01-08
+end_date,2025-07-25
+```
+
+#### 3. 行业RSI阈值 (`Input/industry_rsi_thresholds.csv`)
+```csv
+Industry,RSI_Overbought,RSI_Oversold,Divergence_Required,Strategy_Type
+煤炭开采,75,25,是,保守型
+电力,75,35,否,极度保守型
 ```
 
 ## 📈 示例结果
