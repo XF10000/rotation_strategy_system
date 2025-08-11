@@ -30,7 +30,11 @@ DEFAULT_STRATEGY_PARAMS = {
     'volume_sell_ratio': 1.3,
     'volume_buy_ratio': 0.8,
     'use_industry_optimization': True,
-    'rotation_percentage': 0.10
+    'rotation_percentage': 0.10,
+    
+    # V1.1新增：价值比过滤器阈值
+    'value_ratio_sell_threshold': 80.0,  # 卖出阈值：价值比 > 80%
+    'value_ratio_buy_threshold': 70.0    # 买入阈值：价值比 < 70%
 }
 
 # 预定义的回测配置
