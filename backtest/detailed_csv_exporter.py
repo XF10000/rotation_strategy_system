@@ -26,7 +26,7 @@ class DetailedCSVExporter:
             '交易金额', '手续费', '交易原因', '收盘价',
             'RSI14', 'MACD_DIF', 'MACD_DEA', 'MACD_HIST',
             '布林上轨', '布林中轨', '布林下轨', '成交量', '量能倍数', '布林带位置',
-            '价值比过滤器', '超买超卖信号', '动能确认', '极端价格量能', '满足维度数', '触发原因',
+            '价值比过滤器', '超买超卖信号', 'RSI 极端信号', '动能确认', '极端价格量能', '满足维度数', '触发原因',
             '行业', 'RSI超买阈值', 'RSI超卖阈值', 'RSI极端超买阈值', 'RSI极端超卖阈值'
         ]
         logger.info("详细CSV导出器初始化完成")
@@ -252,13 +252,25 @@ class DetailedCSVExporter:
                 extreme_overbought_threshold = 80
                 extreme_oversold_threshold = 20
             
+            # 计算RSI极端信号
+            rsi_extreme_signal = '✗'
+            if rsi14 is not None and rsi14 != '':
+                try:
+                    rsi_value = float(rsi14)
+                    if rsi_value >= extreme_overbought_threshold or rsi_value <= extreme_oversold_threshold:
+                        rsi_extreme_signal = '✓'
+                        logger.debug(f"RSI极端信号触发: RSI={rsi_value:.2f}, 极端阈值=[{extreme_oversold_threshold}, {extreme_overbought_threshold}]")
+                except (ValueError, TypeError):
+                    logger.warning(f"RSI值格式错误，无法判断极端信号: {rsi14}")
+                    pass
+            
             return [
                 date, action, symbol, quantity, position_after, 
                 price, dcf_value, pvr_display, pvr_status, pvr_description,
                 amount, commission, reason, close_price,
                 rsi14, macd_dif, macd_dea, macd_hist,
                 bb_upper, bb_middle, bb_lower, volume, volume_ratio, bb_position,
-                trend_filter, overbought_oversold, momentum_confirm, extreme_price_volume, 
+                trend_filter, overbought_oversold, rsi_extreme_signal, momentum_confirm, extreme_price_volume, 
                 dimensions_text, trigger_reason,
                 industry, overbought_threshold, oversold_threshold, extreme_overbought_threshold, extreme_oversold_threshold
             ]

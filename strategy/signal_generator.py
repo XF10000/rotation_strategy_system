@@ -86,13 +86,14 @@ class SignalGenerator:
             'volume_buy_ratio': 0.8,    # 买入成交量比例
             'volume_sell_ratio': 1.3,   # 卖出成交量比例
             'min_data_length': 60,      # 最小数据长度
-            # V1.1新增：价值比过滤器阈值
-            'value_ratio_sell_threshold': 80.0,  # 卖出阈值：价值比 > 80%
-            'value_ratio_buy_threshold': 70.0,   # 买入阈值：价值比 < 70%
         }
         
         # 合并配置
         self.params = {**self.default_params, **config}
+        
+        # 确保价值比率阈值存在
+        self.params.setdefault('value_ratio_sell_threshold', 80.0)
+        self.params.setdefault('value_ratio_buy_threshold', 70.0)
         
         # 添加行业信息缓存
         self._industry_cache = {}
@@ -369,17 +370,20 @@ class SignalGenerator:
                 # 使用价值比过滤器 (V1.1策略)
                 price_value_ratio = (current_price / dcf_value) * 100
                 
+                sell_threshold = self.params['value_ratio_sell_threshold']
+                buy_threshold = self.params['value_ratio_buy_threshold']
+                
                 self.logger.debug(f"价值比过滤器: 收盘价={current_price:.2f}, DCF估值={dcf_value:.2f}, 价值比={price_value_ratio:.1f}%")
                 
-                # 支持卖出信号：收盘价 > DCF每股估值的80% (价值比 > 80%)
-                if price_value_ratio > 80.0:
+                # 支持卖出信号：价值比 > 卖出阈值
+                if price_value_ratio > sell_threshold:
                     scores['trend_filter_high'] = True
-                    self.logger.debug(f"价值比过滤器支持卖出: {price_value_ratio:.1f}% > 80%")
+                    self.logger.debug(f"价值比过滤器支持卖出: {price_value_ratio:.1f}% > {sell_threshold}%")
                 
-                # 支持买入信号：收盘价 < DCF每股估值的70% (价值比 < 70%)
-                if price_value_ratio < 70.0:
+                # 支持买入信号：价值比 < 买入阈值
+                if price_value_ratio < buy_threshold:
                     scores['trend_filter_low'] = True
-                    self.logger.debug(f"价值比过滤器支持买入: {price_value_ratio:.1f}% < 70%")
+                    self.logger.debug(f"价值比过滤器支持买入: {price_value_ratio:.1f}% < {buy_threshold}%")
             
             # 2. 超买/超卖 - 支持行业特定阈值
             rsi_current = indicators['rsi'].iloc[-1]

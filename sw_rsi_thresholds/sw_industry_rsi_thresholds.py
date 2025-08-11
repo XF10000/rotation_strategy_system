@@ -14,10 +14,10 @@ from typing import Dict, Tuple, List
 
 # 导入配置文件
 try:
-    from .config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG
+    from .config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG, EXTREME_THRESHOLD_COEFFICIENTS
 except ImportError:
     # 如果作为脚本直接运行，使用相对导入
-    from config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG
+    from config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG, EXTREME_THRESHOLD_COEFFICIENTS
 
 try:
     import talib
@@ -82,6 +82,7 @@ class SWIndustryRSIThresholds:
         # RSI阈值配置
         self.rsi_thresholds = RSI_THRESHOLDS
         self.volatility_quantiles = CALCULATION_PERIODS["volatility_quantiles"]
+        self.extreme_threshold_coefficients = EXTREME_THRESHOLD_COEFFICIENTS
         
         # 输出配置
         self.output_config = OUTPUT_CONFIG
@@ -340,6 +341,22 @@ class SWIndustryRSIThresholds:
         normal_oversold = self.rsi_thresholds['普通超卖']
         normal_overbought = self.rsi_thresholds['普通超买']
         
+        # 计算原始极端阈值
+        raw_extreme_oversold = float(np.percentile(rsi_series, pct_low))
+        raw_extreme_overbought = float(np.percentile(rsi_series, pct_high))
+        
+        # 获取对应波动分层的系数
+        layer_coefficients = self.extreme_threshold_coefficients.get(layer, {
+            "超卖系数": 1.0,
+            "超买系数": 1.0
+        })
+        oversold_coefficient = layer_coefficients["超卖系数"]
+        overbought_coefficient = layer_coefficients["超买系数"]
+        
+        # 计算调整后的极端阈值
+        adjusted_extreme_oversold = raw_extreme_oversold * oversold_coefficient
+        adjusted_extreme_overbought = raw_extreme_overbought * overbought_coefficient
+        
         # 计算各种阈值
         thresholds = {
             'layer': layer,
@@ -347,10 +364,14 @@ class SWIndustryRSIThresholds:
             'current_rsi': float(rsi_series.iloc[-1]) if len(rsi_series) > 0 else np.nan,
             '普通超卖': float(np.percentile(rsi_series, normal_oversold)),
             '普通超买': float(np.percentile(rsi_series, normal_overbought)),
-            '极端超卖': float(np.percentile(rsi_series, pct_low)),
-            '极端超买': float(np.percentile(rsi_series, pct_high)),
+            '极端超卖': adjusted_extreme_oversold,
+            '极端超买': adjusted_extreme_overbought,
             'data_points': len(rsi_series)
         }
+        
+        logger.debug(f"行业 {layer} 阈值计算完成，系数应用如下:")
+        logger.debug(f"  原始极端超卖: {raw_extreme_oversold:.3f}, 系数: {oversold_coefficient}, 调整后: {adjusted_extreme_oversold:.3f}")
+        logger.debug(f"  原始极端超买: {raw_extreme_overbought:.3f}, 系数: {overbought_coefficient}, 调整后: {adjusted_extreme_overbought:.3f}")
         
         return thresholds
     
