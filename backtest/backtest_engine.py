@@ -86,7 +86,12 @@ class BacktestEngine:
         self.stock_industry_map = self._load_stock_industry_map()
         
         # 现在初始化SignalGenerator，传递所有数据
-        self.signal_generator = SignalGenerator(config, self.dcf_values, self.rsi_thresholds, self.stock_industry_map)
+        # 合并config和strategy_params，确保价值比阈值等参数正确传递
+        signal_config = config.copy()
+        if 'strategy_params' in config:
+            signal_config.update(config['strategy_params'])
+        
+        self.signal_generator = SignalGenerator(signal_config, self.dcf_values, self.rsi_thresholds, self.stock_industry_map)
         
         # 初始化动态仓位管理器
         self.dynamic_position_manager = DynamicPositionManager(config.get('strategy_params', config))

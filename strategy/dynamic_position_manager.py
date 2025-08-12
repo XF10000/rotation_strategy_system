@@ -136,23 +136,30 @@ class DynamicPositionManager:
         Returns:
             Dict: 仓位管理配置
         """
+        # 从配置文件读取价值比区间阈值
+        extreme_undervalue_threshold = config.get('value_ratio_extreme_undervalue', 0.60)
+        obvious_undervalue_threshold = config.get('value_ratio_obvious_undervalue', 0.70)
+        slight_undervalue_threshold = config.get('value_ratio_slight_undervalue', 0.80)
+        fair_value_threshold = config.get('value_ratio_fair_value', 1.00)
+        slight_overvalue_threshold = config.get('value_ratio_slight_overvalue', 1.20)
+        
         position_config = {
             # 买入配置
             'buy_rules': {
                 'extreme_undervalue': {
-                    'range': (0.0, 0.60),
+                    'range': (0.0, extreme_undervalue_threshold),
                     'add_ratio': config.get('extreme_undervalue_add_ratio', 0.50),
                     'new_ratio': config.get('extreme_undervalue_new_ratio', 0.15),  # 修正：15%总资产
                     'asset_limit': config.get('extreme_undervalue_asset_limit', 0.15)
                 },
                 'obvious_undervalue': {
-                    'range': (0.60, 0.70),
+                    'range': (extreme_undervalue_threshold, obvious_undervalue_threshold),
                     'add_ratio': config.get('obvious_undervalue_add_ratio', 0.20),
                     'new_ratio': config.get('obvious_undervalue_new_ratio', 0.10),  # 修正：10%总资产
                     'asset_limit': config.get('obvious_undervalue_asset_limit', 0.10)
                 },
                 'slight_undervalue': {
-                    'range': (0.70, 0.80),
+                    'range': (obvious_undervalue_threshold, slight_undervalue_threshold),
                     'add_ratio': config.get('slight_undervalue_add_ratio', 0.10),
                     'new_ratio': config.get('slight_undervalue_new_ratio', 0.05),  # 修正：5%总资产
                     'asset_limit': config.get('slight_undervalue_asset_limit', 0.05)
@@ -161,20 +168,25 @@ class DynamicPositionManager:
             # 卖出配置
             'sell_rules': {
                 'extreme_overvalue': {
-                    'range': (1.20, float('inf')),
+                    'range': (slight_overvalue_threshold, float('inf')),
                     'sell_ratio': config.get('extreme_overvalue_sell_ratio', 1.00)
                 },
                 'slight_overvalue': {
-                    'range': (1.00, 1.20),
+                    'range': (fair_value_threshold, slight_overvalue_threshold),
                     'sell_ratio': config.get('slight_overvalue_sell_ratio', 0.80)
                 },
                 'fair_value': {
-                    'range': (0.80, 1.00),
+                    'range': (slight_undervalue_threshold, fair_value_threshold),
                     'sell_ratio': config.get('fair_value_sell_ratio', 0.50)
                 },
                 'slight_undervalue_sell': {
-                    'range': (0.70, 0.80),
+                    'range': (obvious_undervalue_threshold, slight_undervalue_threshold),
                     'sell_ratio': config.get('slight_undervalue_sell_ratio', 0.20)
+                },
+                # 新增：明显低估区间的卖出规则，支持重叠区间策略
+                'obvious_undervalue_sell': {
+                    'range': (0.0, obvious_undervalue_threshold),
+                    'sell_ratio': config.get('obvious_undervalue_sell_ratio', 0.10)  # 保守卖出10%
                 }
             }
         }
