@@ -306,12 +306,12 @@ class DynamicPositionManager:
         # 计算剩余可买入空间
         remaining_capacity_value = max_total_position_value - current_position_value
         
-        # 如果当前持仓已达到或超过20%，则不执行买入
+        # 如果当前持仓已达到或超过配置的上限，则不执行买入
         if remaining_capacity_value <= 0:
             return {
                 'action': 'HOLD',
                 'shares': 0,
-                'reason': f'已达到单股总仓位上限20% (当前{current_position_value/total_assets:.1%})'
+                'reason': f'已达到单股总仓位上限{self.max_single_position_ratio:.0%} (当前{current_position_value/total_assets:.1%})'
             }
         
         # 计算剩余空间对应的股数
@@ -339,7 +339,7 @@ class DynamicPositionManager:
         
         # 更新原因说明，包含总仓位限制信息
         if target_shares < base_shares:
-            reason += f" (受20%总仓位上限约束，实际买入{target_shares}股)"
+            reason += f" (受{self.max_single_position_ratio:.0%}总仓位上限约束，实际买入{target_shares}股)"
         
         return {
             'action': 'BUY',

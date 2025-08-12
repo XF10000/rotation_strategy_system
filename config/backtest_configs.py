@@ -36,5 +36,5 @@ DEFAULT_STRATEGY_PARAMS = {
 }
 
 # 注意：现在系统主要使用CSV配置文件
-# 请使用 Input/portfolio_config.csv 和 Input/Becktest_settings.csv 进行配置
+# 请使用 Input/portfolio_config.csv 和 Input/Backtest_settings.csv 进行配置
 # 这里的参数仅作为默认值参考

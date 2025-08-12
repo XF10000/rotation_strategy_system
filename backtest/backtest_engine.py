@@ -89,7 +89,7 @@ class BacktestEngine:
         self.signal_generator = SignalGenerator(config, self.dcf_values, self.rsi_thresholds, self.stock_industry_map)
         
         # 初始化动态仓位管理器
-        self.dynamic_position_manager = DynamicPositionManager(config)
+        self.dynamic_position_manager = DynamicPositionManager(config.get('strategy_params', config))
         
         self.logger.info("回测引擎初始化完成")
         self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}")
@@ -667,7 +667,7 @@ class BacktestEngine:
                         
                         # 使用动态仓位管理器计算卖出数量
                         can_sell, sell_shares, sell_value, reason = self.portfolio_manager.can_sell_dynamic(
-                            stock_code, value_price_ratio, price, self.dynamic_position_manager
+                            stock_code, value_price_ratio, price, self.dynamic_position_manager, current_prices
                         )
                         
                         if can_sell and sell_shares > 0:
@@ -707,7 +707,7 @@ class BacktestEngine:
                     
                     # 使用动态仓位管理器计算买入数量
                     can_buy, buy_shares, buy_value, reason = self.portfolio_manager.can_buy_dynamic(
-                        stock_code, value_price_ratio, price, self.dynamic_position_manager
+                        stock_code, value_price_ratio, price, self.dynamic_position_manager, current_prices
                     )
                     
                     if can_buy and buy_shares > 0:
@@ -723,30 +723,47 @@ class BacktestEngine:
                     else:
                         self.logger.info(f"动态买入跳过: {stock_code} - {reason}")
                 else:
-                    # 回退到原有逻辑
+                    # 回退到原有逻辑，但仍需应用单股持仓上限约束
+                    self.logger.warning(f"{stock_code} 无DCF估值数据，使用固定比例交易但应用持仓上限约束")
+                    
+                    # 检查单股持仓上限约束
+                    current_position_value = current_position * price
+                    max_position_value = total_assets * self.dynamic_position_manager.max_single_position_ratio
+                    remaining_capacity = max_position_value - current_position_value
+                    
+                    if remaining_capacity <= 0:
+                        self.logger.info(f"固定交易跳过: {stock_code} - 已达到单股总仓位上限{self.dynamic_position_manager.max_single_position_ratio:.0%}")
+                        continue
+                    
                     if current_position > 0:
-                        current_position_value = current_position * price
+                        # 加仓逻辑 - 应用持仓上限约束
                         target_buy_amount = current_position_value * self.rotation_percentage
+                        # 限制买入金额不超过剩余容量
+                        target_buy_amount = min(target_buy_amount, remaining_capacity)
                         buy_shares = int(target_buy_amount / price / 100) * 100
                         
                         if buy_shares > 0 and target_buy_amount > 10000:
                             success, trade_info = self.portfolio_manager.buy_stock(
-                                stock_code, buy_shares, price, current_date, "固定比例加仓"
+                                stock_code, buy_shares, price, current_date, f"固定比例加仓(受{self.dynamic_position_manager.max_single_position_ratio:.0%}上限约束)"
                             )
                             if success:
-                                self.logger.info(f"执行固定买入: {stock_code} {buy_shares}股 @ {price:.2f}")
+                                self.logger.info(f"执行固定买入: {stock_code} {buy_shares}股 @ {price:.2f} (受持仓上限约束)")
                                 self._record_transaction(trade_info, current_date)
                                 executed_trades.append(f"固定买入: {stock_code} {buy_shares}股")
                     else:
+                        # 开仓逻辑 - 应用持仓上限约束
                         available_cash = self.portfolio_manager.cash * self.rotation_percentage
-                        if available_cash > 10000:
-                            buy_shares = int(available_cash / price / 100) * 100
+                        # 限制开仓金额不超过持仓上限
+                        max_open_amount = min(available_cash, max_position_value)
+                        
+                        if max_open_amount > 10000:
+                            buy_shares = int(max_open_amount / price / 100) * 100
                             if buy_shares > 0:
                                 success, trade_info = self.portfolio_manager.buy_stock(
-                                    stock_code, buy_shares, price, current_date, "固定比例开仓"
+                                    stock_code, buy_shares, price, current_date, f"固定比例开仓(受{self.dynamic_position_manager.max_single_position_ratio:.0%}上限约束)"
                                 )
                                 if success:
-                                    self.logger.info(f"执行固定开仓: {stock_code} {buy_shares}股 @ {price:.2f}")
+                                    self.logger.info(f"执行固定开仓: {stock_code} {buy_shares}股 @ {price:.2f} (受持仓上限约束)")
                                     self._record_transaction(trade_info, current_date)
                                     executed_trades.append(f"固定开仓: {stock_code} {buy_shares}股")
         

@@ -472,7 +472,7 @@ class IntegratedReportGenerator:
             
             # 从回测设置获取总资金
             import pandas as pd
-            settings_df = pd.read_csv('Input/Becktest_settings.csv', encoding='utf-8')
+            settings_df = pd.read_csv('Input/Backtest_settings.csv', encoding='utf-8')
             total_capital = None
             for _, row in settings_df.iterrows():
                 if row['Parameter'] == 'total_capital':
@@ -1821,7 +1821,7 @@ class IntegratedReportGenerator:
             
             # 获取总资金（与策略相同）
             import pandas as pd
-            settings_df = pd.read_csv('Input/Becktest_settings.csv', encoding='utf-8')
+            settings_df = pd.read_csv('Input/Backtest_settings.csv', encoding='utf-8')
             initial_total_capital = 15000000  # 默认值
             for _, row in settings_df.iterrows():
                 if row['Parameter'] == 'total_capital':
