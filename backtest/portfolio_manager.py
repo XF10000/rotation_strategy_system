@@ -131,7 +131,7 @@ class PortfolioManager:
         return stock_value / total_value if total_value > 0 else 0.0
     
     def can_sell_dynamic(self, stock_code: str, value_price_ratio: float, current_price: float, 
-                        dynamic_position_manager=None) -> Tuple[bool, int, float, str]:
+                        dynamic_position_manager=None, all_current_prices: Dict[str, float] = None) -> Tuple[bool, int, float, str]:
         """
         基于价值比的动态卖出检查（新逻辑）
         
@@ -140,6 +140,7 @@ class PortfolioManager:
             value_price_ratio: 价值比 (当前价格/DCF估值)
             current_price: 当前价格
             dynamic_position_manager: 动态仓位管理器实例
+            all_current_prices: 所有股票的当前价格字典
             
         Returns:
             (是否可以卖出, 卖出股数, 卖出金额, 操作原因)
@@ -150,6 +151,12 @@ class PortfolioManager:
             # 回退到原有逻辑
             return self.can_sell(stock_code, 0.20, current_price) + ("回退到固定20%逻辑",)
         
+        # 计算总资产
+        if all_current_prices:
+            total_assets = self.get_total_value(all_current_prices)
+        else:
+            total_assets = self.get_total_value({stock_code: current_price})
+        
         # 使用动态仓位管理器
         action_info = dynamic_position_manager.get_position_action(
             signal_type='SELL',
@@ -158,13 +165,13 @@ class PortfolioManager:
             current_shares=current_shares,
             current_price=current_price,
             available_cash=self.cash,
-            total_assets=self.get_total_value({stock_code: current_price})
+            total_assets=total_assets
         )
         
         if action_info['action'] == 'SELL':
             # 验证交易约束
             is_valid, validation_msg = dynamic_position_manager.validate_trade_constraints(
-                action_info, current_shares, self.cash
+                action_info, current_shares, self.cash, current_price, total_assets
             )
             
             if is_valid:
@@ -213,7 +220,7 @@ class PortfolioManager:
         return True, actual_shares, actual_value
     
     def can_buy_dynamic(self, stock_code: str, value_price_ratio: float, current_price: float,
-                       dynamic_position_manager=None) -> Tuple[bool, int, float, str]:
+                       dynamic_position_manager=None, all_current_prices: Dict[str, float] = None) -> Tuple[bool, int, float, str]:
         """
         基于价值比的动态买入检查（新逻辑）
         
@@ -222,6 +229,7 @@ class PortfolioManager:
             value_price_ratio: 价值比 (当前价格/DCF估值)
             current_price: 当前价格
             dynamic_position_manager: 动态仓位管理器实例
+            all_current_prices: 所有股票的当前价格字典
             
         Returns:
             (是否可以买入, 买入股数, 买入金额, 操作原因)
@@ -233,15 +241,18 @@ class PortfolioManager:
             return self.can_buy(stock_code, 0.20, current_price) + ("回退到固定20%逻辑",)
         
         # 计算总资产（用于资产上限检查）
-        current_prices = {stock_code: current_price}
-        for other_code, shares in self.holdings.items():
-            if other_code != stock_code and other_code not in current_prices:
-                # 对于其他股票，如果没有价格信息，使用一个估算值
-                current_prices[other_code] = current_price  # 简化处理
+        if all_current_prices:
+            # 使用传入的完整价格字典
+            total_assets = self.get_total_value(all_current_prices)
+        else:
+            # 回退到原有逻辑（不推荐）
+            current_prices = {stock_code: current_price}
+            for other_code, shares in self.holdings.items():
+                if other_code != stock_code and other_code not in current_prices:
+                    # 对于其他股票，如果没有价格信息，使用一个估算值
+                    current_prices[other_code] = current_price  # 简化处理
+            total_assets = self.get_total_value(current_prices)
         
-        total_assets = self.get_total_value(current_prices)
-        
-        # 使用动态仓位管理器
         # 使用动态仓位管理器
         action_info = dynamic_position_manager.get_position_action(
             signal_type='BUY',
@@ -256,7 +267,7 @@ class PortfolioManager:
         if action_info['action'] == 'BUY':
             # 验证交易约束
             is_valid, validation_msg = dynamic_position_manager.validate_trade_constraints(
-                action_info, current_shares, self.cash
+                action_info, current_shares, self.cash, current_price, total_assets
             )
             
             if is_valid:

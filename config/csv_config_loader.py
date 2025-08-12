@@ -56,7 +56,7 @@ def load_portfolio_config(csv_path: str = 'Input/portfolio_config.csv') -> Dict[
         logger.error(f"加载投资组合配置失败: {str(e)}")
         raise
 
-def load_backtest_settings(csv_path: str = 'Input/Becktest_settings.csv') -> Dict[str, Any]:
+def load_backtest_settings(csv_path: str = 'Input/Backtest_settings.csv') -> Dict[str, Any]:
     """
     从CSV文件加载回测设置
     
@@ -64,7 +64,7 @@ def load_backtest_settings(csv_path: str = 'Input/Becktest_settings.csv') -> Dic
         csv_path: CSV文件路径
         
     Returns:
-        Dict: 回测设置参数
+        Dict[str, Any]: 回测设置字典
     """
     try:
         if not os.path.exists(csv_path):
@@ -157,7 +157,7 @@ def create_csv_config() -> Dict[str, Any]:
         logger.error(f"加载投资组合配置失败: {str(e)}")
         raise
 
-def load_backtest_settings(csv_path: str = 'Input/Becktest_settings.csv') -> Dict[str, Any]:
+def load_backtest_settings(csv_path: str = 'Input/Backtest_settings.csv') -> Dict[str, Any]:
     """
     从CSV文件加载回测设置
     
@@ -270,7 +270,7 @@ def validate_csv_config() -> bool:
     try:
         # 检查文件是否存在
         portfolio_file = 'Input/portfolio_config.csv'
-        settings_file = 'Input/Becktest_settings.csv'
+        settings_file = 'Input/Backtest_settings.csv'
         
         if not os.path.exists(portfolio_file):
             logger.error(f"投资组合配置文件不存在: {portfolio_file}")
