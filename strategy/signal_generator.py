@@ -186,30 +186,121 @@ class SignalGenerator:
             if not isinstance(close_prices, pd.Series):
                 close_prices = pd.Series(close_prices)
             
-            # 1. 趋势指标 - 使用TA-Lib
-            indicators['ema'] = calculate_ema(close_prices, self.params['ema_period'])
+            # 检查TA-Lib可用性并给出警告
+            talib_available = False
+            try:
+                import talib
+                talib_available = True
+            except ImportError:
+                self.logger.warning("⚠️  TA-Lib未安装，将使用项目内备用计算方法")
+                self.logger.warning("💡 建议安装TA-Lib以获得更准确的技术指标计算: pip install TA-Lib")
             
-            # 2. 动量指标 - 使用TA-Lib
-            indicators['rsi'] = calculate_rsi(close_prices, self.params['rsi_period'])
+            # 1. 趋势指标 - 优先使用TA-Lib
+            if talib_available:
+                try:
+                    close_values = close_prices.values
+                    ema_values = talib.EMA(close_values, timeperiod=int(self.params['ema_period']))
+                    indicators['ema'] = pd.Series(ema_values, index=close_prices.index)
+                    self.logger.debug("✅ 使用TA-Lib计算EMA")
+                except Exception as e:
+                    # TA-Lib计算失败，使用项目内的calculate_ema作为备用
+                    self.logger.warning(f"⚠️  TA-Lib EMA计算失败: {e}，回退到项目内计算")
+                    indicators['ema'] = calculate_ema(close_prices, int(self.params['ema_period']))
+            else:
+                # TA-Lib不可用，使用项目内的calculate_ema作为备用
+                indicators['ema'] = calculate_ema(close_prices, int(self.params['ema_period']))
             
-            macd_result = calculate_macd(
-                close_prices, 
-                self.params['macd_fast'],
-                self.params['macd_slow'],
-                self.params['macd_signal']
-            )
-            indicators['macd'] = {
-                'DIF': macd_result['dif'],
-                'DEA': macd_result['dea'], 
-                'HIST': macd_result['hist']
-            }
+            # 2. 动量指标 - 优先使用TA-Lib
+            if talib_available:
+                try:
+                    close_values = close_prices.values
+                    rsi_values = talib.RSI(close_values, timeperiod=int(self.params['rsi_period']))
+                    indicators['rsi'] = pd.Series(rsi_values, index=close_prices.index)
+                    self.logger.debug("✅ 使用TA-Lib计算RSI")
+                except Exception as e:
+                    # TA-Lib计算失败，使用项目内的calculate_rsi作为备用
+                    self.logger.warning(f"⚠️  TA-Lib RSI计算失败: {e}，回退到项目内计算")
+                    indicators['rsi'] = calculate_rsi(close_prices, int(self.params['rsi_period']))
+            else:
+                # TA-Lib不可用，使用项目内的calculate_rsi作为备用
+                indicators['rsi'] = calculate_rsi(close_prices, int(self.params['rsi_period']))
             
-            # 3. 波动率指标 - 使用TA-Lib
-            indicators['bb'] = calculate_bollinger_bands(
-                close_prices, 
-                self.params['bb_period'],
-                self.params['bb_std']
-            )
+            # MACD指标 - 优先使用TA-Lib
+            if talib_available:
+                try:
+                    close_values = close_prices.values
+                    macd_dif, macd_signal, macd_hist = talib.MACD(
+                        close_values,
+                        fastperiod=int(self.params['macd_fast']),
+                        slowperiod=int(self.params['macd_slow']),
+                        signalperiod=int(self.params['macd_signal'])
+                    )
+                    indicators['macd'] = {
+                        'DIF': pd.Series(macd_dif, index=close_prices.index),
+                        'DEA': pd.Series(macd_signal, index=close_prices.index),
+                        'HIST': pd.Series(macd_hist, index=close_prices.index)
+                    }
+                    self.logger.debug("✅ 使用TA-Lib计算MACD")
+                except Exception as e:
+                    # TA-Lib计算失败，使用项目内的calculate_macd作为备用
+                    self.logger.warning(f"⚠️  TA-Lib MACD计算失败: {e}，回退到项目内计算")
+                    macd_result = calculate_macd(
+                        close_prices, 
+                        int(self.params['macd_fast']),
+                        int(self.params['macd_slow']),
+                        int(self.params['macd_signal'])
+                    )
+                    indicators['macd'] = {
+                        'DIF': macd_result['dif'],
+                        'DEA': macd_result['dea'], 
+                        'HIST': macd_result['hist']
+                    }
+            else:
+                # TA-Lib不可用，使用项目内的calculate_macd作为备用
+                macd_result = calculate_macd(
+                    close_prices, 
+                    int(self.params['macd_fast']),
+                    int(self.params['macd_slow']),
+                    int(self.params['macd_signal'])
+                )
+                indicators['macd'] = {
+                    'DIF': macd_result['dif'],
+                    'DEA': macd_result['dea'], 
+                    'HIST': macd_result['hist']
+                }
+            
+            # 3. 波动率指标 - 优先使用TA-Lib
+            if talib_available:
+                try:
+                    close_values = close_prices.values
+                    upper_values, middle_values, lower_values = talib.BBANDS(
+                        close_values,
+                        timeperiod=int(self.params['bb_period']),
+                        nbdevup=self.params['bb_std'],
+                        nbdevdn=self.params['bb_std'],
+                        matype=0
+                    )
+                    indicators['bb'] = {
+                        'upper': pd.Series(upper_values, index=close_prices.index),
+                        'middle': pd.Series(middle_values, index=close_prices.index),
+                        'lower': pd.Series(lower_values, index=close_prices.index)
+                    }
+                    self.logger.debug("✅ 使用TA-Lib计算布林带")
+                except Exception as e:
+                    # TA-Lib计算失败，使用项目内的calculate_bollinger_bands作为备用
+                    self.logger.warning(f"⚠️  TA-Lib布林带计算失败: {e}，回退到项目内计算")
+                    indicators['bb'] = calculate_bollinger_bands(
+                        close_prices, 
+                        int(self.params['bb_period']),
+                        self.params['bb_std']
+                    )
+            else:
+                # TA-Lib不可用，使用项目内的calculate_bollinger_bands作为备用
+                indicators['bb'] = calculate_bollinger_bands(
+                    close_prices, 
+                    int(self.params['bb_period']),
+                    self.params['bb_std']
+                )
             
             # 4. 成交量指标
             indicators['volume_ma'] = volumes.rolling(
