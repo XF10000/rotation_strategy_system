@@ -181,13 +181,14 @@ class DynamicPositionManager:
         
         return position_config
     
-    def get_position_action(self, stock_code: str, value_price_ratio: float, 
+    def get_position_action(self, signal_type: str, stock_code: str, value_price_ratio: float, 
                            current_shares: int, current_price: float, 
                            available_cash: float, total_assets: float) -> Dict:
         """
-        根据价值比确定仓位操作
+        根据信号类型和价值比确定仓位操作
         
         Args:
+            signal_type: 信号类型 ('BUY', 'SELL', 'HOLD')
             stock_code: 股票代码
             value_price_ratio: 价值比 (当前价格/DCF估值)
             current_shares: 当前持股数量
@@ -199,18 +200,25 @@ class DynamicPositionManager:
             Dict: 仓位操作信息
         """
         try:
-            # 判断是买入还是卖出信号
-            if value_price_ratio <= 0.80:
-                # 买入信号
+            # 根据4D信号类型决定操作方向
+            if signal_type == 'BUY':
+                # 买入信号：根据价值比决定买入强度
                 return self._calculate_buy_action(
                     stock_code, value_price_ratio, current_shares, 
                     current_price, available_cash, total_assets
                 )
-            else:
-                # 卖出信号
+            elif signal_type == 'SELL':
+                # 卖出信号：根据价值比决定卖出比例
                 return self._calculate_sell_action(
                     stock_code, value_price_ratio, current_shares, current_price
                 )
+            else:
+                # HOLD信号或其他情况
+                return {
+                    'action': 'HOLD',
+                    'shares': 0,
+                    'reason': f'信号类型为 {signal_type}，无需交易'
+                }
                 
         except Exception as e:
             self.logger.error(f"计算仓位操作失败 {stock_code}: {str(e)}")
