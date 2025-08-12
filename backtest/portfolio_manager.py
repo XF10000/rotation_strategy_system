@@ -152,6 +152,7 @@ class PortfolioManager:
         
         # 使用动态仓位管理器
         action_info = dynamic_position_manager.get_position_action(
+            signal_type='SELL',
             stock_code=stock_code,
             value_price_ratio=value_price_ratio,
             current_shares=current_shares,
@@ -241,7 +242,9 @@ class PortfolioManager:
         total_assets = self.get_total_value(current_prices)
         
         # 使用动态仓位管理器
+        # 使用动态仓位管理器
         action_info = dynamic_position_manager.get_position_action(
+            signal_type='BUY',
             stock_code=stock_code,
             value_price_ratio=value_price_ratio,
             current_shares=current_shares,
