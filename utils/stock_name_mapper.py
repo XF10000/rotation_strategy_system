@@ -17,6 +17,10 @@ def load_stock_name_mapping(config_path: str = 'Input/portfolio_config.csv') -> 
     Returns:
         Dict[str, str]: 股票代码到名称的映射 {代码: 名称}
     """
+    # 清除全局缓存，确保读取最新配置
+    global _cached_stock_mapping
+    _cached_stock_mapping = None
+    
     try:
         if not os.path.exists(config_path):
             print(f"警告: 配置文件不存在: {config_path}")
@@ -35,6 +39,8 @@ def load_stock_name_mapping(config_path: str = 'Input/portfolio_config.csv') -> 
                 stock_mapping[stock_code] = stock_name
                 
         print(f"✅ 成功加载 {len(stock_mapping)} 只股票的名称映射")
+        for code, name in stock_mapping.items():
+            print(f"  {code}: {name}")
         return stock_mapping
         
     except Exception as e:
@@ -70,6 +76,12 @@ def get_cached_stock_mapping() -> Dict[str, str]:
     if _cached_stock_mapping is None:
         _cached_stock_mapping = load_stock_name_mapping()
     return _cached_stock_mapping
+
+def clear_stock_mapping_cache():
+    """清除股票名称映射缓存"""
+    global _cached_stock_mapping
+    _cached_stock_mapping = None
+    print("✅ 已清除股票名称映射缓存")
 
 if __name__ == "__main__":
     # 测试功能

@@ -3,15 +3,18 @@ import json
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import pandas as pd
-from utils.stock_name_mapper import get_cached_stock_mapping, get_stock_display_name
+from utils.stock_name_mapper import get_cached_stock_mapping, get_stock_display_name, load_stock_name_mapping
 
 class IntegratedReportGenerator:
     """集成HTML模板的回测报告生成器 - 修复版"""
     
     def __init__(self):
         self.template_path = "config/backtest_report_template.html"
-        # 加载股票名称映射
-        self.stock_mapping = get_cached_stock_mapping()
+        # 强制重新加载股票名称映射，不使用缓存
+        print("🔄 重新加载股票名称映射...")
+        self.stock_mapping = load_stock_name_mapping()
+        print(f"📊 当前股票映射包含 {len(self.stock_mapping)} 只股票")
+        
         # 确保模板文件存在
         if not os.path.exists(self.template_path):
             print(f"警告: HTML模板文件不存在: {self.template_path}")
@@ -166,6 +169,9 @@ class IntegratedReportGenerator:
             # 7. K线数据替换
             template = self._replace_kline_data_safe(template, kline_data)
             
+            # 7.5. 动态股票名称映射替换
+            template = self._replace_stock_name_mapping_safe(template)
+            
             # 8. 生成时间替换
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             template = template.replace("2025-07-26 17:54:46", current_time)
@@ -175,6 +181,54 @@ class IntegratedReportGenerator:
         except Exception as e:
             print(f"❌ 模板填充错误: {e}")
             import traceback
+    
+    def _replace_stock_name_mapping_safe(self, template: str) -> str:
+        """动态替换HTML模板中的股票名称映射"""
+        try:
+            print("🔄 开始动态替换股票名称映射...")
+            
+            # 生成动态的JavaScript股票名称映射
+            mapping_lines = []
+            for stock_code, stock_name in self.stock_mapping.items():
+                mapping_lines.append(f"            '{stock_code}': '{stock_name}'")
+            
+            dynamic_mapping = "{\n" + ",\n".join(mapping_lines) + "\n        }"
+            
+            print(f"📊 生成的动态映射包含 {len(self.stock_mapping)} 只股票:")
+            for code, name in self.stock_mapping.items():
+                print(f"  {code}: {name}")
+            
+            # 查找并替换硬编码的stockNameMapping
+            import re
+            pattern = r'const stockNameMapping = \{[^}]*\};'
+            replacement = f'const stockNameMapping = {dynamic_mapping};'
+            
+            if re.search(pattern, template):
+                template = re.sub(pattern, replacement, template, flags=re.DOTALL)
+                print("✅ 成功替换HTML模板中的股票名称映射")
+            else:
+                print("⚠️ 未找到stockNameMapping模式，尝试其他方式...")
+                # 备用方案：直接查找和替换
+                old_mapping_start = template.find('const stockNameMapping = {')
+                if old_mapping_start != -1:
+                    old_mapping_end = template.find('};', old_mapping_start) + 2
+                    if old_mapping_end > old_mapping_start:
+                        old_mapping = template[old_mapping_start:old_mapping_end]
+                        new_mapping = f'const stockNameMapping = {dynamic_mapping};'
+                        template = template.replace(old_mapping, new_mapping)
+                        print("✅ 使用备用方案成功替换股票名称映射")
+                    else:
+                        print("❌ 无法找到stockNameMapping的结束位置")
+                else:
+                    print("❌ 无法找到stockNameMapping的开始位置")
+            
+            return template
+            
+        except Exception as e:
+            print(f"❌ 动态股票名称映射替换失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return template
             print(f"❌ 异常详情: {traceback.format_exc()}")
             return template
     
@@ -1164,17 +1218,17 @@ class IntegratedReportGenerator:
                         <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
                             <div>
-                                <strong style="color: #dc3545;">🔴 价值比过滤器（硬性条件）:</strong>
+                                <strong style="color: #dc3545;">💰 价值比过滤器（硬性条件）:</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：价值比 < 70%（价格低于DCF估值70%）</li>
-                                    <li>卖出条件：价值比 > 80%（价格高于DCF估值80%）</li>
+                                    <li>买入条件：价值比 < 80%（当前价格/DCF估值 < 0.8）</li>
+                                    <li>卖出条件：价值比 > 70%（当前价格/DCF估值 > 0.7）</li>
                                 </ul>
                             </div>
                             <div>
                                 <strong style="color: #007bff;">📊 超买/超卖:</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：14周RSI > 70 且出现顶背离</li>
-                                    <li>卖出条件：14周RSI < 30 且出现底背离</li>
+                                    <li>买入条件：14周RSI ≤ 行业超卖阈值 且出现底背离，或 RSI ≤ 行业极端超卖阈值（强制信号）</li>
+                                    <li>卖出条件：14周RSI ≥ 行业超买阈值 且出现顶背离，或 RSI ≥ 行业极端超买阈值（强制信号）</li>
                                 </ul>
                             </div>
                             <div>
@@ -1187,13 +1241,14 @@ class IntegratedReportGenerator:
                             <div>
                                 <strong style="color: #6f42c1;">🎯 极端价格+量能:</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：收盘价布林下轨上，且 本周成交量>4周均量×1.3</li>
-                                    <li>卖出条件：收盘价布林下轨上，且 本周成交量>4周均量×0.8</li>
+                                    <li>买入条件：收盘价 ≤ 布林下轨，且 本周成交量 ≥ 4周均量×0.8</li>
+                                    <li>卖出条件：收盘价 ≥ 布林上轨，且 本周成交量 ≥ 4周均量×1.3</li>
                                 </ul>
                             </div>
                         </div>
-                        <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 5px;">
+                        <div style="margin-top: 15px; padding: 12px; background: #e7f3ff; border-radius: 5px;">
                             <strong style="color: #0066cc;">✅ 交易条件：价值比过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
+                            <br><span style="font-size: 11px; color: #666;">💡 系统使用124个申万二级行业的动态RSI阈值，支持极端阈值强制信号触发</span>
                         </div>
                     </div>'''
             
