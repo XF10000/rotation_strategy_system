@@ -374,14 +374,16 @@ class AkshareDataFetcher(DataFetcher):
             logger.error(f"测试Akshare连接失败: {str(e)}")
             return False
     
-    def get_dividend_data(self, code: str, start_date: str, end_date: str = None) -> pd.DataFrame:
+    def get_dividend_data(self, code: str, start_date: str, end_date: str = None, 
+                         use_cache: bool = True) -> pd.DataFrame:
         """
-        获取股票分红配股数据
+        获取股票分红配股数据（支持缓存）
         
         Args:
             code: 股票代码 (如 '601088')
             start_date: 开始日期 ('YYYY-MM-DD')
             end_date: 结束日期 ('YYYY-MM-DD', None表示当前日期)
+            use_cache: 是否使用缓存
             
         Returns:
             pd.DataFrame: 分红配股数据
@@ -390,14 +392,53 @@ class AkshareDataFetcher(DataFetcher):
             DataFetchError: 数据获取失败
         """
         try:
-            # 使用akshare获取分红配股数据
-            logger.info(f"获取股票 {code} 的分红配股数据...")
+            # 导入数据存储模块
+            from .data_storage import DataStorage
+            storage = DataStorage()
+            
+            # 如果启用缓存，先检查是否需要的日期范围已被缓存覆盖
+            if use_cache:
+                # 检查指定日期范围是否已被缓存完全覆盖
+                if storage.is_dividend_date_range_cached(code, start_date or '1990-01-01', 
+                                                       end_date or datetime.now().strftime('%Y-%m-%d')):
+                    cached_data = storage.load_dividend_data(code)
+                    if cached_data is not None:
+                        logger.info(f"📦 使用分红配股缓存数据: {code}")
+                        
+                        # 按日期范围过滤缓存数据
+                        filtered_data = cached_data.copy()
+                        if start_date:
+                            start_dt = pd.to_datetime(start_date)
+                            filtered_data = filtered_data[filtered_data.index >= start_dt]
+                        
+                        if end_date:
+                            end_dt = pd.to_datetime(end_date)
+                            filtered_data = filtered_data[filtered_data.index <= end_dt]
+                        
+                        logger.info(f"✅ 缓存分红配股数据过滤后: {code}, {len(filtered_data)} 条记录")
+                        return filtered_data
+                else:
+                    # 缓存范围不足，需要从网络获取
+                    cache_coverage = storage.get_dividend_cache_coverage(code)
+                    if cache_coverage:
+                        logger.info(f"📊 {code} 缓存范围不足，需要网络获取")
+                        logger.info(f"  缓存范围: {cache_coverage['start_date']} 到 {cache_coverage['end_date']}")
+                        logger.info(f"  需要范围: {start_date or '1990-01-01'} 到 {end_date or datetime.now().strftime('%Y-%m-%d')}")
+                    else:
+                        logger.info(f"📊 {code} 无分红配股缓存，需要网络获取")
+            
+            # 缓存不存在或过期，从网络获取
+            logger.info(f"🌐 从网络获取股票 {code} 的分红配股数据...")
             
             # 使用可用的akshare API
             dividend_data = ak.stock_history_dividend_detail(symbol=code)
             
             if dividend_data is None or dividend_data.empty:
                 logger.warning(f"未获取到股票 {code} 的分红配股数据")
+                # 即使是空数据也要缓存，避免重复请求
+                if use_cache:
+                    empty_df = pd.DataFrame()
+                    storage.save_dividend_data(empty_df, code)
                 return pd.DataFrame()
             
             logger.info(f"原始分红数据列名: {list(dividend_data.columns)}")
@@ -406,17 +447,23 @@ class AkshareDataFetcher(DataFetcher):
             # 数据清洗和标准化
             processed_data = self._process_dividend_data(dividend_data)
             
+            # 保存到缓存
+            if use_cache and not processed_data.empty:
+                storage.save_dividend_data(processed_data, code)
+                logger.info(f"💾 分红配股数据已缓存: {code}")
+            
             # 按日期范围过滤
+            filtered_data = processed_data.copy()
             if start_date:
                 start_dt = pd.to_datetime(start_date)
-                processed_data = processed_data[processed_data.index >= start_dt]
+                filtered_data = filtered_data[filtered_data.index >= start_dt]
             
             if end_date:
                 end_dt = pd.to_datetime(end_date)
-                processed_data = processed_data[processed_data.index <= end_dt]
+                filtered_data = filtered_data[filtered_data.index <= end_dt]
             
-            logger.info(f"成功获取股票 {code} 的分红配股数据，共 {len(processed_data)} 条记录")
-            return processed_data
+            logger.info(f"成功获取股票 {code} 的分红配股数据，共 {len(filtered_data)} 条记录")
+            return filtered_data
             
         except Exception as e:
             error_msg = f"获取股票 {code} 分红配股数据失败: {str(e)}"

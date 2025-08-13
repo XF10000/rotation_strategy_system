@@ -27,6 +27,7 @@ class DataStorage:
         """
         self.cache_dir = Path(cache_dir)
         self.stock_data_dir = self.cache_dir / 'stock_data'
+        self.dividend_data_dir = self.cache_dir / 'dividend_data'
         self.indicators_dir = self.cache_dir / 'indicators'
         self.signals_dir = self.cache_dir / 'signals'
         self.backtest_dir = self.cache_dir / 'backtest'
@@ -45,6 +46,7 @@ class DataStorage:
                 self.stock_data_dir / 'daily',
                 self.stock_data_dir / 'weekly',
                 self.stock_data_dir / 'monthly',
+                self.dividend_data_dir,
                 self.indicators_dir,
                 self.signals_dir,
                 self.backtest_dir
@@ -420,17 +422,195 @@ class DataStorage:
             return {'error': str(e)}
     
     def _get_stock_data_path(self, code: str, period: str) -> Path:
+        """获取股票数据文件路径"""
+        return self.stock_data_dir / period / f"{code}.csv"
+    
+    def _get_dividend_data_path(self, code: str) -> Path:
+        """获取分红配股数据文件路径"""
+        return self.dividend_data_dir / f"{code}_dividend.csv"
+    
+    def save_dividend_data(self, data: pd.DataFrame, code: str) -> bool:
         """
-        获取股票数据文件路径
+        保存分红配股数据到缓存
+        
+        Args:
+            data: 分红配股数据
+            code: 股票代码
+            
+        Returns:
+            bool: 是否保存成功
+        """
+        try:
+            if data is None or data.empty:
+                logger.warning(f"尝试保存空的分红配股数据: {code}")
+                return False
+            
+            # 构建文件路径
+            file_path = self._get_dividend_data_path(code)
+            
+            # 保存数据
+            data.to_csv(file_path, encoding='utf-8')
+            
+            # 保存元数据
+            metadata = {
+                'code': code,
+                'data_type': 'dividend',
+                'records': len(data),
+                'start_date': data.index.min().strftime('%Y-%m-%d') if not data.empty else None,
+                'end_date': data.index.max().strftime('%Y-%m-%d') if not data.empty else None,
+                'columns': list(data.columns),
+                'save_time': datetime.now().isoformat()
+            }
+            
+            metadata_path = file_path.with_suffix('.json')
+            with open(metadata_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"成功保存分红配股数据: {code}, {len(data)} 条记录")
+            return True
+            
+        except Exception as e:
+            logger.error(f"保存分红配股数据失败: {code}, 错误: {str(e)}")
+            return False
+    
+    def load_dividend_data(self, code: str) -> Optional[pd.DataFrame]:
+        """
+        从缓存加载分红配股数据
         
         Args:
             code: 股票代码
-            period: 数据周期
             
         Returns:
-            Path: 文件路径
+            Optional[pd.DataFrame]: 缓存的分红配股数据或None
         """
-        return self.stock_data_dir / period / f"{code}.csv"
+        try:
+            file_path = self._get_dividend_data_path(code)
+            
+            if not file_path.exists():
+                logger.debug(f"分红配股缓存文件不存在: {file_path}")
+                return None
+            
+            # 加载数据
+            data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+            
+            logger.info(f"成功加载分红配股缓存数据: {code}, {len(data)} 条记录")
+            return data
+            
+        except Exception as e:
+            logger.error(f"加载分红配股缓存数据失败: {code}, 错误: {str(e)}")
+            return None
+    
+    def get_dividend_cache_coverage(self, code: str) -> Optional[Dict[str, str]]:
+        """
+        获取分红配股数据的缓存覆盖范围
+        
+        Args:
+            code: 股票代码
+            
+        Returns:
+            Optional[Dict[str, str]]: 缓存覆盖范围 {'start_date': 'YYYY-MM-DD', 'end_date': 'YYYY-MM-DD'} 或 None
+        """
+        try:
+            metadata_path = self._get_dividend_data_path(code).with_suffix('.json')
+            
+            if not metadata_path.exists():
+                return None
+            
+            # 读取元数据
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            
+            # 返回缓存的日期范围
+            if metadata.get('start_date') and metadata.get('end_date'):
+                return {
+                    'start_date': metadata['start_date'],
+                    'end_date': metadata['end_date']
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"获取分红配股缓存覆盖范围失败: {code}, 错误: {str(e)}")
+            return None
+    
+    def is_dividend_date_range_cached(self, code: str, start_date: str, end_date: str) -> bool:
+        """
+        检查指定日期范围的分红配股数据是否已缓存
+        
+        Args:
+            code: 股票代码
+            start_date: 需要的开始日期 ('YYYY-MM-DD')
+            end_date: 需要的结束日期 ('YYYY-MM-DD')
+            
+        Returns:
+            bool: 指定范围是否完全被缓存覆盖
+        """
+        try:
+            cache_coverage = self.get_dividend_cache_coverage(code)
+            
+            if not cache_coverage:
+                logger.debug(f"分红配股数据无缓存: {code}")
+                return False
+            
+            # 转换为日期对象进行比较
+            cache_start = pd.to_datetime(cache_coverage['start_date'])
+            cache_end = pd.to_datetime(cache_coverage['end_date'])
+            need_start = pd.to_datetime(start_date)
+            need_end = pd.to_datetime(end_date)
+            
+            # 检查起始日期是否被覆盖
+            start_covered = cache_start <= need_start
+            
+            # 对于结束日期，如果缓存的结束日期距离当前时间较近（比如90天内），
+            # 则认为缓存是足够的，因为分红配股数据更新频率较低
+            from datetime import datetime, timedelta
+            current_date = datetime.now()
+            cache_end_age = (current_date - cache_end).days
+            
+            # 如果缓存结束日期在90天内，或者完全覆盖需要的范围，则认为缓存足够
+            # 分红配股数据通常每年更新1-2次，90天的容忍度是合理的
+            end_covered = (cache_end >= need_end) or (cache_end_age <= 90 and cache_end >= need_start)
+            
+            is_covered = start_covered and end_covered
+            
+            logger.debug(f"分红配股缓存范围检查: {code}")
+            logger.debug(f"  缓存范围: {cache_coverage['start_date']} 到 {cache_coverage['end_date']}")
+            logger.debug(f"  需要范围: {start_date} 到 {end_date}")
+            logger.debug(f"  缓存结束日期距今: {cache_end_age} 天")
+            logger.debug(f"  起始覆盖: {start_covered}, 结束覆盖: {end_covered}")
+            logger.debug(f"  完全覆盖: {is_covered}")
+            
+            return is_covered
+            
+        except Exception as e:
+            logger.error(f"检查分红配股日期范围缓存失败: {code}, 错误: {str(e)}")
+            return False
+    
+    def get_cached_dividend_info(self, code: str) -> Optional[Dict[str, Any]]:
+        """
+        获取缓存的分红配股数据信息
+        
+        Args:
+            code: 股票代码
+            
+        Returns:
+            Optional[Dict[str, Any]]: 数据信息或None
+        """
+        try:
+            metadata_path = self._get_dividend_data_path(code).with_suffix('.json')
+            
+            if not metadata_path.exists():
+                return None
+            
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            
+            return metadata
+            
+        except Exception as e:
+            logger.error(f"获取分红配股缓存数据信息失败: {code}, 错误: {str(e)}")
+            return None
+
 
 if __name__ == "__main__":
     # 测试代码
