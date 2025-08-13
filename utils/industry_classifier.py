@@ -24,8 +24,29 @@ class IndustryClassifier:
     
     def _load_sw_industry_mapping(self) -> Dict[str, str]:
         """加载申万行业分类映射表"""
-        # 这里可以从外部文件加载或API获取
-        # 暂时返回空字典，后续可以扩展
+        import json
+        import os
+        
+        # 尝试加载本地缓存的股票行业映射文件
+        mapping_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                                  'data_cache', 'stock_to_industry_map.json')
+        
+        if os.path.exists(mapping_file):
+            try:
+                with open(mapping_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if 'mapping' in data:
+                        # 转换为简单的 {股票代码: 行业名称} 映射
+                        stock_industry_map = {}
+                        for stock_code, info in data['mapping'].items():
+                            stock_industry_map[stock_code] = info['industry_name']
+                        
+                        logger.info(f"✅ 成功加载本地行业映射文件，包含 {len(stock_industry_map)} 只股票")
+                        return stock_industry_map
+            except Exception as e:
+                logger.warning(f"加载本地行业映射文件失败: {e}")
+        
+        logger.warning("未找到本地行业映射文件，将使用网络查询（性能较低）")
         return {}
     
     def get_stock_industry_auto(self, stock_code: str) -> Optional[str]:
@@ -41,6 +62,16 @@ class IndustryClassifier:
         # 检查缓存
         if stock_code in self.cache:
             return self.cache[stock_code]
+        
+        # 优先使用本地映射文件（高性能）
+        if stock_code in self.sw_industry_mapping:
+            industry = self.sw_industry_mapping[stock_code]
+            self.cache[stock_code] = industry
+            logger.debug(f"📋 从本地映射获取 {stock_code} 行业: {industry}")
+            return industry
+        
+        # 如果本地映射中没有，才进行网络查询（低性能）
+        logger.warning(f"⚠️ 股票 {stock_code} 不在本地映射中，将进行网络查询（较慢）")
         
         try:
             # 方法1: 通过akshare获取股票基本信息
