@@ -109,9 +109,39 @@ class AkshareDataFetcher(DataFetcher):
             if end_date is None:
                 end_date = datetime.now().strftime('%Y%m%d')
             else:
-                end_date = end_date.replace('-', '')
+                # 正确处理日期格式，支持缺少前导零的情况
+                try:
+                    parsed_end_date = datetime.strptime(end_date, '%Y-%m-%d')
+                    end_date = parsed_end_date.strftime('%Y%m%d')
+                except ValueError:
+                    # 如果解析失败，尝试处理缺少前导零的情况
+                    parts = end_date.split('-')
+                    if len(parts) == 3:
+                        year, month, day = parts
+                        month = month.zfill(2)
+                        day = day.zfill(2)
+                        fixed_date = f'{year}-{month}-{day}'
+                        parsed_end_date = datetime.strptime(fixed_date, '%Y-%m-%d')
+                        end_date = parsed_end_date.strftime('%Y%m%d')
+                    else:
+                        raise DataFetchError(f"无法解析结束日期格式: {end_date}")
             
-            start_date = start_date.replace('-', '')
+            # 正确处理开始日期格式
+            try:
+                parsed_start_date = datetime.strptime(start_date, '%Y-%m-%d')
+                start_date = parsed_start_date.strftime('%Y%m%d')
+            except ValueError:
+                # 如果解析失败，尝试处理缺少前导零的情况
+                parts = start_date.split('-')
+                if len(parts) == 3:
+                    year, month, day = parts
+                    month = month.zfill(2)
+                    day = day.zfill(2)
+                    fixed_date = f'{year}-{month}-{day}'
+                    parsed_start_date = datetime.strptime(fixed_date, '%Y-%m-%d')
+                    start_date = parsed_start_date.strftime('%Y%m%d')
+                else:
+                    raise DataFetchError(f"无法解析开始日期格式: {start_date}")
             
             # 映射周期参数
             period_map = {
