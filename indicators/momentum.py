@@ -244,6 +244,88 @@ def is_macd_bearish_crossover(macd_data: Dict[str, pd.Series]) -> bool:
         logger.warning(f"MACD死叉判断失败: {str(e)}")
         return False
 
+def detect_macd_histogram_shrinking(macd_data: Dict[str, pd.Series], periods: int = 2) -> Dict[str, bool]:
+    """
+    检测MACD柱体连续缩短趋势
+    
+    Args:
+        macd_data: MACD数据字典，包含'hist'键
+        periods: 检测的连续周期数，默认2
+        
+    Returns:
+        Dict[str, bool]: {
+            'red_shrinking': 红色柱体连续缩短,
+            'green_shrinking': 绿色柱体连续缩短,
+            'green_to_red_transition': 前期绿柱缩短+当前转红,
+            'red_to_green_transition': 前期红柱缩短+当前转绿
+        }
+    """
+    try:
+        hist = macd_data['hist']
+        
+        if len(hist) < periods + 1:
+            return {
+                'red_shrinking': False,
+                'green_shrinking': False,
+                'green_to_red_transition': False,
+                'red_to_green_transition': False
+            }
+        
+        # 获取最近的柱体数据
+        hist_current = hist.iloc[-1]
+        hist_values = hist.iloc[-(periods+1):].values
+        
+        # 红色柱体连续缩短检测
+        red_shrinking = False
+        if all(h > 0 for h in hist_values):  # 所有柱体都是红色
+            # 检查是否连续缩短
+            red_shrinking = all(hist_values[i] < hist_values[i-1] for i in range(1, len(hist_values)))
+        
+        # 绿色柱体连续缩短检测
+        green_shrinking = False
+        if all(h < 0 for h in hist_values):  # 所有柱体都是绿色
+            # 检查绝对值是否连续缩短
+            green_shrinking = all(abs(hist_values[i]) < abs(hist_values[i-1]) for i in range(1, len(hist_values)))
+        
+        # 前期绿柱缩短 + 当前转红检测
+        green_to_red_transition = False
+        if len(hist) >= 3:
+            hist_prev1 = hist.iloc[-2]
+            hist_prev2 = hist.iloc[-3]
+            if (hist_prev1 < 0 and hist_prev2 < 0 and  # 前2根是绿柱
+                abs(hist_prev1) < abs(hist_prev2) and  # 前期绿柱在缩短
+                hist_current > 0):  # 当前转为红柱
+                green_to_red_transition = True
+        
+        # 前期红柱缩短 + 当前转绿检测
+        red_to_green_transition = False
+        if len(hist) >= 3:
+            hist_prev1 = hist.iloc[-2]
+            hist_prev2 = hist.iloc[-3]
+            if (hist_prev1 > 0 and hist_prev2 > 0 and  # 前2根是红柱
+                hist_prev1 < hist_prev2 and  # 前期红柱在缩短
+                hist_current < 0):  # 当前转为绿柱
+                red_to_green_transition = True
+        
+        result = {
+            'red_shrinking': red_shrinking,
+            'green_shrinking': green_shrinking,
+            'green_to_red_transition': green_to_red_transition,
+            'red_to_green_transition': red_to_green_transition
+        }
+        
+        logger.debug(f"MACD柱体缩短检测结果: {result}")
+        return result
+        
+    except Exception as e:
+        logger.warning(f"MACD柱体缩短检测失败: {str(e)}")
+        return {
+            'red_shrinking': False,
+            'green_shrinking': False,
+            'green_to_red_transition': False,
+            'red_to_green_transition': False
+        }
+
 if __name__ == "__main__":
     # 测试代码
     dates = pd.date_range('2023-01-01', periods=100, freq='D')

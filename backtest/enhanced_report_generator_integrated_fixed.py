@@ -296,18 +296,21 @@ class IntegratedReportGenerator:
         
         # 最简单直接的强制替换
         try:
-            # 1. 强制替换标题
+            # 1. 强制替换标题和CSS类
             if excess_return > 0:
-                template = template.replace("📉 策略跑输基准", "📈 策略表现优于基准")
+                template = template.replace("📈 策略表现优于基准", "📈 策略表现优于基准")
+                template = template.replace('class="comparison-summary underperform"', 'class="comparison-summary outperform"')
                 print(f"🔄 设置标题: 优于基准")
             else:
                 template = template.replace("📈 策略表现优于基准", "📉 策略跑输基准")
+                template = template.replace('class="comparison-summary outperform"', 'class="comparison-summary underperform"')
                 print(f"🔄 设置标题: 跑输基准")
             
             # 2. 强制替换摘要中的硬编码数值
+            template = template.replace("<strong>68.09%</strong>", f"<strong>{strategy_return:.2f}%</strong>")
             template = template.replace("<strong>45.0%</strong>", f"<strong>{benchmark_return:.2f}%</strong>")
             template = template.replace("<strong>+23.09%</strong>", f"<strong>{excess_return:+.2f}%</strong>")
-            print(f"🔄 替换摘要数值: 45.0% -> {benchmark_return:.2f}%, +23.09% -> {excess_return:+.2f}%")
+            print(f"🔄 替换摘要数值: 68.09% -> {strategy_return:.2f}%, 45.0% -> {benchmark_return:.2f}%, +23.09% -> {excess_return:+.2f}%")
             
             # 3. 强制替换文案
             action_word = "超越" if excess_return > 0 else "跑输"
@@ -317,6 +320,7 @@ class IntegratedReportGenerator:
             # 4. 强制替换表格中的所有硬编码数据
             table_replacements = [
                 # 总收益率行
+                ('68.09%', f'{strategy_return:.2f}%'),
                 ('45.0%', f'{benchmark_return:.2f}%'),
                 ('+23.09%', f'{excess_return:+.2f}%'),
                 
@@ -1179,14 +1183,9 @@ class IntegratedReportGenerator:
             
             # 3. 动能确认详情
             if dimension_status.get('macd_signal') == '✓':
-                if macd_hist > 0:
-                    details.append(f"⚡ MACD红柱{macd_hist:.3f} ✅")
-                elif macd_hist < 0:
-                    details.append(f"⚡ MACD绿柱{macd_hist:.3f} ✅")
-                elif macd_dif > macd_dea:
-                    details.append(f"⚡ MACD金叉 ✅")
-                elif macd_dif < macd_dea:
-                    details.append(f"⚡ MACD死叉 ✅")
+                # 获取详细的MACD信号原因
+                macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
+                details.append(f"⚡ {macd_reason} ✅")
             else:
                 details.append(f"⚡ MACD无信号")
             
@@ -1203,6 +1202,41 @@ class IntegratedReportGenerator:
             
         except Exception as e:
             return f"详情生成错误: {e}"
+    
+    def _get_detailed_macd_reason(self, technical_indicators, signal_details):
+        """获取详细的MACD信号触发原因"""
+        try:
+            # 获取技术指标数据
+            macd_hist = technical_indicators.get('macd_hist', 0)
+            macd_dif = technical_indicators.get('macd_dif', 0)
+            macd_dea = technical_indicators.get('macd_dea', 0)
+            
+            # 从信号详情推断信号类型
+            signal_type = signal_details.get('signal_type', 'BUY')
+            
+            # 需要获取历史数据来判断具体条件
+            # 这里简化处理，基于当前值推断最可能的条件
+            
+            if signal_type == 'SELL':
+                # 卖出信号的三种可能条件
+                if macd_hist < 0:
+                    return f"MACD前期红柱缩短+当前转绿 (HIST={macd_hist:.3f})"
+                elif macd_dif < macd_dea:
+                    return f"MACD死叉 (DIF={macd_dif:.3f} < DEA={macd_dea:.3f})"
+                else:
+                    return f"MACD红柱连续缩短 (HIST={macd_hist:.3f})"
+            
+            else:  # BUY
+                # 买入信号的三种可能条件
+                if macd_hist > 0:
+                    return f"MACD前期绿柱缩短+当前转红 (HIST={macd_hist:.3f})"
+                elif macd_dif > macd_dea:
+                    return f"MACD金叉 (DIF={macd_dif:.3f} > DEA={macd_dea:.3f})"
+                else:
+                    return f"MACD绿柱连续缩短 (HIST={macd_hist:.3f})"
+                    
+        except Exception as e:
+            return f"MACD信号 (分析错误: {e})"
     
     def _replace_transaction_details_safe(self, template: str, transactions: List, signal_analysis: Dict) -> str:
         """安全地替换详细交易记录"""

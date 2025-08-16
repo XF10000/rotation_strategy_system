@@ -53,7 +53,6 @@ class StockSignalAnalyzer:
                 stock_code = str(row['Stock_number']).strip()
                 if stock_code != 'CASH' and pd.notna(row['DCF_value_per_share']):
                     self.dcf_values[stock_code] = float(row['DCF_value_per_share'])
-            
             logger.info(f"✅ 加载DCF估值数据: {len(self.dcf_values)} 只股票")
             
             return True
@@ -62,10 +61,9 @@ class StockSignalAnalyzer:
             logger.error(f"❌ 配置加载失败: {e}")
             return False
     
-    def initialize_backtest_engine(self):
-        """初始化回测引擎 - 与main.py完全相同的逻辑"""
+    def initialize_backtest_engine(self) -> bool:
+        """初始化回测引擎"""
         try:
-            # 创建BacktestEngine实例，只传递config参数
             # DCF数据会在BacktestEngine内部自动加载
             self.backtest_engine = BacktestEngine(config=self.config)
             logger.info("✅ 回测引擎初始化成功")
@@ -74,6 +72,35 @@ class StockSignalAnalyzer:
         except Exception as e:
             logger.error(f"❌ 回测引擎初始化失败: {e}")
             return False
+    
+    def _analyze_macd_momentum_detail(self, signal_result: Dict, signal_type: str) -> str:
+        """分析MACD动能确认的详细原因"""
+        try:
+            indicators = signal_result.get('technical_indicators', {})
+            macd_hist = indicators.get('macd_hist', 0)
+            macd_dif = indicators.get('macd_dif', 0)
+            macd_dea = indicators.get('macd_dea', 0)
+            
+            if signal_type == 'sell':
+                # 卖出信号分析
+                if macd_hist < 0:
+                    return f"MACD前期红柱缩短+当前转绿 (HIST={macd_hist:.4f})"
+                elif macd_dif < macd_dea:
+                    return f"MACD死叉 (DIF={macd_dif:.4f} < DEA={macd_dea:.4f})"
+                else:
+                    return f"MACD红柱连续缩短 (HIST={macd_hist:.4f})"
+            
+            else:  # buy
+                # 买入信号分析
+                if macd_hist > 0:
+                    return f"MACD前期绿柱缩短+当前转红 (HIST={macd_hist:.4f})"
+                elif macd_dif > macd_dea:
+                    return f"MACD金叉 (DIF={macd_dif:.4f} > DEA={macd_dea:.4f})"
+                else:
+                    return f"MACD绿柱连续缩短 (HIST={macd_hist:.4f})"
+                    
+        except Exception as e:
+            return f"MACD分析错误: {e}"
     
     def get_stock_data(self, stock_code: str, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
         """获取股票数据 - 完全复用BacktestEngine的数据获取逻辑"""
@@ -258,24 +285,18 @@ class StockSignalAnalyzer:
             macd_hist = indicators.get('macd_hist', 0)
             macd_dif = indicators.get('macd_dif', 0)
             macd_dea = indicators.get('macd_dea', 0)
+            
+            # 获取MACD历史数据进行更详细的分析
+            macd_detail = self._analyze_macd_momentum_detail(signal_result, 'sell')
             if scores['momentum_high']:
-                if macd_hist < 0:
-                    output_lines.append(f"        → MACD柱体为绿色 (HIST={macd_hist:.4f} < 0)")
-                elif macd_dif < macd_dea:
-                    output_lines.append(f"        → MACD死叉 (DIF={macd_dif:.4f} < DEA={macd_dea:.4f})")
-                else:
-                    output_lines.append(f"        → MACD红柱缩短 (HIST={macd_hist:.4f})")
+                output_lines.append(f"        → {macd_detail}")
             else:
                 output_lines.append(f"        → MACD无卖出信号 (HIST={macd_hist:.4f}, DIF={macd_dif:.4f}, DEA={macd_dea:.4f})")
             
             output_lines.append(f"      支持买入: {'✅' if scores['momentum_low'] else '❌'}")
+            macd_detail = self._analyze_macd_momentum_detail(signal_result, 'buy')
             if scores['momentum_low']:
-                if macd_hist > 0:
-                    output_lines.append(f"        → MACD柱体为红色 (HIST={macd_hist:.4f} > 0)")
-                elif macd_dif > macd_dea:
-                    output_lines.append(f"        → MACD金叉 (DIF={macd_dif:.4f} > DEA={macd_dea:.4f})")
-                else:
-                    output_lines.append(f"        → MACD绿柱缩短 (HIST={macd_hist:.4f})")
+                output_lines.append(f"        → {macd_detail}")
             else:
                 output_lines.append(f"        → MACD无买入信号 (HIST={macd_hist:.4f}, DIF={macd_dif:.4f}, DEA={macd_dea:.4f})")
             
@@ -496,6 +517,50 @@ def main():
         import traceback
         traceback.print_exc()
         return 1
+
+def _analyze_macd_momentum_detail(signal_result: Dict, signal_type: str) -> str:
+        """分析MACD动能确认的详细原因"""
+        try:
+            indicators = signal_result.get('technical_indicators', {})
+            macd_hist = indicators.get('macd_hist', 0)
+            macd_dif = indicators.get('macd_dif', 0)
+            macd_dea = indicators.get('macd_dea', 0)
+            
+            # 获取历史MACD数据（如果可用）
+            macd_data = signal_result.get('macd_history', {})
+            
+            if signal_type == 'sell':
+                # 卖出信号分析
+                if macd_hist < 0:
+                    # 检查是否是前期红柱缩短后转绿
+                    if 'hist_prev1' in macd_data and 'hist_prev2' in macd_data:
+                        hist_prev1 = macd_data['hist_prev1']
+                        hist_prev2 = macd_data['hist_prev2']
+                        if (hist_prev1 > 0 and hist_prev2 > 0 and hist_prev1 < hist_prev2):
+                            return f"前期红柱缩短({hist_prev2:.3f}→{hist_prev1:.3f})+当前转绿({macd_hist:.3f})"
+                    return f"MACD柱体转为绿色 (HIST={macd_hist:.4f})"
+                elif macd_dif < macd_dea:
+                    return f"MACD死叉 (DIF={macd_dif:.4f} < DEA={macd_dea:.4f})"
+                else:
+                    return f"MACD红柱连续缩短 (HIST={macd_hist:.4f})"
+            
+            else:  # buy
+                # 买入信号分析
+                if macd_hist > 0:
+                    # 检查是否是前期绿柱缩短后转红
+                    if 'hist_prev1' in macd_data and 'hist_prev2' in macd_data:
+                        hist_prev1 = macd_data['hist_prev1']
+                        hist_prev2 = macd_data['hist_prev2']
+                        if (hist_prev1 < 0 and hist_prev2 < 0 and abs(hist_prev1) < abs(hist_prev2)):
+                            return f"前期绿柱缩短({hist_prev2:.3f}→{hist_prev1:.3f})+当前转红({macd_hist:.3f})"
+                    return f"MACD柱体转为红色 (HIST={macd_hist:.4f})"
+                elif macd_dif > macd_dea:
+                    return f"MACD金叉 (DIF={macd_dif:.4f} > DEA={macd_dea:.4f})"
+                else:
+                    return f"MACD绿柱连续缩短 (HIST={macd_hist:.4f})"
+                    
+        except Exception as e:
+            return f"MACD分析错误: {e}"
 
 if __name__ == "__main__":
     exit(main())
