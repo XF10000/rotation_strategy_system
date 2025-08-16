@@ -634,19 +634,34 @@ class SignalGenerator:
                     dif_cross_up = False
                     dif_cross_down = False
                 
-                # 阶段高点（卖出）：MACD红色柱体连续2根缩短 或 MACD柱体已为绿色 或 DIF死叉DEA
-                sell_conditions = [red_hist_shrinking, macd_is_green, dif_cross_down]
+                # 检查前期柱体缩短 + 当前转色的严谨条件
+                # 买入：前2根绿柱缩短 + 当前转红
+                green_to_red_transition = False
+                if (hist_prev1 < 0 and hist_prev2 < 0 and  # 前2根是绿柱
+                    abs(hist_prev1) < abs(hist_prev2) and  # 前期绿柱在缩短
+                    hist_current > 0):  # 当前转为红柱
+                    green_to_red_transition = True
+                
+                # 卖出：前2根红柱缩短 + 当前转绿
+                red_to_green_transition = False
+                if (hist_prev1 > 0 and hist_prev2 > 0 and  # 前2根是红柱
+                    hist_prev1 < hist_prev2 and  # 前期红柱在缩短
+                    hist_current < 0):  # 当前转为绿柱
+                    red_to_green_transition = True
+                
+                # 阶段高点（卖出）：MACD红色柱体连续2根缩短 或 前期红柱缩短+当前转绿 或 DIF死叉DEA
+                sell_conditions = [red_hist_shrinking, red_to_green_transition, dif_cross_down]
                 if any(sell_conditions):
                     scores['momentum_high'] = True
                 
-                # 阶段低点（买入）：MACD绿色柱体连续2根缩短 或 MACD柱体已为红色 或 DIF金叉DEA
-                buy_conditions = [green_hist_shrinking, macd_is_red, dif_cross_up]
+                # 阶段低点（买入）：MACD绿色柱体连续2根缩短 或 前期绿柱缩短+当前转红 或 DIF金叉DEA
+                buy_conditions = [green_hist_shrinking, green_to_red_transition, dif_cross_up]
                 if any(buy_conditions):
                     scores['momentum_low'] = True
                 
                 # 调试日志
-                self.logger.debug(f"动能确认 - 卖出条件: 红色缩短={red_hist_shrinking}, 已转绿色={macd_is_green}, DIF死叉={dif_cross_down}")
-                self.logger.debug(f"动能确认 - 买入条件: 绿色缩短={green_hist_shrinking}, 已转红色={macd_is_red}, DIF金叉={dif_cross_up}")
+                self.logger.debug(f"动能确认 - 卖出条件: 红色缩短={red_hist_shrinking}, 红转绿={red_to_green_transition}, DIF死叉={dif_cross_down}")
+                self.logger.debug(f"动能确认 - 买入条件: 绿色缩短={green_hist_shrinking}, 绿转红={green_to_red_transition}, DIF金叉={dif_cross_up}")
             
             # 4. 极端价格 + 量能
             bb_upper = indicators['bb']['upper'].iloc[-1]
