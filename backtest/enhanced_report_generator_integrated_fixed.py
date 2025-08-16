@@ -1123,8 +1123,86 @@ class IntegratedReportGenerator:
             print(f"✅ 交易统计替换完成")
             return template
         except Exception as e:
-            print(f"❌ 交易统计替换错误: {e}")
+            print(f"❌ 详细交易记录替换错误: {e}")
             return template
+    
+    def _generate_dimension_details(self, technical_indicators: Dict, signal_details: Dict, 
+                                   stock_code: str, close_price: float, dcf_value: float) -> str:
+        """生成4维度评分详情的HTML显示"""
+        try:
+            # 获取维度状态
+            dimension_status = signal_details.get('dimension_status', {})
+            
+            # 获取技术指标
+            rsi_14w = technical_indicators.get('rsi_14w', 50)
+            macd_hist = technical_indicators.get('macd_hist', 0)
+            macd_dif = technical_indicators.get('macd_dif', 0)
+            macd_dea = technical_indicators.get('macd_dea', 0)
+            bb_upper = technical_indicators.get('bb_upper', 0)
+            bb_lower = technical_indicators.get('bb_lower', 0)
+            volume = technical_indicators.get('volume', 0)
+            volume_4w_avg = technical_indicators.get('volume_4w_avg', 1)
+            volume_ratio = volume / volume_4w_avg if volume_4w_avg > 0 else 0
+            
+            # 计算价值比
+            price_value_ratio = (close_price / dcf_value) if dcf_value > 0 else 0
+            
+            # 获取RSI阈值（从交易记录或默认值）
+            rsi_buy_threshold = 30  # 默认值
+            rsi_sell_threshold = 70  # 默认值
+            rsi_extreme_buy = 20  # 默认值
+            rsi_extreme_sell = 80  # 默认值
+            
+            details = []
+            
+            # 1. 价值比过滤器详情
+            if dimension_status.get('trend_filter') == '✓':
+                if price_value_ratio < 0.8:
+                    details.append(f"💰 价值比{price_value_ratio:.1%} < 80% ✅")
+                elif price_value_ratio > 0.7:
+                    details.append(f"💰 价值比{price_value_ratio:.1%} > 70% ✅")
+            else:
+                details.append(f"💰 价值比{price_value_ratio:.1%} 不满足条件")
+            
+            # 2. 超买超卖详情
+            if dimension_status.get('rsi_signal') == '✓':
+                if rsi_14w <= rsi_extreme_buy:
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 极端超卖{rsi_extreme_buy} ✅")
+                elif rsi_14w >= rsi_extreme_sell:
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 极端超买{rsi_extreme_sell} ✅")
+                elif rsi_14w <= rsi_buy_threshold:
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 超卖{rsi_buy_threshold} + 背离 ✅")
+                elif rsi_14w >= rsi_sell_threshold:
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 超买{rsi_sell_threshold} + 背离 ✅")
+            else:
+                details.append(f"📊 RSI{rsi_14w:.1f} 无信号")
+            
+            # 3. 动能确认详情
+            if dimension_status.get('macd_signal') == '✓':
+                if macd_hist > 0:
+                    details.append(f"⚡ MACD红柱{macd_hist:.3f} ✅")
+                elif macd_hist < 0:
+                    details.append(f"⚡ MACD绿柱{macd_hist:.3f} ✅")
+                elif macd_dif > macd_dea:
+                    details.append(f"⚡ MACD金叉 ✅")
+                elif macd_dif < macd_dea:
+                    details.append(f"⚡ MACD死叉 ✅")
+            else:
+                details.append(f"⚡ MACD无信号")
+            
+            # 4. 极端价格量能详情
+            if dimension_status.get('bollinger_volume') == '✓':
+                if close_price <= bb_lower:
+                    details.append(f"🎯 价格{close_price:.2f} ≤ 下轨{bb_lower:.2f}, 量能{volume_ratio:.1f}x ✅")
+                elif close_price >= bb_upper:
+                    details.append(f"🎯 价格{close_price:.2f} ≥ 上轨{bb_upper:.2f}, 量能{volume_ratio:.1f}x ✅")
+            else:
+                details.append(f"🎯 无极端价格量能")
+            
+            return "<br>".join(details[:3])  # 限制显示前3个最重要的详情
+            
+        except Exception as e:
+            return f"详情生成错误: {e}"
     
     def _replace_transaction_details_safe(self, template: str, transactions: List, signal_analysis: Dict) -> str:
         """安全地替换详细交易记录"""
@@ -1190,6 +1268,11 @@ class IntegratedReportGenerator:
                 # 获取股票显示名称
                 stock_display_name = get_stock_display_name(stock_code, self.stock_mapping)
                 
+                # 生成4维度评分详情
+                dimension_details = self._generate_dimension_details(
+                    technical_indicators, signal_details, stock_code, close_price, dcf_value
+                )
+                
                 row = f"""
         <tr class='{row_class}'>
             <td>{date}</td>
@@ -1197,18 +1280,13 @@ class IntegratedReportGenerator:
             <td><strong>{stock_display_name}</strong></td>
             <td>{price:.2f}</td>
             <td>{shares:,}</td>
-            <td>{close_price:.2f}</td>
-            <td>{dcf_value:.2f}</td>
             <td>{price_value_ratio:.1f}%</td>
-            <td>{rsi_14w:.2f}</td>
+            <td class="signal-check">{trend_filter}</td>
             <td class="signal-check">{rsi_signal}</td>
-            <td>{macd_dif:.4f}</td>
-            <td>{macd_dea:.2f}</td>
             <td class="signal-check">{macd_signal}</td>
-            <td class="bb-position">{bb_position}</td>
-            <td>{volume_ratio:.2f}x</td>
             <td class="signal-check">{bollinger_volume}</td>
-            <td style="font-size: 10px; text-align: left; max-width: 150px;">{satisfied_count}/4<br>{reason}</td>
+            <td style="font-size: 11px; text-align: left; max-width: 200px;">{dimension_details}</td>
+            <td style="font-size: 10px; text-align: left; max-width: 120px;">{satisfied_count}/4<br><span style="color: {type_color};">{reason}</span></td>
         </tr>"""
                 transaction_rows.append(row)
             
@@ -1275,18 +1353,13 @@ class IntegratedReportGenerator:
                                     <th>股票</th>
                                     <th>价格</th>
                                     <th>股数</th>
-                                    <th>收盘价</th>
-                                    <th>DCF估值</th>
                                     <th>价值比</th>
-                                    <th>RSI14W</th>
-                                    <th>RSI信号</th>
-                                    <th>MACD DIF</th>
-                                    <th>MACD DEA</th>
-                                    <th>MACD信号</th>
-                                    <th>布林带位置</th>
-                                    <th>量能倍数</th>
-                                    <th>量能信号</th>
-                                    <th>信号详情</th>
+                                    <th>价值比过滤器</th>
+                                    <th>超买超卖</th>
+                                    <th>动能确认</th>
+                                    <th>极端价格量能</th>
+                                    <th>4维度详情</th>
+                                    <th>信号摘要</th>
                                 </tr>
                             </thead>
                             <tbody>
