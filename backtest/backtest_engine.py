@@ -273,19 +273,54 @@ class BacktestEngine:
                     if len(weekly_data) < 60:  # 至少需要60周的数据
                         self.logger.warning(f"⚠️ {stock_code} 数据不足，只有 {len(weekly_data)} 条记录")
             
-                # 确保技术指标存在（无论是从缓存获取还是新生成的数据）
+                # 确保技术指标存在并且是最新的
+                need_recalculate = False
+                
+                # 检查是否需要重新计算技术指标
                 if 'ema_20' not in weekly_data.columns or 'rsi' not in weekly_data.columns:
-                    self.logger.info(f"🔧 {stock_code} 计算技术指标...")
-                    weekly_data = self.data_processor.calculate_technical_indicators(weekly_data)
-                    
-                    # 保存更新后的周线数据到缓存
-                    try:
-                        self.data_storage.save_data(weekly_data, stock_code, 'weekly')
-                        self.logger.info(f"💾 {stock_code} 周线数据（含技术指标）已保存到缓存")
-                    except Exception as e:
-                        self.logger.warning(f"⚠️ {stock_code} 周线数据缓存保存失败: {e}")
+                    need_recalculate = True
+                    self.logger.info(f"🔧 {stock_code} 技术指标列不存在，需要计算")
                 else:
-                    self.logger.info(f"✅ {stock_code} 技术指标已存在，跳过计算")
+                    # 检查最新几行是否有NaN值
+                    recent_data = weekly_data.tail(5)
+                    rsi_nan_count = recent_data['rsi'].isna().sum()
+                    macd_nan_count = recent_data['macd'].isna().sum()
+                    
+                    if rsi_nan_count > 0 or macd_nan_count > 0:
+                        need_recalculate = True
+                        self.logger.info(f"🔧 {stock_code} 最新技术指标有NaN值 (RSI: {rsi_nan_count}, MACD: {macd_nan_count})，需要重新计算")
+                
+                if need_recalculate:
+                    # 确保有足够的数据来计算技术指标
+                    if len(weekly_data) < 30:  # 确保至少有30个数据点
+                        self.logger.warning(f"⚠️ {stock_code} 数据量不足 ({len(weekly_data)} < 30)，尝试获取更多历史数据")
+                        # 扩展获取更多历史数据
+                        extended_start = (pd.to_datetime(extended_start_date_str) - pd.Timedelta(weeks=50)).strftime('%Y-%m-%d')
+                        try:
+                            extended_weekly_data = self._get_cached_or_fetch_data(stock_code, extended_start, self.end_date, 'weekly')
+                            if extended_weekly_data is not None and len(extended_weekly_data) > len(weekly_data):
+                                weekly_data = extended_weekly_data
+                                self.logger.info(f"✅ {stock_code} 获取到更多历史数据，现有 {len(weekly_data)} 条记录")
+                        except Exception as e:
+                            self.logger.warning(f"⚠️ {stock_code} 获取扩展历史数据失败: {e}")
+                    
+                    self.logger.info(f"🔧 {stock_code} 开始计算技术指标，数据量: {len(weekly_data)}")
+                    try:
+                        weekly_data = self.data_processor.calculate_technical_indicators(weekly_data)
+                        self.logger.info(f"✅ {stock_code} 技术指标计算完成")
+                        
+                        # 保存更新后的周线数据到缓存
+                        try:
+                            self.data_storage.save_data(weekly_data, stock_code, 'weekly')
+                            self.logger.info(f"💾 {stock_code} 周线数据（含技术指标）已保存到缓存")
+                        except Exception as e:
+                            self.logger.warning(f"⚠️ {stock_code} 周线数据缓存保存失败: {e}")
+                    except Exception as e:
+                        self.logger.error(f"❌ {stock_code} 技术指标计算失败: {e}")
+                        # 如果计算失败，尝试使用现有数据
+                        pass
+                else:
+                    self.logger.info(f"✅ {stock_code} 技术指标已存在且有效，跳过计算")
                 
                 # 3. 获取分红配股数据并对齐到周线数据
                 self.logger.info(f"💰 {stock_code} 获取分红配股数据...")
@@ -1523,45 +1558,21 @@ class BacktestEngine:
                         float(row['high'])
                     ])
                     
-                    # 技术指标数据 - 使用安全获取方法，确保每个时间点都有数据
+                    # 技术指标数据 - 直接使用当前行的值，不使用回退逻辑
                     def safe_get_indicator_value(field_name, default_value):
-                        """安全获取技术指标值，处理NaN和缺失值"""
+                        """直接获取技术指标值，避免回退逻辑造成的平线问题"""
                         try:
                             if field_name not in filtered_weekly_data.columns:
                                 return default_value
                             
                             current_value = row.get(field_name)
                             
-                            # 如果当前值有效，直接返回（注意：RSI值为0是有效值）
+                            # 如果当前值有效，直接返回
                             if current_value is not None and pd.notna(current_value):
-                                # 对于RSI，0是有效值；对于其他指标，可能需要特殊处理
-                                if field_name == 'rsi' or not (current_value == 0 and field_name not in ['rsi', 'macd_histogram']):
-                                    return float(current_value)
+                                return float(current_value)
                             
-                            # 当前值无效，向前查找最近的有效值
-                            current_idx = filtered_weekly_data.index.get_loc(idx)
-                            for i in range(current_idx - 1, max(0, current_idx - 20), -1):
-                                try:
-                                    hist_value = filtered_weekly_data.iloc[i][field_name]
-                                    if hist_value is not None and pd.notna(hist_value):
-                                        # 对于RSI，0是有效值
-                                        if field_name == 'rsi' or not (hist_value == 0 and field_name not in ['rsi', 'macd_histogram']):
-                                            return float(hist_value)
-                                except:
-                                    continue
-                            
-                            # 如果向前查找失败，向后查找
-                            for i in range(current_idx + 1, min(len(filtered_weekly_data), current_idx + 20)):
-                                try:
-                                    future_value = filtered_weekly_data.iloc[i][field_name]
-                                    if future_value is not None and pd.notna(future_value):
-                                        # 对于RSI，0是有效值
-                                        if field_name == 'rsi' or not (future_value == 0 and field_name not in ['rsi', 'macd_histogram']):
-                                            return float(future_value)
-                                except:
-                                    continue
-                            
-                            # 都找不到有效值，返回默认值
+                            # 如果当前值无效，返回默认值而不是回退到历史值
+                            # 这样可以避免造成平线效果
                             return default_value
                             
                         except Exception as e:

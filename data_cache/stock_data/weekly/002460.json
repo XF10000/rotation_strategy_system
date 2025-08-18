@@ -1,9 +1,9 @@
 {
   "code": "002460",
   "period": "weekly",
-  "records": 280,
-  "start_date": "2020-02-14",
-  "end_date": "2025-07-25",
+  "records": 73,
+  "start_date": "2024-04-03",
+  "end_date": "2025-08-18",
   "columns": [
     "open",
     "high",
@@ -28,5 +28,5 @@
     "volume_ma",
     "volume_ratio"
   ],
-  "save_time": "2025-08-16T23:07:04.087962"
+  "save_time": "2025-08-18T21:33:35.483685"
 }
