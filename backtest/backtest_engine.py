@@ -911,6 +911,7 @@ class BacktestEngine:
                                 'signal_type': signal_result.get('signal', 'HOLD'),
                                 'confidence': signal_result.get('confidence', 0),
                                 'reason': signal_result.get('reason', ''),
+                                'scores': signal_result.get('scores', {}),
                                 'dimension_status': self._extract_dimension_status(signal_result.get('scores', {}))
                             }
                             # 提取RSI阈值信息
@@ -1075,6 +1076,7 @@ class BacktestEngine:
             'signal_type': trade_type,
             'confidence': 3,
             'reason': f"{trade_type}信号",
+            'scores': {},
             'dimension_status': {
                 'trend_filter': '✓',
                 'rsi_signal': '✓',
@@ -1472,8 +1474,9 @@ class BacktestEngine:
         return 0.0
     
     def _extract_dimension_status(self, scores: Dict) -> Dict:
-        """从评分中提取维度状态"""
+        """从评分中提取维度状态 - 确保与scores完全一致"""
         try:
+            # 直接使用scores中的布尔值，确保完全一致
             return {
                 'trend_filter': '✓' if scores.get('trend_filter_high') or scores.get('trend_filter_low') else '✗',
                 'rsi_signal': '✓' if scores.get('overbought_oversold_high') or scores.get('overbought_oversold_low') else '✗',

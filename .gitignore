@@ -102,3 +102,9 @@ data_cache/stock_data/weekly/601898.csv
 data_cache/stock_data/weekly/601898.json
 data_cache/stock_data/weekly/603345.csv
 data_cache/stock_data/weekly/603345.json
+reports/detailed_trading_records_20250818_214232.csv
+reports/detailed_trading_records_20250818_214408.csv
+reports/dividend_allotment_events_20250818_214232.csv
+reports/dividend_allotment_events_20250818_214408.csv
+reports/integrated_backtest_report_20250818_214232.html
+reports/integrated_backtest_report_20250818_214408.html
