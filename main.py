@@ -49,6 +49,7 @@ def main():
         from backtest.backtest_engine import BacktestEngine
         from backtest.performance_analyzer import PerformanceAnalyzer
         from config.csv_config_loader import create_csv_config
+        from data.cache_validator import validate_cache_before_backtest
         
         # 直接使用CSV配置运行回测
         logger.info("使用CSV配置文件进行回测...")
@@ -57,6 +58,16 @@ def main():
         logger.info(f"配置详情: {config['name']} - {config['description']}")
         logger.info(f"回测期间: {config['start_date']} 至 {config['end_date']}")
         logger.info(f"总资金: {config['total_capital']:,} 元")
+        
+        # 自动缓存验证和修复
+        logger.info("🔍 执行缓存数据验证...")
+        stock_codes = [code for code in config['initial_holdings'].keys() if code != 'cash']
+        cache_validation_passed = validate_cache_before_backtest(stock_codes, 'weekly')
+        
+        if not cache_validation_passed:
+            logger.error("❌ 缓存验证失败，回测终止")
+            logger.error("💡 建议运行 'python3 fix_cache_issues.py' 进行深度修复")
+            return
         
         # 创建并运行回测引擎
         logger.info("初始化回测引擎...")
