@@ -182,20 +182,42 @@ class DetailedCSVExporter:
             # 布林带位置
             bb_position = self._get_bb_position(close_price, bb_upper, bb_middle, bb_lower)
             
-            # 信号分析 - 直接使用已有的信号详情
-            dimension_status = signal_details.get('dimension_status', {})
-            trend_filter = dimension_status.get('trend_filter', '✗')
-            overbought_oversold = dimension_status.get('rsi_signal', '✗')
-            momentum_confirm = dimension_status.get('macd_signal', '✗')
-            extreme_price_volume = dimension_status.get('bollinger_volume', '✗')
+            # 信号分析 - 根据交易类型匹配对应的信号方向
+            scores = signal_details.get('scores', {})
+            action = record['type'].upper()
             
-            # 计算满足维度数
-            dimensions = [trend_filter, overbought_oversold, momentum_confirm, extreme_price_volume]
-            dimensions_met = sum(1 for d in dimensions if d == '✓')
-            dimensions_text = f"{dimensions_met}/4"
+            if action == 'BUY':
+                # 买入交易：只计算支持买入的信号
+                trend_filter = '✓' if scores.get('trend_filter_low') else '✗'
+                overbought_oversold = '✓' if scores.get('overbought_oversold_low') else '✗'
+                momentum_confirm = '✓' if scores.get('momentum_low') else '✗'
+                extreme_price_volume = '✓' if scores.get('extreme_price_volume_low') else '✗'
+                
+                # 计算满足维度数 - 只计算支持买入的维度
+                actual_dimensions_met = sum([
+                    1 if scores.get('trend_filter_low') else 0,
+                    1 if scores.get('overbought_oversold_low') else 0,
+                    1 if scores.get('momentum_low') else 0,
+                    1 if scores.get('extreme_price_volume_low') else 0
+                ])
+            else:  # SELL
+                # 卖出交易：只计算支持卖出的信号
+                trend_filter = '✓' if scores.get('trend_filter_high') else '✗'
+                overbought_oversold = '✓' if scores.get('overbought_oversold_high') else '✗'
+                momentum_confirm = '✓' if scores.get('momentum_high') else '✗'
+                extreme_price_volume = '✓' if scores.get('extreme_price_volume_high') else '✗'
+                
+                # 计算满足维度数 - 只计算支持卖出的维度
+                actual_dimensions_met = sum([
+                    1 if scores.get('trend_filter_high') else 0,
+                    1 if scores.get('overbought_oversold_high') else 0,
+                    1 if scores.get('momentum_high') else 0,
+                    1 if scores.get('extreme_price_volume_high') else 0
+                ])
+            dimensions_text = f"{actual_dimensions_met}/4"
             
             # 触发原因 - 直接使用已有的原因
-            trigger_reason = signal_details.get('reason', f"{action}信号：满足{dimensions_met}个维度")
+            trigger_reason = signal_details.get('reason', f"{action}信号：满足{actual_dimensions_met}个维度")
             
             # 获取交易后持仓数量
             position_after = record.get('position_after_trade', 0)

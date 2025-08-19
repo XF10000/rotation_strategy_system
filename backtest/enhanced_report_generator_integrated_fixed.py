@@ -1159,66 +1159,82 @@ class IntegratedReportGenerator:
             
             details = []
             
-            # 1. 价值比过滤器详情
+            # 从signal_details中获取scores信息，避免重新计算
+            scores = signal_details.get('scores', {})
+            
+            # 1. 价值比过滤器详情 - 从scores读取
             if dimension_status.get('trend_filter') == '✓':
-                if price_value_ratio < 0.8:
-                    details.append(f"💰 价值比{price_value_ratio:.1%} < 80% ✅")
-                elif price_value_ratio > 0.7:
-                    details.append(f"💰 价值比{price_value_ratio:.1%} > 70% ✅")
+                if scores.get('trend_filter_high'):
+                    details.append(f"💰 价值比{price_value_ratio:.1%} 支持卖出 ✅")
+                elif scores.get('trend_filter_low'):
+                    details.append(f"💰 价值比{price_value_ratio:.1%} 支持买入 ✅")
+                else:
+                    details.append(f"💰 价值比过滤器触发 ✅")
             else:
                 details.append(f"💰 价值比{price_value_ratio:.1%} 不满足条件")
             
-            # 2. 超买超卖详情
+            # 2. 超买超卖详情 - 从scores读取
             if dimension_status.get('rsi_signal') == '✓':
-                if rsi_14w <= rsi_extreme_buy:
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 极端超卖{rsi_extreme_buy} ✅")
-                elif rsi_14w >= rsi_extreme_sell:
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 极端超买{rsi_extreme_sell} ✅")
-                elif rsi_14w <= rsi_buy_threshold:
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 超卖{rsi_buy_threshold} + 背离 ✅")
-                elif rsi_14w >= rsi_sell_threshold:
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 超买{rsi_sell_threshold} + 背离 ✅")
+                if scores.get('overbought_oversold_high'):
+                    details.append(f"📊 RSI{rsi_14w:.1f} 支持卖出信号 ✅")
+                elif scores.get('overbought_oversold_low'):
+                    details.append(f"📊 RSI{rsi_14w:.1f} 支持买入信号 ✅")
+                else:
+                    details.append(f"📊 RSI超买超卖信号触发 ✅")
             else:
                 details.append(f"📊 RSI{rsi_14w:.1f} 无信号")
             
-            # 3. 动能确认详情
-            if dimension_status.get('macd_signal') == '✓':
-                # 获取详细的MACD信号原因
-                macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
-                details.append(f"⚡ {macd_reason} ✅")
-            else:
-                details.append(f"⚡ MACD无信号")
+            # 3. 动能确认详情 - 根据交易类型匹配对应的MACD信号
+            trade_type = signal_details.get('signal_type', 'BUY').upper()
+            macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
             
-            # 4. 极端价格量能详情
+            if trade_type == 'BUY':
+                # 买入交易：只有momentum_low才支持
+                if scores.get('momentum_low'):
+                    details.append(f"⚡ {macd_reason} ✅")
+                else:
+                    details.append(f"⚡ {macd_reason}")
+            else:  # SELL
+                # 卖出交易：只有momentum_high才支持
+                if scores.get('momentum_high'):
+                    details.append(f"⚡ {macd_reason} ✅")
+                else:
+                    details.append(f"⚡ {macd_reason}")
+            
+            # 4. 极端价格量能详情 - 从scores读取，增加价格位置描述
             if dimension_status.get('bollinger_volume') == '✓':
-                if close_price <= bb_lower:
-                    details.append(f"🎯 价格{close_price:.2f} ≤ 下轨{bb_lower:.2f}, 量能{volume_ratio:.1f}x ✅")
-                elif close_price >= bb_upper:
-                    details.append(f"🎯 价格{close_price:.2f} ≥ 上轨{bb_upper:.2f}, 量能{volume_ratio:.1f}x ✅")
+                if scores.get('extreme_price_volume_high'):
+                    # 卖出信号：价格高于上轨
+                    price_position = "高于上轨" if close_price > bb_upper else "接近上轨"
+                    details.append(f"🎯 极端价格量能支持卖出 (价格{close_price:.2f}{price_position}, 量能{volume_ratio:.1f}x) ✅")
+                elif scores.get('extreme_price_volume_low'):
+                    # 买入信号：价格低于下轨
+                    price_position = "低于下轨" if close_price < bb_lower else "接近下轨"
+                    details.append(f"🎯 极端价格量能支持买入 (价格{close_price:.2f}{price_position}, 量能{volume_ratio:.1f}x) ✅")
+                else:
+                    details.append(f"🎯 极端价格量能信号触发 ✅")
             else:
                 details.append(f"🎯 无极端价格量能")
             
-            return "<br>".join(details[:3])  # 限制显示前3个最重要的详情
+            return "<br>".join(details)  # 显示所有4个维度的详情
             
         except Exception as e:
             return f"详情生成错误: {e}"
     
     def _get_detailed_macd_reason(self, technical_indicators, signal_details):
-        """获取详细的MACD信号触发原因"""
+        """获取详细的MACD信号触发原因 - 从scores中读取而非重新计算"""
         try:
-            # 获取技术指标数据
+            # 从signal_details中获取scores信息
+            scores = signal_details.get('scores', {})
+            
+            # 获取技术指标数据用于显示
             macd_hist = technical_indicators.get('macd_hist', 0)
             macd_dif = technical_indicators.get('macd_dif', 0)
             macd_dea = technical_indicators.get('macd_dea', 0)
             
-            # 从信号详情推断信号类型
-            signal_type = signal_details.get('signal_type', 'BUY')
-            
-            # 需要获取历史数据来判断具体条件
-            # 这里简化处理，基于当前值推断最可能的条件
-            
-            if signal_type == 'SELL':
-                # 卖出信号的三种可能条件
+            # 根据scores中的MACD信号状态生成描述
+            if scores.get('momentum_high'):
+                # MACD支持卖出信号
                 if macd_hist < 0:
                     return f"MACD前期红柱缩短+当前转绿 (HIST={macd_hist:.3f})"
                 elif macd_dif < macd_dea:
@@ -1226,14 +1242,18 @@ class IntegratedReportGenerator:
                 else:
                     return f"MACD红柱连续缩短 (HIST={macd_hist:.3f})"
             
-            else:  # BUY
-                # 买入信号的三种可能条件
-                if macd_hist > 0:
-                    return f"MACD前期绿柱缩短+当前转红 (HIST={macd_hist:.3f})"
+            elif scores.get('momentum_low'):
+                # MACD支持买入信号
+                if macd_hist < 0:
+                    return f"MACD绿柱连续缩短 (HIST={macd_hist:.3f})"
                 elif macd_dif > macd_dea:
                     return f"MACD金叉 (DIF={macd_dif:.3f} > DEA={macd_dea:.3f})"
                 else:
-                    return f"MACD绿柱连续缩短 (HIST={macd_hist:.3f})"
+                    return f"MACD前期绿柱缩短+当前转红 (HIST={macd_hist:.3f})"
+            
+            else:
+                # 无MACD信号
+                return f"MACD无信号 (HIST={macd_hist:.3f}, DIF={macd_dif:.3f}, DEA={macd_dea:.3f})"
                     
         except Exception as e:
             return f"MACD信号 (分析错误: {e})"
@@ -1285,11 +1305,21 @@ class IntegratedReportGenerator:
                 else:
                     bb_position = "轨道之间"
                 
-                # 获取信号状态
-                trend_filter = dimension_status.get('trend_filter', '✗')
-                rsi_signal = dimension_status.get('rsi_signal', '✗')
-                macd_signal = dimension_status.get('macd_signal', '✗')
-                bollinger_volume = dimension_status.get('bollinger_volume', '✗')
+                # 获取信号状态 - 根据交易类型计算正确的维度状态
+                scores = signal_details.get('scores', {})
+                
+                if trade_type == 'BUY':
+                    # 买入交易：只计算支持买入的维度
+                    trend_filter = '✓' if scores.get('trend_filter_low') else '✗'
+                    rsi_signal = '✓' if scores.get('overbought_oversold_low') else '✗'
+                    macd_signal = '✓' if scores.get('momentum_low') else '✗'
+                    bollinger_volume = '✓' if scores.get('extreme_price_volume_low') else '✗'
+                else:  # SELL
+                    # 卖出交易：只计算支持卖出的维度
+                    trend_filter = '✓' if scores.get('trend_filter_high') else '✗'
+                    rsi_signal = '✓' if scores.get('overbought_oversold_high') else '✗'
+                    macd_signal = '✓' if scores.get('momentum_high') else '✗'
+                    bollinger_volume = '✓' if scores.get('extreme_price_volume_high') else '✗'
                 
                 # 计算满足的维度数
                 satisfied_count = sum(1 for status in [trend_filter, rsi_signal, macd_signal, bollinger_volume] if status == '✓')
