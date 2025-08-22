@@ -28,8 +28,8 @@ class IndustryClassifier:
         import os
         
         # 尝试加载本地缓存的股票行业映射文件
-        mapping_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
-                                  'data_cache', 'stock_to_industry_map.json')
+        mapping_file = os.path.join(os.path.dirname(__file__), 
+                                  'stock_to_industry_map.json')
         
         if os.path.exists(mapping_file):
             try:

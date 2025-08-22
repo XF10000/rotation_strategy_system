@@ -64,7 +64,7 @@ def fix_cache_issues():
     logger.info("✅ 缓存清理完成，系统将重新获取和计算所有数据")
     
     # 4. 验证行业映射文件
-    industry_map_file = cache_dir / 'stock_to_industry_map.json'
+    industry_map_file = Path('utils') / 'stock_to_industry_map.json'
     if industry_map_file.exists():
         try:
             with open(industry_map_file, 'r', encoding='utf-8') as f:

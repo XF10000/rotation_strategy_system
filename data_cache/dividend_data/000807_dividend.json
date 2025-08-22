@@ -1,0 +1,15 @@
+{
+  "code": "000807",
+  "data_type": "dividend",
+  "records": 21,
+  "start_date": "1999-07-22",
+  "end_date": "2025-06-26",
+  "columns": [
+    "dividend_amount",
+    "bonus_ratio",
+    "transfer_ratio",
+    "allotment_ratio",
+    "allotment_price"
+  ],
+  "save_time": "2025-08-22T16:56:38.822657"
+}
