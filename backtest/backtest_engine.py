@@ -251,9 +251,16 @@ class BacktestEngine:
                 daily_data = self._get_cached_or_fetch_data(stock_code, extended_start_date_str, self.end_date, 'daily')
                 
                 if daily_data is None or daily_data.empty:
-                    self.logger.warning(f"⚠️ 无法获取 {stock_code} 的数据，跳过该股票")
-                    # 记录失败的股票，但继续处理其他股票
-                    continue
+                    # 尝试智能日期范围扩展，解决纯非交易日期间的问题
+                    self.logger.warning(f"⚠️ {stock_code} 初次获取数据为空，尝试智能扩展日期范围")
+                    daily_data = self._get_data_with_smart_expansion(stock_code, extended_start_date_str, self.end_date, 'daily')
+                    
+                    if daily_data is None or daily_data.empty:
+                        self.logger.warning(f"⚠️ {stock_code} 扩展获取后仍无数据，跳过该股票")
+                        # 记录失败的股票，但继续处理其他股票
+                        continue
+                    else:
+                        self.logger.info(f"✅ {stock_code} 通过智能扩展成功获取到 {len(daily_data)} 条数据")
                 
                 # 2. 智能获取或生成周线数据
                 weekly_data = None
@@ -2067,3 +2074,50 @@ class BacktestEngine:
             except Exception as fallback_error:
                 self.logger.error(f"❌ {stock_code} 降级获取也失败: {fallback_error}")
                 return None
+    
+    def _get_data_with_smart_expansion(self, stock_code: str, start_date: str, end_date: str, period: str) -> pd.DataFrame:
+        """
+        智能日期范围扩展获取数据，解决纯非交易日期间的问题
+        
+        Args:
+            stock_code: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+            period: 数据周期
+            
+        Returns:
+            pd.DataFrame: 扩展获取的数据，如果仍无数据则返回None
+        """
+        try:
+            self.logger.info(f"🔍 {stock_code} 开始智能日期扩展，原始范围: {start_date} 到 {end_date}")
+            
+            # 向前扩展60天，向后扩展30天
+            start_dt = pd.to_datetime(start_date)
+            end_dt = pd.to_datetime(end_date)
+            
+            expanded_start = (start_dt - pd.Timedelta(days=60)).strftime('%Y-%m-%d')
+            expanded_end = (end_dt + pd.Timedelta(days=30)).strftime('%Y-%m-%d')
+            
+            self.logger.info(f"🔍 {stock_code} 扩展范围: {expanded_start} 到 {expanded_end}")
+            
+            # 尝试获取扩展范围的数据
+            expanded_data = self._get_cached_or_fetch_data(stock_code, expanded_start, expanded_end, period)
+            
+            if expanded_data is not None and not expanded_data.empty:
+                self.logger.info(f"✅ {stock_code} 扩展范围获取到 {len(expanded_data)} 条数据")
+                
+                # 检查扩展数据是否覆盖原始时间范围附近
+                data_start = expanded_data.index.min()
+                data_end = expanded_data.index.max()
+                
+                self.logger.info(f"📅 {stock_code} 实际数据范围: {data_start.strftime('%Y-%m-%d')} 到 {data_end.strftime('%Y-%m-%d')}")
+                
+                # 如果扩展数据有效，返回完整数据（保留用于技术指标计算）
+                return expanded_data
+            else:
+                self.logger.warning(f"⚠️ {stock_code} 扩展范围仍无数据")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"❌ {stock_code} 智能扩展失败: {e}")
+            return None
