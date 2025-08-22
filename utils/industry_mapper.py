@@ -14,7 +14,7 @@ import time
 class IndustryMapper:
     """申万二级行业映射生成器"""
     
-    def __init__(self, cache_dir: str = "data_cache"):
+    def __init__(self, cache_dir: str = "utils"):
         """
         初始化映射生成器
         
@@ -282,8 +282,8 @@ def main():
     parser = argparse.ArgumentParser(description='生成股票-申万二级行业映射缓存')
     parser.add_argument('--force', '-f', action='store_true', 
                        help='强制刷新缓存，即使已存在')
-    parser.add_argument('--cache-dir', default='data_cache',
-                       help='缓存目录路径 (默认: data_cache)')
+    parser.add_argument('--cache-dir', default='utils',
+                       help='缓存目录路径 (默认: utils)')
     
     args = parser.parse_args()
     

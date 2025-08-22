@@ -1,0 +1,15 @@
+{
+  "code": "000933",
+  "data_type": "dividend",
+  "records": 26,
+  "start_date": "2001-04-11",
+  "end_date": "2025-05-16",
+  "columns": [
+    "dividend_amount",
+    "bonus_ratio",
+    "transfer_ratio",
+    "allotment_ratio",
+    "allotment_price"
+  ],
+  "save_time": "2025-08-22T17:26:46.365741"
+}

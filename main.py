@@ -59,6 +59,20 @@ def main():
         logger.info(f"回测期间: {config['start_date']} 至 {config['end_date']}")
         logger.info(f"总资金: {config['total_capital']:,} 元")
         
+        # 季度自动更新行业映射文件
+        logger.info("📅 检查行业映射文件更新...")
+        from utils.industry_mapping_updater import check_and_update_industry_mapping
+        mapping_updated = check_and_update_industry_mapping()
+        if mapping_updated:
+            logger.info("✅ 行业映射文件已更新")
+        
+        # 季度自动更新RSI动态阈值文件
+        logger.info("📊 检查RSI阈值文件更新...")
+        from utils.rsi_threshold_updater import check_and_update_rsi_threshold
+        rsi_updated = check_and_update_rsi_threshold()
+        if rsi_updated:
+            logger.info("✅ RSI阈值文件已更新")
+        
         # 自动缓存验证和修复
         logger.info("🔍 执行缓存数据验证...")
         stock_codes = [code for code in config['initial_holdings'].keys() if code != 'cash']

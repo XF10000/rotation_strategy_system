@@ -1,0 +1,15 @@
+{
+  "code": "000651",
+  "data_type": "dividend",
+  "records": 34,
+  "start_date": "1996-12-30",
+  "end_date": "2025-08-29",
+  "columns": [
+    "dividend_amount",
+    "bonus_ratio",
+    "transfer_ratio",
+    "allotment_ratio",
+    "allotment_price"
+  ],
+  "save_time": "2025-08-22T16:56:41.383235"
+}

@@ -192,7 +192,7 @@ class BacktestEngine:
             import json
             import os
             
-            map_file_path = 'data_cache/stock_to_industry_map.json'
+            map_file_path = 'utils/stock_to_industry_map.json'
             
             if not os.path.exists(map_file_path):
                 self.logger.warning(f"股票-行业映射文件不存在: {map_file_path}")
