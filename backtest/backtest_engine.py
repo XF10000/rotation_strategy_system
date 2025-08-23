@@ -232,13 +232,18 @@ class BacktestEngine:
             
             # 计算扩展的开始日期，确保有足够的历史数据计算技术指标
             # 统一采用120条数据计算技术指标，额外增加5周安全边际（约125周）
+            # 再增加14周RSI预热期，确保回测开始时RSI就有效（共139周）
             from datetime import datetime, timedelta
             start_date_obj = datetime.strptime(self.start_date, '%Y-%m-%d')
-            extended_start_date = start_date_obj - timedelta(weeks=125)
+            
+            # 125周用于技术指标稳定计算 + 14周RSI预热期
+            total_history_weeks = 125 + 14
+            extended_start_date = start_date_obj - timedelta(weeks=total_history_weeks)
             extended_start_date_str = extended_start_date.strftime('%Y-%m-%d')
             
             self.logger.info(f"📅 回测期间: {self.start_date} 至 {self.end_date}")
-            self.logger.info(f"📅 数据获取期间（含历史缓冲）: {extended_start_date_str} 至 {self.end_date}")
+            self.logger.info(f"📅 数据获取期间（含139周历史缓冲）: {extended_start_date_str} 至 {self.end_date}")
+            self.logger.info(f"📅 历史数据构成: 125周技术指标计算 + 14周RSI预热期")
             
             # 显示缓存统计信息
             cache_stats = self.data_storage.get_cache_statistics()
@@ -277,8 +282,8 @@ class BacktestEngine:
                     self.logger.info(f"🔄 {stock_code} 从日线数据转换周线数据")
                     weekly_data = self.data_processor.resample_to_weekly(daily_data)
                     
-                    if len(weekly_data) < 120:  # 至少需要120周的数据
-                        self.logger.warning(f"⚠️ {stock_code} 数据不足，只有 {len(weekly_data)} 条记录")
+                    if len(weekly_data) < 139:  # 至少需要139周的数据（125+14）
+                        self.logger.warning(f"⚠️ {stock_code} 数据不足，只有 {len(weekly_data)} 条记录，建议139条")
             
                 # 确保技术指标存在并且是最新的
                 need_recalculate = False

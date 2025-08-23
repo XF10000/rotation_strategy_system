@@ -1,9 +1,9 @@
 {
   "code": "002738",
   "period": "weekly",
-  "records": 355,
-  "start_date": "2018-08-17",
-  "end_date": "2025-07-25",
+  "records": 373,
+  "start_date": "2018-05-11",
+  "end_date": "2025-08-22",
   "columns": [
     "open",
     "high",
@@ -28,5 +28,5 @@
     "volume_ma",
     "volume_ratio"
   ],
-  "save_time": "2025-08-23T14:06:23.007160"
+  "save_time": "2025-08-23T22:23:42.734392"
 }
