@@ -231,10 +231,10 @@ class BacktestEngine:
             self.logger.info("🚀 开始准备回测数据（智能缓存模式）...")
             
             # 计算扩展的开始日期，确保有足够的历史数据计算技术指标
-            # RSI需要14个周期，MACD需要35个周期(EMA26+DEA9)，为安全起见，向前扩展40周（约280天）
+            # 统一采用120条数据计算技术指标，额外增加5周安全边际（约125周）
             from datetime import datetime, timedelta
             start_date_obj = datetime.strptime(self.start_date, '%Y-%m-%d')
-            extended_start_date = start_date_obj - timedelta(weeks=40)
+            extended_start_date = start_date_obj - timedelta(weeks=125)
             extended_start_date_str = extended_start_date.strftime('%Y-%m-%d')
             
             self.logger.info(f"📅 回测期间: {self.start_date} 至 {self.end_date}")
@@ -277,7 +277,7 @@ class BacktestEngine:
                     self.logger.info(f"🔄 {stock_code} 从日线数据转换周线数据")
                     weekly_data = self.data_processor.resample_to_weekly(daily_data)
                     
-                    if len(weekly_data) < 60:  # 至少需要60周的数据
+                    if len(weekly_data) < 120:  # 至少需要120周的数据
                         self.logger.warning(f"⚠️ {stock_code} 数据不足，只有 {len(weekly_data)} 条记录")
             
                 # 确保技术指标存在并且是最新的
@@ -643,14 +643,15 @@ class BacktestEngine:
             
             # 获取当前数据点
             current_idx = stock_weekly.index.get_loc(current_date)
-            if current_idx < 20:  # 需要足够的历史数据
+            if current_idx < 120:  # 需要足够的历史数据
                 continue
             
-            # 获取历史数据用于信号生成
+            # 获取历史数据用于信号生成 - 确保足够数据但避免过度限制
+            # 使用从当前时点往前足够的历史数据，确保技术指标计算准确
             historical_data = stock_weekly.iloc[:current_idx+1]
             
             # 确保有足够的数据
-            if len(historical_data) < 60:
+            if len(historical_data) < 120:
                 continue
             
             # 生成信号
