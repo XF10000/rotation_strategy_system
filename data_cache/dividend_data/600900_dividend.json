@@ -1,9 +1,9 @@
 {
-  "code": "000002",
+  "code": "600900",
   "data_type": "dividend",
-  "records": 33,
-  "start_date": "1991-06-08",
-  "end_date": "2023-08-25",
+  "records": 25,
+  "start_date": "2004-06-01",
+  "end_date": "2025-07-18",
   "columns": [
     "dividend_amount",
     "bonus_ratio",
@@ -11,5 +11,5 @@
     "allotment_ratio",
     "allotment_price"
   ],
-  "save_time": "2025-08-22T18:18:37.289601"
+  "save_time": "2025-08-23T21:59:05.936675"
 }

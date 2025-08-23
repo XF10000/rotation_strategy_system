@@ -1,9 +1,9 @@
 {
   "code": "000933",
   "period": "daily",
-  "records": 1672,
-  "start_date": "2018-08-17",
-  "end_date": "2025-07-25",
+  "records": 1761,
+  "start_date": "2018-05-11",
+  "end_date": "2025-08-22",
   "columns": [
     "open",
     "high",
@@ -13,5 +13,5 @@
     "amount",
     "turnover_rate"
   ],
-  "save_time": "2025-08-23T14:06:23.623902"
+  "save_time": "2025-08-23T22:23:43.428276"
 }

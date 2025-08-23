@@ -1,9 +1,9 @@
 {
-  "code": "000001",
+  "code": "601919",
   "period": "weekly",
-  "records": 39,
-  "start_date": "2023-05-12",
-  "end_date": "2024-02-08",
+  "records": 373,
+  "start_date": "2018-05-11",
+  "end_date": "2025-08-22",
   "columns": [
     "open",
     "high",
@@ -28,5 +28,5 @@
     "volume_ma",
     "volume_ratio"
   ],
-  "save_time": "2025-08-22T18:18:37.671321"
+  "save_time": "2025-08-23T22:23:49.332868"
 }

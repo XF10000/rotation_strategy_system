@@ -408,19 +408,50 @@ class DataProcessor:
             result_df['bb_middle'] = bb_data['middle']
             result_df['bb_lower'] = bb_data['lower']
             
-            # 计算移动平均线
+            # 计算移动平均线 - 使用TA-Lib SMA
             logger.info("\n🔄 计算移动平均线...")
+            
+            # 使用TA-Lib计算SMA
+            from indicators.trend import calculate_sma
+            
             logger.info("   - 计算MA5...")
-            result_df['ma_5'] = result_df['close'].rolling(window=5).mean()
+            result_df['ma_5'] = calculate_sma(result_df['close'], 5)
             logger.info(f"   - MA5 NaN数量: {result_df['ma_5'].isna().sum()}")
             
+            # 检查MA5回测期间有效性
+            if len(result_df['ma_5']) >= 126:
+                backtest_ma5 = result_df['ma_5'].iloc[125:]
+                backtest_nan = backtest_ma5.isna().sum()
+                if backtest_nan == 0:
+                    logger.info(f"   - ✅ 回测期间MA5 100%有效")
+                else:
+                    logger.warning(f"   - ⚠️ 回测期间MA5存在{backtest_nan}个NaN")
+            
             logger.info("   - 计算MA10...")
-            result_df['ma_10'] = result_df['close'].rolling(window=10).mean()
+            result_df['ma_10'] = calculate_sma(result_df['close'], 10)
             logger.info(f"   - MA10 NaN数量: {result_df['ma_10'].isna().sum()}")
             
+            # 检查MA10回测期间有效性
+            if len(result_df['ma_10']) >= 126:
+                backtest_ma10 = result_df['ma_10'].iloc[125:]
+                backtest_nan = backtest_ma10.isna().sum()
+                if backtest_nan == 0:
+                    logger.info(f"   - ✅ 回测期间MA10 100%有效")
+                else:
+                    logger.warning(f"   - ⚠️ 回测期间MA10存在{backtest_nan}个NaN")
+            
             logger.info("   - 计算MA20...")
-            result_df['ma_20'] = result_df['close'].rolling(window=20).mean()
+            result_df['ma_20'] = calculate_sma(result_df['close'], 20)
             logger.info(f"   - MA20 NaN数量: {result_df['ma_20'].isna().sum()}")
+            
+            # 检查MA20回测期间有效性
+            if len(result_df['ma_20']) >= 126:
+                backtest_ma20 = result_df['ma_20'].iloc[125:]
+                backtest_nan = backtest_ma20.isna().sum()
+                if backtest_nan == 0:
+                    logger.info(f"   - ✅ 回测期间MA20 100%有效")
+                else:
+                    logger.warning(f"   - ⚠️ 回测期间MA20存在{backtest_nan}个NaN")
             
             # 计算成交量指标
             if 'volume' in result_df.columns:
@@ -459,139 +490,83 @@ class DataProcessor:
             raise DataProcessError(f"计算技术指标失败: {str(e)}") from e
     
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
-        """计算RSI指标 - 使用分层标准化输入策略解决TA-Lib一致性问题"""
+        """计算RSI指标 - 修复版本：使用全部历史数据"""
         try:
-            # 使用分层标准化输入长度策略
-            # 基于严格计算要求，优先使用120条数据确保RSI计算稳定性
-            preferred_length = 120
-            minimum_stable_length = 60
+            # v4.2修复：直接使用全部历史数据计算RSI，不使用复杂的滚动窗口
+            # 这样可以充分利用已获取的125周历史数据
+            from indicators.momentum import calculate_rsi
+            rsi = calculate_rsi(prices, period)
             
-            if len(prices) >= preferred_length:
-                # 数据充足，使用120条标准长度
-                standardized_prices = prices.tail(preferred_length)
-                from indicators.momentum import calculate_rsi
-                rsi_values = calculate_rsi(standardized_prices, period)
-                
-                # 创建完整的结果序列
-                rsi = pd.Series(index=prices.index, dtype=float)
-                rsi.iloc[:-preferred_length] = np.nan
-                rsi.iloc[-preferred_length:] = rsi_values
-                
-            elif len(prices) >= minimum_stable_length:
-                # 数据有限，使用最低稳定长度
-                standardized_prices = prices.tail(minimum_stable_length)
-                from indicators.momentum import calculate_rsi
-                rsi_values = calculate_rsi(standardized_prices, period)
-                
-                # 创建完整的结果序列
-                rsi = pd.Series(index=prices.index, dtype=float)
-                rsi.iloc[:-minimum_stable_length] = np.nan
-                rsi.iloc[-minimum_stable_length:] = rsi_values
-                
-            else:
-                # 数据不足最低稳定要求，使用全部数据但发出警告
-                from indicators.momentum import calculate_rsi
-                rsi = calculate_rsi(prices, period)
-                
             return rsi
             
         except Exception as e:
             raise DataProcessError(f"RSI计算失败: {str(e)}") from e
     
     def _calculate_ema_debug(self, prices: pd.Series, period: int) -> pd.Series:
-        """计算EMA指标 - 使用分层标准化输入策略解出TA-Lib一致性问题"""
+        """计算EMA指标 - 使用TA-Lib确保回测期间100%有效"""
         try:
             logger.info(f"   - EMA{period}计算输入: 价格序列长度={len(prices)}, 周期={period}")
             logger.info(f"   - 价格序列NaN数量: {prices.isna().sum()}")
             
-            # 使用严格的标准化输入长度解出TA-Lib一致性问题
-            # 基于严格计算要求，优先使用120条数据确保EMA计算稳定性
-            preferred_length = 120
-            minimum_stable_length = 60
+            # v4.2修复：使用TA-Lib计算EMA，但确保回测期间100%有效
+            # 策略：TA-Lib需要预热期，但我们有125周历史数据足够覆盖预热期
+            from indicators.trend import calculate_ema
             
-            if len(prices) >= preferred_length:
-                # 数据充足，使用120条标准长度
-                standardized_prices = prices.tail(preferred_length)
-                ema_values = standardized_prices.ewm(span=period).mean()
-                
-                # 创建完整的结果序列
-                ema = pd.Series(index=prices.index, dtype=float)
-                ema.iloc[:-preferred_length] = np.nan
-                ema.iloc[-preferred_length:] = ema_values
-                
-                logger.info(f"   - 使用20条标准长度计算EMA{period}，保证最佳稳定性")
-                
-            elif len(prices) >= minimum_stable_length:
-                # 数据有限，使用最低稳定长度
-                standardized_prices = prices.tail(minimum_stable_length)
-                ema_values = standardized_prices.ewm(span=period).mean()
-                
-                # 创建完整的结果序列
-                ema = pd.Series(index=prices.index, dtype=float)
-                ema.iloc[:-minimum_stable_length] = np.nan
-                ema.iloc[-minimum_stable_length:] = ema_values
-                
-                logger.warning(f"   - 数据不足120条，使用{minimum_stable_length}条数据计算EMA{period}，可能影响精度")
-                
-            else:
-                # 数据不足最低稳定要求，使用全部数据但发出警告
-                ema = prices.ewm(span=period).mean()
-                
-                logger.warning(f"   - 数据不足{minimum_stable_length}条，使用全部{len(prices)}条数据，计算可能不稳定")
+            # 使用TA-Lib计算EMA（会有前period-1个NaN）
+            ema_full = calculate_ema(prices, period)
             
-            logger.info(f"   - EMA{period} NaN数量: {ema.isna().sum()}")
-            logger.info(f"   - EMA{period} 最后5个值: {ema.tail().values}")
-            return ema
+            # 检查实际的NaN分布
+            nan_count = ema_full.isna().sum()
+            valid_count = len(ema_full) - nan_count
+            valid_rate = (valid_count / len(ema_full)) * 100
+            
+            logger.info(f"   - 使用TA-Lib计算EMA{period}")
+            logger.info(f"   - 总数据点: {len(ema_full)}")
+            logger.info(f"   - NaN数量: {nan_count} (前{nan_count}个点)")
+            logger.info(f"   - 有效数据点: {valid_count}")
+            logger.info(f"   - 有效率: {valid_rate:.2f}%")
+            
+            # 对于125周历史数据，前19个点为NaN（EMA20），但回测期间（第126个点开始）100%有效
+            if len(ema_full) >= 126:  # 如果有足够的数据
+                backtest_period = ema_full.iloc[125:]  # 回测期间数据
+                backtest_nan = backtest_period.isna().sum()
+                logger.info(f"   - 回测期间({len(backtest_period)}个点): NaN数量={backtest_nan}")
+                if backtest_nan == 0:
+                    logger.info(f"   - ✅ 回测期间EMA{period} 100%有效")
+                else:
+                    logger.warning(f"   - ⚠️ 回测期间EMA{period}存在{backtest_nan}个NaN")
+            
+            logger.info(f"   - EMA{period} 最后5个值: {ema_full.tail().values}")
+            return ema_full
             
         except Exception as e:
             logger.error(f"   - EMA{period}计算失败: {str(e)}")
             raise DataProcessError(f"EMA{period}计算失败: {str(e)}") from e
     
     def _calculate_rsi_debug(self, prices: pd.Series, period: int = 14) -> pd.Series:
-        """计算RSI指标 - 使用严格的标准化输入解出TA-Lib一致性问题"""
+        """计算RSI指标 - 使用TA-Lib实现，确保回测期间100%有效"""
         try:
             logger.info(f"   - RSI计算输入: 价格序列长度={len(prices)}, 周期={period}")
             logger.info(f"   - 价格序列NaN数量: {prices.isna().sum()}")
             
-            # 使用严格的标准化输入长度解出TA-Lib一致性问题
-            # 基于严格计算要求，优先使用120条数据确保RSI计算稳定性
-            preferred_length = 120
-            minimum_stable_length = 60
+            # 使用TA-Lib计算RSI，充分利用125周历史数据
+            from indicators.momentum import calculate_rsi
+            rsi = calculate_rsi(prices, period)
             
-            if len(prices) >= preferred_length:
-                # 数据充足，使用120条标准长度
-                standardized_prices = prices.tail(preferred_length)
-                from indicators.momentum import calculate_rsi
-                rsi_values = calculate_rsi(standardized_prices, period)
-                
-                # 创建完整的结果序列
-                rsi = pd.Series(index=prices.index, dtype=float)
-                rsi.iloc[:-preferred_length] = np.nan
-                rsi.iloc[-preferred_length:] = rsi_values
-                
-                logger.info(f"   - 使用120条标准长度计算RSI，保证最佳稳定性")
-                
-            elif len(prices) >= minimum_stable_length:
-                # 数据有限，使用最低稳定长度
-                standardized_prices = prices.tail(minimum_stable_length)
-                from indicators.momentum import calculate_rsi
-                rsi_values = calculate_rsi(standardized_prices, period)
-                
-                # 创建完整的结果序列
-                rsi = pd.Series(index=prices.index, dtype=float)
-                rsi.iloc[:-minimum_stable_length] = np.nan
-                rsi.iloc[-minimum_stable_length:] = rsi_values
-                
-                logger.warning(f"   - 数据不足120条，使用{minimum_stable_length}条数据计算RSI，可能影响精度")
-                
-            else:
-                # 数据不足最低稳定要求，使用全部数据但发出警告
-                from indicators.momentum import calculate_rsi
-                rsi = calculate_rsi(prices, period)
-                
-                logger.warning(f"   - 数据不足{minimum_stable_length}条，使用全部{len(prices)}条数据，计算可能不稳定")
-            
+            logger.info(f"   - 使用TA-Lib计算RSI{period}，利用{len(prices)}周历史数据")
             logger.info(f"   - RSI NaN数量: {rsi.isna().sum()}")
+            logger.info(f"   - RSI 预期前{period}个点为NaN，这是TA-Lib的正常行为")
+            
+            # 检查回测期间有效性
+            if len(rsi) >= 126:
+                backtest_period = rsi.iloc[125:]
+                backtest_nan = backtest_period.isna().sum()
+                logger.info(f"   - 回测期间({len(backtest_period)}个点): NaN数量={backtest_nan}")
+                if backtest_nan == 0:
+                    logger.info(f"   - ✅ 回测期间RSI{period} 100%有效")
+                else:
+                    logger.warning(f"   - ⚠️ 回测期间RSI{period}存在{backtest_nan}个NaN")
+            
             logger.info(f"   - RSI 最后5个值: {rsi.tail().values}")
             return rsi
             
@@ -600,73 +575,19 @@ class DataProcessor:
             raise DataProcessError(f"RSI计算失败: {str(e)}") from e
     
     def _calculate_macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
-        """计算MACD指标 - 使用分层标准化输入策略"""
+        """计算MACD指标 - 使用TA-Lib确保准确性"""
         try:
-            # 使用分层标准化输入长度策略
-            preferred_length = 120
-            minimum_stable_length = 60
+            # v4.2修复：使用TA-Lib计算MACD，确保计算准确性
+            # 虽然会有预热期NaN，但回测期间（基于125周历史数据）会100%有效
+            from indicators.momentum import calculate_macd
             
-            if len(prices) >= preferred_length:
-                # 数据充足，使用120条标准长度
-                standardized_prices = prices.tail(preferred_length)
-                ema_fast = standardized_prices.ewm(span=fast).mean()
-                ema_slow = standardized_prices.ewm(span=slow).mean()
-                macd = ema_fast - ema_slow
-                macd_signal = macd.ewm(span=signal).mean()
-                macd_histogram = macd - macd_signal
-                
-                # 创建完整的结果序列
-                full_macd = pd.Series(index=prices.index, dtype=float)
-                full_signal = pd.Series(index=prices.index, dtype=float)
-                full_histogram = pd.Series(index=prices.index, dtype=float)
-                
-                full_macd.iloc[-preferred_length:] = macd
-                full_signal.iloc[-preferred_length:] = macd_signal
-                full_histogram.iloc[-preferred_length:] = macd_histogram
-                
-                return {
-                    'macd': full_macd,
-                    'signal': full_signal,
-                    'histogram': full_histogram
-                }
-                
-            elif len(prices) >= minimum_stable_length:
-                # 数据有限，使用最低稳定长度
-                standardized_prices = prices.tail(minimum_stable_length)
-                ema_fast = standardized_prices.ewm(span=fast).mean()
-                ema_slow = standardized_prices.ewm(span=slow).mean()
-                macd = ema_fast - ema_slow
-                macd_signal = macd.ewm(span=signal).mean()
-                macd_histogram = macd - macd_signal
-                
-                # 创建完整的结果序列
-                full_macd = pd.Series(index=prices.index, dtype=float)
-                full_signal = pd.Series(index=prices.index, dtype=float)
-                full_histogram = pd.Series(index=prices.index, dtype=float)
-                
-                full_macd.iloc[-minimum_stable_length:] = macd
-                full_signal.iloc[-minimum_stable_length:] = macd_signal
-                full_histogram.iloc[-minimum_stable_length:] = macd_histogram
-                
-                return {
-                    'macd': full_macd,
-                    'signal': full_signal,
-                    'histogram': full_histogram
-                }
-                
-            else:
-                # 数据不足，使用全部数据但发出警告
-                ema_fast = prices.ewm(span=fast).mean()
-                ema_slow = prices.ewm(span=slow).mean()
-                macd = ema_fast - ema_slow
-                macd_signal = macd.ewm(span=signal).mean()
-                macd_histogram = macd - macd_signal
-                
-                return {
-                    'macd': macd,
-                    'signal': macd_signal,
-                    'histogram': macd_histogram
-                }
+            macd_result = calculate_macd(prices, fast, slow, signal)
+            
+            return {
+                'macd': macd_result['dif'],
+                'signal': macd_result['dea'],
+                'histogram': macd_result['hist']
+            }
                 
         except Exception:
             return {
@@ -676,7 +597,7 @@ class DataProcessor:
             }
     
     def _calculate_macd_debug(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
-        """计算MACD指标 - 使用TA-Lib"""
+        """计算MACD指标 - 使用TA-Lib实现，确保回测期间100%有效"""
         try:
             logger.info(f"   - MACD计算输入: 价格序列长度={len(prices)}, 快线={fast}, 慢线={slow}, 信号线={signal}")
             
@@ -687,6 +608,17 @@ class DataProcessor:
             logger.info(f"   - MACD线 NaN数量: {macd_result['dif'].isna().sum()}")
             logger.info(f"   - MACD信号线 NaN数量: {macd_result['dea'].isna().sum()}")
             logger.info(f"   - MACD柱状图 NaN数量: {macd_result['hist'].isna().sum()}")
+            
+            # 检查回测期间有效性
+            if len(macd_result['dif']) >= 126:
+                backtest_dif = macd_result['dif'].iloc[125:]
+                backtest_nan = backtest_dif.isna().sum()
+                logger.info(f"   - 回测期间({len(backtest_dif)}个点): MACD线 NaN数量={backtest_nan}")
+                if backtest_nan == 0:
+                    logger.info(f"   - ✅ 回测期间MACD 100%有效")
+                else:
+                    logger.warning(f"   - ⚠️ 回测期间MACD存在{backtest_nan}个NaN")
+            
             logger.info(f"   - MACD线范围: {macd_result['dif'].min():.6f} - {macd_result['dif'].max():.6f}")
             logger.info(f"   - MACD柱状图范围: {macd_result['hist'].min():.6f} - {macd_result['hist'].max():.6f}")
             
@@ -701,117 +633,40 @@ class DataProcessor:
             raise DataProcessError(f"MACD计算失败: {str(e)}") from e
     
     def _calculate_bollinger_bands(self, prices: pd.Series, period: int = 20, std_dev: float = 2) -> dict:
-        """计算布林带指标 - 使用分层标准化输入策略"""
+        """计算布林带指标 - 使用TA-Lib实现"""
         try:
-            import talib
-            
-            # 使用分层标准化输入长度策略
-            preferred_length = 120
-            minimum_stable_length = 60
-            
-            if len(prices) >= preferred_length:
-                # 数据充足，使用120条标准长度
-                standardized_prices = prices.tail(preferred_length)
-                upper_values, middle_values, lower_values = talib.BBANDS(
-                    standardized_prices.values,
-                    timeperiod=period,
-                    nbdevup=std_dev,
-                    nbdevdn=std_dev,
-                    matype=0  # 简单移动平均
-                )
-                
-                # 创建完整的结果序列
-                full_upper = pd.Series(index=prices.index, dtype=float)
-                full_middle = pd.Series(index=prices.index, dtype=float)
-                full_lower = pd.Series(index=prices.index, dtype=float)
-                
-                full_upper.iloc[-preferred_length:] = upper_values
-                full_middle.iloc[-preferred_length:] = middle_values
-                full_lower.iloc[-preferred_length:] = lower_values
-                
-                return {
-                    'upper': full_upper,
-                    'middle': full_middle,
-                    'lower': full_lower
-                }
-                
-            elif len(prices) >= minimum_stable_length:
-                # 数据有限，使用最低稳定长度
-                standardized_prices = prices.tail(minimum_stable_length)
-                upper_values, middle_values, lower_values = talib.BBANDS(
-                    standardized_prices.values,
-                    timeperiod=period,
-                    nbdevup=std_dev,
-                    nbdevdn=std_dev,
-                    matype=0
-                )
-                
-                # 创建完整的结果序列
-                full_upper = pd.Series(index=prices.index, dtype=float)
-                full_middle = pd.Series(index=prices.index, dtype=float)
-                full_lower = pd.Series(index=prices.index, dtype=float)
-                
-                full_upper.iloc[-minimum_stable_length:] = upper_values
-                full_middle.iloc[-minimum_stable_length:] = middle_values
-                full_lower.iloc[-minimum_stable_length:] = lower_values
-                
-                return {
-                    'upper': full_upper,
-                    'middle': full_middle,
-                    'lower': full_lower
-                }
-                
-            else:
-                # 数据不足，使用全部数据
-                upper_values, middle_values, lower_values = talib.BBANDS(
-                    prices.values,
-                    timeperiod=period,
-                    nbdevup=std_dev,
-                    nbdevdn=std_dev,
-                    matype=0
-                )
-                
-                return {
-                    'upper': pd.Series(upper_values, index=prices.index),
-                    'middle': pd.Series(middle_values, index=prices.index),
-                    'lower': pd.Series(lower_values, index=prices.index)
-                }
+            # 使用TA-Lib volatility.py模块计算布林带
+            from indicators.volatility import calculate_bollinger_bands
+            return calculate_bollinger_bands(prices, period, std_dev)
                 
         except Exception as e:
             raise DataProcessError(f"布林带计算失败: {str(e)}") from e
     
     def _calculate_bollinger_bands_debug(self, prices: pd.Series, period: int = 20, std_dev: float = 2) -> dict:
-        """计算布林带指标 - 使用TA-Lib"""
+        """计算布林带指标 - 使用TA-Lib实现，确保回测期间100%有效"""
         try:
             logger.info(f"   - 布林带计算输入: 价格序列长度={len(prices)}, 周期={period}, 标准差倍数={std_dev}")
             
-            import talib
-            
-            # 使用TA-Lib计算布林带
-            upper_values, middle_values, lower_values = talib.BBANDS(
-                prices.values,
-                timeperiod=period,
-                nbdevup=std_dev,
-                nbdevdn=std_dev,
-                matype=0  # 简单移动平均
-            )
-            
-            upper = pd.Series(upper_values, index=prices.index)
-            middle = pd.Series(middle_values, index=prices.index)
-            lower = pd.Series(lower_values, index=prices.index)
+            # 使用TA-Lib volatility.py模块计算布林带
+            from indicators.volatility import calculate_bollinger_bands
+            bb_result = calculate_bollinger_bands(prices, period, std_dev)
             
             logger.info(f"   - 使用TA-Lib计算布林带成功")
-            logger.info(f"   - 上轨 NaN数量: {upper.isna().sum()}")
-            logger.info(f"   - 中轨 NaN数量: {middle.isna().sum()}")
-            logger.info(f"   - 下轨 NaN数量: {lower.isna().sum()}")
-            logger.info(f"   - 上轨范围: {upper.min():.6f} - {upper.max():.6f}")
-            logger.info(f"   - 下轨范围: {lower.min():.6f} - {lower.max():.6f}")
+            logger.info(f"   - 上轨 NaN数量: {bb_result['upper'].isna().sum()}")
+            logger.info(f"   - 中轨 NaN数量: {bb_result['middle'].isna().sum()}")
+            logger.info(f"   - 下轨 NaN数量: {bb_result['lower'].isna().sum()}")
             
-            return {
-                'upper': upper,
-                'middle': middle,
-                'lower': lower
-            }
+            # 检查回测期间有效性
+            if len(bb_result['upper']) >= 126:
+                backtest_upper = bb_result['upper'].iloc[125:]
+                backtest_nan = backtest_upper.isna().sum()
+                logger.info(f"   - 回测期间({len(backtest_upper)}个点): NaN数量={backtest_nan}")
+                if backtest_nan == 0:
+                    logger.info(f"   - ✅ 回测期间布林带 100%有效")
+                else:
+                    logger.warning(f"   - ⚠️ 回测期间布林带存在{backtest_nan}个NaN")
+            
+            return bb_result
             
         except Exception as e:
             logger.error(f"   - 布林带计算失败: {str(e)}")
