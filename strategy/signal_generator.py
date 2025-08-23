@@ -85,7 +85,7 @@ class SignalGenerator:
             'volume_ma_period': 4,      # 成交量均线周期
             'volume_buy_ratio': 0.8,    # 买入成交量比例
             'volume_sell_ratio': 1.3,   # 卖出成交量比例
-            'min_data_length': 60,      # 最小数据长度
+            'min_data_length': 120,      # 最小数据长度
         }
         
         # 合并配置
@@ -132,13 +132,16 @@ class SignalGenerator:
             Dict: 信号结果
         """
         try:
-            # 数据验证
+            # 数据验证 - 使用分层标准化策略的最低稳定要求
             if data is None or data.empty:
                 raise InsufficientDataError(f"股票 {stock_code} 数据为空")
             
-            if len(data) < self.params['min_data_length']:
+            # 使用分层标准化策略的最低稳定要求（60条）
+            # 这与技术指标计算中的minimum_stable_length保持一致
+            minimum_stable_length = 60
+            if len(data) < minimum_stable_length:
                 raise InsufficientDataError(
-                    f"股票 {stock_code} 数据不足，需要至少 {self.params['min_data_length']} 条记录"
+                    f"股票 {stock_code} 数据不足，需要至少 {minimum_stable_length} 条记录以确保技术指标稳定计算"
                 )
             
             # 计算技术指标

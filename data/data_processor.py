@@ -374,20 +374,23 @@ class DataProcessor:
             logger.info("\n🔄 计算RSI指标...")
             result_df['rsi'] = self._calculate_rsi_debug(result_df['close'])
             
-            # 计算EMA
+            # 计算EMA（使用分层标准化策略）
             logger.info("\n🔄 计算EMA指标...")
             logger.info("   - 计算EMA20...")
-            result_df['ema_20'] = result_df['close'].ewm(span=20).mean()
+            ema_20_data = self._calculate_ema_debug(result_df['close'], 20)
+            result_df['ema_20'] = ema_20_data
             logger.info(f"   - EMA20 NaN数量: {result_df['ema_20'].isna().sum()}")
             logger.info(f"   - EMA20 最后5个值: {result_df['ema_20'].tail().values}")
             
             logger.info("   - 计算EMA50...")
-            result_df['ema_50'] = result_df['close'].ewm(span=50).mean()
+            ema_50_data = self._calculate_ema_debug(result_df['close'], 50)
+            result_df['ema_50'] = ema_50_data
             logger.info(f"   - EMA50 NaN数量: {result_df['ema_50'].isna().sum()}")
             logger.info(f"   - EMA50 最后5个值: {result_df['ema_50'].tail().values}")
             
             logger.info("   - 计算EMA60...")
-            result_df['ema_60'] = result_df['close'].ewm(span=60).mean()
+            ema_60_data = self._calculate_ema_debug(result_df['close'], 60)
+            result_df['ema_60'] = ema_60_data
             logger.info(f"   - EMA60 NaN数量: {result_df['ema_60'].isna().sum()}")
             logger.info(f"   - EMA60 最后5个值: {result_df['ema_60'].tail().values}")
             
@@ -456,22 +459,138 @@ class DataProcessor:
             raise DataProcessError(f"计算技术指标失败: {str(e)}") from e
     
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
-        """计算RSI指标 - 使用TA-Lib"""
+        """计算RSI指标 - 使用分层标准化输入策略解决TA-Lib一致性问题"""
         try:
-            from indicators.momentum import calculate_rsi
-            return calculate_rsi(prices, period)
+            # 使用分层标准化输入长度策略
+            # 基于严格计算要求，优先使用120条数据确保RSI计算稳定性
+            preferred_length = 120
+            minimum_stable_length = 60
+            
+            if len(prices) >= preferred_length:
+                # 数据充足，使用120条标准长度
+                standardized_prices = prices.tail(preferred_length)
+                from indicators.momentum import calculate_rsi
+                rsi_values = calculate_rsi(standardized_prices, period)
+                
+                # 创建完整的结果序列
+                rsi = pd.Series(index=prices.index, dtype=float)
+                rsi.iloc[:-preferred_length] = np.nan
+                rsi.iloc[-preferred_length:] = rsi_values
+                
+            elif len(prices) >= minimum_stable_length:
+                # 数据有限，使用最低稳定长度
+                standardized_prices = prices.tail(minimum_stable_length)
+                from indicators.momentum import calculate_rsi
+                rsi_values = calculate_rsi(standardized_prices, period)
+                
+                # 创建完整的结果序列
+                rsi = pd.Series(index=prices.index, dtype=float)
+                rsi.iloc[:-minimum_stable_length] = np.nan
+                rsi.iloc[-minimum_stable_length:] = rsi_values
+                
+            else:
+                # 数据不足最低稳定要求，使用全部数据但发出警告
+                from indicators.momentum import calculate_rsi
+                rsi = calculate_rsi(prices, period)
+                
+            return rsi
+            
         except Exception as e:
             raise DataProcessError(f"RSI计算失败: {str(e)}") from e
     
+    def _calculate_ema_debug(self, prices: pd.Series, period: int) -> pd.Series:
+        """计算EMA指标 - 使用分层标准化输入策略解出TA-Lib一致性问题"""
+        try:
+            logger.info(f"   - EMA{period}计算输入: 价格序列长度={len(prices)}, 周期={period}")
+            logger.info(f"   - 价格序列NaN数量: {prices.isna().sum()}")
+            
+            # 使用严格的标准化输入长度解出TA-Lib一致性问题
+            # 基于严格计算要求，优先使用120条数据确保EMA计算稳定性
+            preferred_length = 120
+            minimum_stable_length = 60
+            
+            if len(prices) >= preferred_length:
+                # 数据充足，使用120条标准长度
+                standardized_prices = prices.tail(preferred_length)
+                ema_values = standardized_prices.ewm(span=period).mean()
+                
+                # 创建完整的结果序列
+                ema = pd.Series(index=prices.index, dtype=float)
+                ema.iloc[:-preferred_length] = np.nan
+                ema.iloc[-preferred_length:] = ema_values
+                
+                logger.info(f"   - 使用20条标准长度计算EMA{period}，保证最佳稳定性")
+                
+            elif len(prices) >= minimum_stable_length:
+                # 数据有限，使用最低稳定长度
+                standardized_prices = prices.tail(minimum_stable_length)
+                ema_values = standardized_prices.ewm(span=period).mean()
+                
+                # 创建完整的结果序列
+                ema = pd.Series(index=prices.index, dtype=float)
+                ema.iloc[:-minimum_stable_length] = np.nan
+                ema.iloc[-minimum_stable_length:] = ema_values
+                
+                logger.warning(f"   - 数据不足120条，使用{minimum_stable_length}条数据计算EMA{period}，可能影响精度")
+                
+            else:
+                # 数据不足最低稳定要求，使用全部数据但发出警告
+                ema = prices.ewm(span=period).mean()
+                
+                logger.warning(f"   - 数据不足{minimum_stable_length}条，使用全部{len(prices)}条数据，计算可能不稳定")
+            
+            logger.info(f"   - EMA{period} NaN数量: {ema.isna().sum()}")
+            logger.info(f"   - EMA{period} 最后5个值: {ema.tail().values}")
+            return ema
+            
+        except Exception as e:
+            logger.error(f"   - EMA{period}计算失败: {str(e)}")
+            raise DataProcessError(f"EMA{period}计算失败: {str(e)}") from e
+    
     def _calculate_rsi_debug(self, prices: pd.Series, period: int = 14) -> pd.Series:
-        """计算RSI指标 - 使用TA-Lib"""
+        """计算RSI指标 - 使用严格的标准化输入解出TA-Lib一致性问题"""
         try:
             logger.info(f"   - RSI计算输入: 价格序列长度={len(prices)}, 周期={period}")
             logger.info(f"   - 价格序列NaN数量: {prices.isna().sum()}")
             
-            from indicators.momentum import calculate_rsi
-            rsi = calculate_rsi(prices, period)
-            logger.info(f"   - 使用TA-Lib计算RSI成功")
+            # 使用严格的标准化输入长度解出TA-Lib一致性问题
+            # 基于严格计算要求，优先使用120条数据确保RSI计算稳定性
+            preferred_length = 120
+            minimum_stable_length = 60
+            
+            if len(prices) >= preferred_length:
+                # 数据充足，使用120条标准长度
+                standardized_prices = prices.tail(preferred_length)
+                from indicators.momentum import calculate_rsi
+                rsi_values = calculate_rsi(standardized_prices, period)
+                
+                # 创建完整的结果序列
+                rsi = pd.Series(index=prices.index, dtype=float)
+                rsi.iloc[:-preferred_length] = np.nan
+                rsi.iloc[-preferred_length:] = rsi_values
+                
+                logger.info(f"   - 使用120条标准长度计算RSI，保证最佳稳定性")
+                
+            elif len(prices) >= minimum_stable_length:
+                # 数据有限，使用最低稳定长度
+                standardized_prices = prices.tail(minimum_stable_length)
+                from indicators.momentum import calculate_rsi
+                rsi_values = calculate_rsi(standardized_prices, period)
+                
+                # 创建完整的结果序列
+                rsi = pd.Series(index=prices.index, dtype=float)
+                rsi.iloc[:-minimum_stable_length] = np.nan
+                rsi.iloc[-minimum_stable_length:] = rsi_values
+                
+                logger.warning(f"   - 数据不足120条，使用{minimum_stable_length}条数据计算RSI，可能影响精度")
+                
+            else:
+                # 数据不足最低稳定要求，使用全部数据但发出警告
+                from indicators.momentum import calculate_rsi
+                rsi = calculate_rsi(prices, period)
+                
+                logger.warning(f"   - 数据不足{minimum_stable_length}条，使用全部{len(prices)}条数据，计算可能不稳定")
+            
             logger.info(f"   - RSI NaN数量: {rsi.isna().sum()}")
             logger.info(f"   - RSI 最后5个值: {rsi.tail().values}")
             return rsi
@@ -481,19 +600,74 @@ class DataProcessor:
             raise DataProcessError(f"RSI计算失败: {str(e)}") from e
     
     def _calculate_macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
-        """计算MACD指标"""
+        """计算MACD指标 - 使用分层标准化输入策略"""
         try:
-            ema_fast = prices.ewm(span=fast).mean()
-            ema_slow = prices.ewm(span=slow).mean()
-            macd = ema_fast - ema_slow
-            macd_signal = macd.ewm(span=signal).mean()
-            macd_histogram = macd - macd_signal
+            # 使用分层标准化输入长度策略
+            preferred_length = 120
+            minimum_stable_length = 60
             
-            return {
-                'macd': macd,
-                'signal': macd_signal,
-                'histogram': macd_histogram
-            }
+            if len(prices) >= preferred_length:
+                # 数据充足，使用120条标准长度
+                standardized_prices = prices.tail(preferred_length)
+                ema_fast = standardized_prices.ewm(span=fast).mean()
+                ema_slow = standardized_prices.ewm(span=slow).mean()
+                macd = ema_fast - ema_slow
+                macd_signal = macd.ewm(span=signal).mean()
+                macd_histogram = macd - macd_signal
+                
+                # 创建完整的结果序列
+                full_macd = pd.Series(index=prices.index, dtype=float)
+                full_signal = pd.Series(index=prices.index, dtype=float)
+                full_histogram = pd.Series(index=prices.index, dtype=float)
+                
+                full_macd.iloc[-preferred_length:] = macd
+                full_signal.iloc[-preferred_length:] = macd_signal
+                full_histogram.iloc[-preferred_length:] = macd_histogram
+                
+                return {
+                    'macd': full_macd,
+                    'signal': full_signal,
+                    'histogram': full_histogram
+                }
+                
+            elif len(prices) >= minimum_stable_length:
+                # 数据有限，使用最低稳定长度
+                standardized_prices = prices.tail(minimum_stable_length)
+                ema_fast = standardized_prices.ewm(span=fast).mean()
+                ema_slow = standardized_prices.ewm(span=slow).mean()
+                macd = ema_fast - ema_slow
+                macd_signal = macd.ewm(span=signal).mean()
+                macd_histogram = macd - macd_signal
+                
+                # 创建完整的结果序列
+                full_macd = pd.Series(index=prices.index, dtype=float)
+                full_signal = pd.Series(index=prices.index, dtype=float)
+                full_histogram = pd.Series(index=prices.index, dtype=float)
+                
+                full_macd.iloc[-minimum_stable_length:] = macd
+                full_signal.iloc[-minimum_stable_length:] = macd_signal
+                full_histogram.iloc[-minimum_stable_length:] = macd_histogram
+                
+                return {
+                    'macd': full_macd,
+                    'signal': full_signal,
+                    'histogram': full_histogram
+                }
+                
+            else:
+                # 数据不足，使用全部数据但发出警告
+                ema_fast = prices.ewm(span=fast).mean()
+                ema_slow = prices.ewm(span=slow).mean()
+                macd = ema_fast - ema_slow
+                macd_signal = macd.ewm(span=signal).mean()
+                macd_histogram = macd - macd_signal
+                
+                return {
+                    'macd': macd,
+                    'signal': macd_signal,
+                    'histogram': macd_histogram
+                }
+                
         except Exception:
             return {
                 'macd': pd.Series(index=prices.index, dtype=float),
@@ -527,24 +701,82 @@ class DataProcessor:
             raise DataProcessError(f"MACD计算失败: {str(e)}") from e
     
     def _calculate_bollinger_bands(self, prices: pd.Series, period: int = 20, std_dev: float = 2) -> dict:
-        """计算布林带指标 - 使用TA-Lib"""
+        """计算布林带指标 - 使用分层标准化输入策略"""
         try:
             import talib
             
-            # 使用TA-Lib计算布林带
-            upper_values, middle_values, lower_values = talib.BBANDS(
-                prices.values,
-                timeperiod=period,
-                nbdevup=std_dev,
-                nbdevdn=std_dev,
-                matype=0  # 简单移动平均
-            )
+            # 使用分层标准化输入长度策略
+            preferred_length = 120
+            minimum_stable_length = 60
             
-            return {
-                'upper': pd.Series(upper_values, index=prices.index),
-                'middle': pd.Series(middle_values, index=prices.index),
-                'lower': pd.Series(lower_values, index=prices.index)
-            }
+            if len(prices) >= preferred_length:
+                # 数据充足，使用120条标准长度
+                standardized_prices = prices.tail(preferred_length)
+                upper_values, middle_values, lower_values = talib.BBANDS(
+                    standardized_prices.values,
+                    timeperiod=period,
+                    nbdevup=std_dev,
+                    nbdevdn=std_dev,
+                    matype=0  # 简单移动平均
+                )
+                
+                # 创建完整的结果序列
+                full_upper = pd.Series(index=prices.index, dtype=float)
+                full_middle = pd.Series(index=prices.index, dtype=float)
+                full_lower = pd.Series(index=prices.index, dtype=float)
+                
+                full_upper.iloc[-preferred_length:] = upper_values
+                full_middle.iloc[-preferred_length:] = middle_values
+                full_lower.iloc[-preferred_length:] = lower_values
+                
+                return {
+                    'upper': full_upper,
+                    'middle': full_middle,
+                    'lower': full_lower
+                }
+                
+            elif len(prices) >= minimum_stable_length:
+                # 数据有限，使用最低稳定长度
+                standardized_prices = prices.tail(minimum_stable_length)
+                upper_values, middle_values, lower_values = talib.BBANDS(
+                    standardized_prices.values,
+                    timeperiod=period,
+                    nbdevup=std_dev,
+                    nbdevdn=std_dev,
+                    matype=0
+                )
+                
+                # 创建完整的结果序列
+                full_upper = pd.Series(index=prices.index, dtype=float)
+                full_middle = pd.Series(index=prices.index, dtype=float)
+                full_lower = pd.Series(index=prices.index, dtype=float)
+                
+                full_upper.iloc[-minimum_stable_length:] = upper_values
+                full_middle.iloc[-minimum_stable_length:] = middle_values
+                full_lower.iloc[-minimum_stable_length:] = lower_values
+                
+                return {
+                    'upper': full_upper,
+                    'middle': full_middle,
+                    'lower': full_lower
+                }
+                
+            else:
+                # 数据不足，使用全部数据
+                upper_values, middle_values, lower_values = talib.BBANDS(
+                    prices.values,
+                    timeperiod=period,
+                    nbdevup=std_dev,
+                    nbdevdn=std_dev,
+                    matype=0
+                )
+                
+                return {
+                    'upper': pd.Series(upper_values, index=prices.index),
+                    'middle': pd.Series(middle_values, index=prices.index),
+                    'lower': pd.Series(lower_values, index=prices.index)
+                }
+                
         except Exception as e:
             raise DataProcessError(f"布林带计算失败: {str(e)}") from e
     

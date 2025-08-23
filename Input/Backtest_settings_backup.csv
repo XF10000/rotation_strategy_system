@@ -1,9 +1,9 @@
-Parameter,Value,Description
+﻿﻿Parameter,Value,Description
 data_source,tushare,数据源配置 (akshare/tushare)
 total_capital,100000000,回测总资本
-start_date,2021-01-08,回测开始日期
+start_date,2021-04-08,回测开始日期
 end_date,2025-07-25,回测结束日期
-min_data_length,120,信号生成器最小数据长度要求(周)
+min_data_length,40,信号生成器最小数据长度要求(周)
 # 估值区间阈值配置,价值比(当前价/DCF估值)的区间划分,
 value_ratio_extreme_undervalue,0.6,价值比 <= 此值为极度低估
 value_ratio_obvious_undervalue,0.7,"价值比 (0.6, 0.7] 为明显低估"

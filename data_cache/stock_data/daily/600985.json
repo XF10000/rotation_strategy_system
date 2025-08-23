@@ -1,8 +1,8 @@
 {
   "code": "600985",
   "period": "daily",
-  "records": 1288,
-  "start_date": "2020-04-03",
+  "records": 1682,
+  "start_date": "2018-08-17",
   "end_date": "2025-07-25",
   "columns": [
     "open",
@@ -13,5 +13,5 @@
     "amount",
     "turnover_rate"
   ],
-  "save_time": "2025-08-22T16:56:35.013460"
+  "save_time": "2025-08-23T14:06:22.391532"
 }

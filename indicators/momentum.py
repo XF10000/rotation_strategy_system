@@ -45,7 +45,7 @@ def calculate_rsi(data: pd.Series, period: int = 14) -> pd.Series:
             clean_data = clean_data.fillna(method='ffill').fillna(method='bfill')
         
         try:
-            # 尝试使用TA-Lib计算RSI
+            # 使用TA-Lib计算RSI
             rsi_values = talib.RSI(clean_data.values, timeperiod=period)
             
             # 检查结果是否有效
