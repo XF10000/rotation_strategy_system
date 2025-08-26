@@ -911,14 +911,8 @@ class SignalGenerator:
             ema_20w = smart_get_from_data('ema_20', indicators.get('ema'), current_close)
             ema_60w = smart_get_from_data('ema_50', indicators.get('ema'), current_close)  # 使用ema_50作为60周替代
             
-            # RSI - 强制从indicators重新计算，不使用数据中的缓存值
-            rsi_series = indicators.get('rsi')
-            if rsi_series is not None and len(rsi_series) > 0:
-                rsi_14w = float(rsi_series.iloc[-1])
-                self.logger.debug(f"   - rsi_14w: 从indicators强制获取最新值 {rsi_14w:.4f}")
-            else:
-                rsi_14w = 50.0
-                self.logger.debug(f"   - rsi_14w: 无indicators数据，使用默认值 {rsi_14w:.4f}")
+            # RSI - 优先从数据中获取，然后从indicators获取
+            rsi_14w = smart_get_from_data('rsi', indicators.get('rsi'), 50.0)
             
             # MACD指标
             macd_dif = smart_get_from_data('macd', indicators.get('macd', {}).get('DIF'), 0.0)
