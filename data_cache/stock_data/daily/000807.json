@@ -1,0 +1,17 @@
+{
+  "code": "000807",
+  "period": "daily",
+  "records": 3130,
+  "start_date": "2012-05-10",
+  "end_date": "2025-08-27",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount",
+    "turnover_rate"
+  ],
+  "save_time": "2025-08-27T14:21:36.412510"
+}

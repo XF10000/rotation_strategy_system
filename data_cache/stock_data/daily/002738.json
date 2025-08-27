@@ -1,0 +1,17 @@
+{
+  "code": "002738",
+  "period": "daily",
+  "records": 2464,
+  "start_date": "2014-12-30",
+  "end_date": "2025-08-27",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount",
+    "turnover_rate"
+  ],
+  "save_time": "2025-08-27T14:21:33.122978"
+}

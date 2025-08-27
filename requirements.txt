@@ -1,0 +1,8 @@
+akshare==1.17.42
+jinja2==3.1.6
+matplotlib==3.10.5
+numpy==2.3.2
+pandas==2.3.2
+plotly==6.3.0
+requests==2.32.5
+TA-Lib==0.6.6
