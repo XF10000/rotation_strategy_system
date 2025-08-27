@@ -1,0 +1,15 @@
+{
+  "code": "002738",
+  "data_type": "dividend",
+  "records": 11,
+  "start_date": "2015-06-19",
+  "end_date": "2025-07-04",
+  "columns": [
+    "dividend_amount",
+    "bonus_ratio",
+    "transfer_ratio",
+    "allotment_ratio",
+    "allotment_price"
+  ],
+  "save_time": "2025-08-27T14:21:33.613247"
+}

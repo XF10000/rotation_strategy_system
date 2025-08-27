@@ -1,0 +1,17 @@
+{
+  "code": "603345",
+  "period": "daily",
+  "records": 2032,
+  "start_date": "2017-02-22",
+  "end_date": "2025-08-27",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount",
+    "turnover_rate"
+  ],
+  "save_time": "2025-08-27T14:21:37.793895"
+}
