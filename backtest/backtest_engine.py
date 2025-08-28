@@ -548,9 +548,14 @@ class BacktestEngine:
             if not self.initialize_portfolio():
                 return False
             
-            # 获取所有交易日期（使用第一只股票的日期）
-            first_stock = list(self.stock_data.keys())[0]
-            all_trading_dates = self.stock_data[first_stock]['weekly'].index
+            # 获取所有交易日期（使用所有股票日期的并集）
+            all_trading_dates = set()
+            for stock_code in self.stock_data.keys():
+                stock_dates = self.stock_data[stock_code]['weekly'].index
+                all_trading_dates.update(stock_dates)
+            
+            # 转换为排序的DatetimeIndex
+            all_trading_dates = pd.DatetimeIndex(sorted(all_trading_dates))
             
             # 过滤日期范围 - 确保只在回测期间内
             start_date = pd.to_datetime(self.start_date)

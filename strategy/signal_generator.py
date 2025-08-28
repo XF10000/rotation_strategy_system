@@ -789,10 +789,9 @@ class SignalGenerator:
                 if high_signal_count >= 2:
                     # 满足条件：趋势过滤器 + 至少2个其他卖出信号
                     # 置信度计算：趋势过滤器(1分) + 其他维度满足数量
-                    confidence_score = 1 + high_signal_count  # 1-4分
                     return {
                         'signal': 'SELL',
-                        'confidence': confidence_score,
+                        'confidence': 1 + high_signal_count,  # 1-4分
                         'reason': f'卖出信号：价值比过滤器+{high_signal_count}个卖出维度',
                         'scores': scores,
                         'details': self._get_signal_details(indicators),
@@ -814,10 +813,9 @@ class SignalGenerator:
                 if low_signal_count >= 2:
                     # 满足条件：趋势过滤器 + 至少2个其他买入信号
                     # 置信度计算：趋势过滤器(1分) + 其他维度满足数量
-                    confidence_score = 1 + low_signal_count  # 1-4分
                     return {
                         'signal': 'BUY',
-                        'confidence': confidence_score,
+                        'confidence': 1 + low_signal_count,  # 1-4分
                         'reason': f'买入信号：价值比过滤器+{low_signal_count}个买入维度',
                         'scores': scores,
                         'details': self._get_signal_details(indicators),
