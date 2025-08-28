@@ -68,6 +68,36 @@ class BacktestEngine:
         self.report_generator = IntegratedReportGenerator()
         self.csv_exporter = DetailedCSVExporter()
         
+        # 🆕 新增：初始化信号跟踪器
+        from .signal_tracker import SignalTracker
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        signal_tracker_path = f"reports/signal_tracking_report_{timestamp}.csv"
+        self.signal_tracker = SignalTracker(signal_tracker_path)
+        
+        # 未执行原因常量（与SignalTracker保持一致）
+        self.EXECUTION_REJECTION_REASONS = {
+            # 买入相关
+            'INSUFFICIENT_CASH': '现金不足',
+            'INSUFFICIENT_CASH_80PCT': '现金不足80%要求', 
+            'POSITION_LIMIT_REACHED': '单股仓位已达上限',
+            'POSITION_LIMIT_EXCEEDED': '买入后将超过单股仓位上限',
+            'TRANSACTION_LIMIT_EXCEEDED': '单笔交易超过上限',
+            'VALUATION_NOT_SUPPORT_BUY': '估值水平不支持买入',
+            'BELOW_MIN_BUY_REQUIREMENT': '现金低于最小买入要求',
+            
+            # 卖出相关
+            'NO_POSITION_TO_SELL': '无持仓可卖',
+            'INSUFFICIENT_POSITION': '持仓不足最小卖出量', 
+            'VALUATION_NOT_SUPPORT_SELL': '估值水平不支持卖出',
+            'CALCULATED_SELL_SHARES_ZERO': '计算卖出股数为0',
+            
+            # 技术限制
+            'NOT_100_SHARES_MULTIPLE': '不足100股整数倍',
+            'STOCK_SUSPENDED': '股票停牌或流动性不足',
+            'DATA_ABNORMAL': '数据异常',
+            'SYSTEM_ERROR': '系统错误'
+        }
+        
         # 回测数据存储
         self.stock_data = {}
         self.backtest_results = {}
@@ -664,6 +694,15 @@ class BacktestEngine:
                 signal_result = self.signal_generator.generate_signal(stock_code, historical_data)
                 if signal_result and isinstance(signal_result, dict):
                     signal = signal_result.get('signal', 'HOLD')
+                    
+                    # 🆕 新增：记录BUY/SELL信号（信号跟踪功能）
+                    if signal in ['BUY', 'SELL']:
+                        self.signal_tracker.record_signal({
+                            'date': current_date,
+                            'stock_code': stock_code,
+                            'signal_result': signal_result
+                        })
+                    
                     if signal and signal != 'HOLD':
                         signals[stock_code] = signal
                         # 记录信号详情用于报告
@@ -724,17 +763,79 @@ class BacktestEngine:
                         )
                         
                         if can_sell and sell_shares > 0:
+                            # 记录交易前的仓位信息
+                            position_before = current_position
+                            total_value = self.portfolio_manager.get_total_value(current_prices)
+                            position_weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
+                            
                             success, trade_info = self.portfolio_manager.sell_stock(
                                 stock_code, sell_shares, price, current_date, reason
                             )
                             if success:
+                                # 获取交易后的仓位
+                                position_after = self.portfolio_manager.positions.get(stock_code, 0)
+                                # 计算交易后的仓位占比
+                                total_value_after = self.portfolio_manager.get_total_value(current_prices)
+                                position_weight_after = (position_after * price / total_value_after) if total_value_after > 0 else 0.0
+                                
                                 self.logger.info(f"执行动态卖出: {stock_code} {sell_shares}股 @ {price:.2f} - {reason}")
                                 self._record_transaction(trade_info, current_date)
                                 executed_trades.append(f"动态卖出: {stock_code} {sell_shares}股 - {reason}")
+                                
+                                # 更新信号执行状态为"已执行"，包含仓位信息
+                                signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, 'SELL')
+                                self.signal_tracker.update_execution_status(
+                                    signal_id=signal_id,
+                                    execution_status='已执行',
+                                    execution_date=current_date,
+                                    execution_price=price,
+                                    position_before_signal=position_before,
+                                    position_weight_before=position_weight_before,
+                                    trade_shares=sell_shares,
+                                    position_after_trade=position_after,
+                                    position_weight_after=position_weight_after
+                                )
                             else:
                                 self.logger.warning(f"动态卖出失败: {stock_code}")
+                                # 更新信号执行状态为"未执行"
+                                signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, 'SELL')
+                                
+                                # 即使未执行，也要记录当前的仓位信息
+                                position_before = current_position
+                                total_value = self.portfolio_manager.get_total_value(current_prices)
+                                position_weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
+                                
+                                self.signal_tracker.update_execution_status(
+                                    signal_id=signal_id,
+                                    execution_status='未执行',
+                                    execution_reason=self.EXECUTION_REJECTION_REASONS.get('SYSTEM_ERROR', '系统错误'),
+                                    position_before_signal=position_before,
+                                    position_weight_before=position_weight_before,
+                                    trade_shares=0,
+                                    position_after_trade=position_before,  # 未执行，仓位不变
+                                    position_weight_after=position_weight_before  # 未执行，占比不变
+                                )
                         else:
                             self.logger.info(f"动态卖出跳过: {stock_code} - {reason}")
+                            # 更新信号执行状态为"未执行"，并记录具体原因和当前仓位信息
+                            signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, 'SELL')
+                            rejection_reason = self._map_rejection_reason(reason)
+                            
+                            # 即使未执行，也要记录当前的仓位信息
+                            position_before = current_position
+                            total_value = self.portfolio_manager.get_total_value(current_prices)
+                            position_weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
+                            
+                            self.signal_tracker.update_execution_status(
+                                signal_id=signal_id,
+                                execution_status='未执行',
+                                execution_reason=rejection_reason,
+                                position_before_signal=position_before,
+                                position_weight_before=position_weight_before,
+                                trade_shares=0,
+                                position_after_trade=position_before,  # 未执行，仓位不变
+                                position_weight_after=position_weight_before  # 未执行，占比不变
+                            )
                     else:
                         # 回退到原有逻辑
                         sell_shares = int(current_position * self.rotation_percentage / 100) * 100
@@ -746,6 +847,15 @@ class BacktestEngine:
                                 self.logger.info(f"执行固定卖出: {stock_code} {sell_shares}股 @ {price:.2f}")
                                 self._record_transaction(trade_info, current_date)
                                 executed_trades.append(f"固定卖出: {stock_code} {sell_shares}股")
+                                
+                                # 更新信号执行状态为"已执行"
+                                signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, 'SELL')
+                                self.signal_tracker.update_execution_status(
+                                    signal_id=signal_id,
+                                    execution_status='已执行',
+                                    execution_date=current_date,
+                                    execution_price=price
+                                )
         
         # 执行买入信号
         for stock_code, signal in signals.items():
@@ -764,17 +874,68 @@ class BacktestEngine:
                     )
                     
                     if can_buy and buy_shares > 0:
+                        # 记录交易前的仓位信息
+                        position_before = current_position
+                        total_value = self.portfolio_manager.get_total_value(current_prices)
+                        position_weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
+                        
                         success, trade_info = self.portfolio_manager.buy_stock(
                             stock_code, buy_shares, price, current_date, reason
                         )
                         if success:
+                            # 获取交易后的仓位
+                            position_after = self.portfolio_manager.positions.get(stock_code, 0)
+                            # 计算交易后的仓位占比
+                            total_value_after = self.portfolio_manager.get_total_value(current_prices)
+                            position_weight_after = (position_after * price / total_value_after) if total_value_after > 0 else 0.0
+                            
                             self.logger.info(f"执行动态买入: {stock_code} {buy_shares}股 @ {price:.2f} - {reason}")
                             self._record_transaction(trade_info, current_date)
                             executed_trades.append(f"动态买入: {stock_code} {buy_shares}股 - {reason}")
+                            
+                            # 更新信号执行状态为"已执行"，包含仓位信息
+                            signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, 'BUY')
+                            self.signal_tracker.update_execution_status(
+                                signal_id=signal_id,
+                                execution_status='已执行',
+                                execution_date=current_date,
+                                execution_price=price,
+                                position_before_signal=position_before,
+                                position_weight_before=position_weight_before,
+                                trade_shares=buy_shares,
+                                position_after_trade=position_after,
+                                position_weight_after=position_weight_after
+                            )
                         else:
                             self.logger.warning(f"动态买入失败: {stock_code}")
+                            # 更新信号执行状态为“未执行”
+                            signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, 'BUY')
+                            self.signal_tracker.update_execution_status(
+                                signal_id=signal_id,
+                                execution_status='未执行',
+                                execution_reason=self.EXECUTION_REJECTION_REASONS.get('SYSTEM_ERROR', '系统错误')
+                            )
                     else:
                         self.logger.info(f"动态买入跳过: {stock_code} - {reason}")
+                        # 更新信号执行状态为"未执行"，并记录具体原因和当前仓位信息
+                        signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, 'BUY')
+                        rejection_reason = self._map_rejection_reason(reason)
+                        
+                        # 即使未执行，也要记录当前的仓位信息
+                        position_before = current_position
+                        total_value = self.portfolio_manager.get_total_value(current_prices)
+                        position_weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
+                        
+                        self.signal_tracker.update_execution_status(
+                            signal_id=signal_id,
+                            execution_status='未执行',
+                            execution_reason=rejection_reason,
+                            position_before_signal=position_before,
+                            position_weight_before=position_weight_before,
+                            trade_shares=0,
+                            position_after_trade=position_before,  # 未执行，仓位不变
+                            position_weight_after=position_weight_before  # 未执行，占比不变
+                        )
                 else:
                     # 回退到原有逻辑，但仍需应用单股持仓上限约束
                     self.logger.warning(f"{stock_code} 无DCF估值数据，使用固定比例交易但应用持仓上限约束")
@@ -821,6 +982,43 @@ class BacktestEngine:
                                     executed_trades.append(f"固定开仓: {stock_code} {buy_shares}股")
         
         return executed_trades
+    
+    def _map_rejection_reason(self, reason: str) -> str:
+        """
+        将动态仓位管理器的拒绝原因映射到标准化原因
+        
+        Args:
+            reason: 动态仓位管理器返回的原因
+            
+        Returns:
+            str: 标准化的拒绝原因
+        """
+        reason_lower = reason.lower()
+        
+        # 根据关键词匹配映射关系
+        if '现金不足' in reason or 'insufficient cash' in reason_lower:
+            if '80%' in reason:
+                return self.EXECUTION_REJECTION_REASONS['INSUFFICIENT_CASH_80PCT']
+            return self.EXECUTION_REJECTION_REASONS['INSUFFICIENT_CASH']
+        elif '仓位上限' in reason or 'position limit' in reason_lower:
+            if '已达' in reason or 'reached' in reason_lower:
+                return self.EXECUTION_REJECTION_REASONS['POSITION_LIMIT_REACHED']
+            return self.EXECUTION_REJECTION_REASONS['POSITION_LIMIT_EXCEEDED']
+        elif '交易上限' in reason or 'transaction limit' in reason_lower:
+            return self.EXECUTION_REJECTION_REASONS['TRANSACTION_LIMIT_EXCEEDED']
+        elif '估值' in reason and '不支持' in reason:
+            return self.EXECUTION_REJECTION_REASONS['VALUATION_NOT_SUPPORT_BUY']
+        elif '最小' in reason and '要求' in reason:
+            return self.EXECUTION_REJECTION_REASONS['BELOW_MIN_BUY_REQUIREMENT']
+        elif '100股' in reason or 'shares multiple' in reason_lower:
+            return self.EXECUTION_REJECTION_REASONS['NOT_100_SHARES_MULTIPLE']
+        elif '停牌' in reason or '流动性' in reason:
+            return self.EXECUTION_REJECTION_REASONS['STOCK_SUSPENDED']
+        elif '数据异常' in reason or 'data error' in reason_lower:
+            return self.EXECUTION_REJECTION_REASONS['DATA_ABNORMAL']
+        else:
+            # 默认情况，返回原始原因或系统错误
+            return reason if reason else self.EXECUTION_REJECTION_REASONS['SYSTEM_ERROR']
     
     def _record_transaction(self, trade_info: Dict[str, Any], current_date: pd.Timestamp):
         """
@@ -1205,10 +1403,24 @@ class BacktestEngine:
             else:
                 self.logger.info("未发现分红配股事件，跳过CSV导出")
             
+            # 🆕 新增：导出信号跟踪报告
+            signal_tracking_report_path = None
+            try:
+                signal_tracking_report_path = self.signal_tracker.export_to_csv()
+                if signal_tracking_report_path:
+                    signal_stats = self.signal_tracker.get_statistics()
+                    self.logger.info(f"📊 信号跟踪报告导出成功: {signal_tracking_report_path}")
+                    self.logger.info(f"📈 信号统计: 总计{signal_stats['total_signals']}个信号 (买入{signal_stats['buy_signals']}个, 卖出{signal_stats['sell_signals']}个)")
+                else:
+                    self.logger.warning("信号跟踪报告导出失败")
+            except Exception as e:
+                self.logger.error(f"信号跟踪报告导出异常: {e}")
+            
             return {
                 'html_report': html_report_path,
                 'csv_report': csv_report_path,
-                'dividend_csv_report': dividend_csv_path
+                'dividend_csv_report': dividend_csv_path,
+                'signal_tracking_report': signal_tracking_report_path
             }
             
         except Exception as e:
