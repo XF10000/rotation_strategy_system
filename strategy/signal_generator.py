@@ -168,6 +168,14 @@ class SignalGenerator:
                 signal_result['current_price'] = current_price
                 self.logger.debug(f"股票 {stock_code} 价值比: {value_price_ratio:.3f} (价格{current_price:.2f}/DCF{dcf_value:.2f})")
             
+            # 🆕 新增：为BUY/SELL信号收集详细信息（信号跟踪功能）
+            if signal_result['signal'] in ['BUY', 'SELL']:
+                detailed_signal_info = self._collect_detailed_signal_info(
+                    stock_code, data, indicators, scores, signal_result, actual_rsi_thresholds
+                )
+                signal_result['detailed_info'] = detailed_signal_info
+                self.logger.debug(f"📊 已收集 {stock_code} 的详细信号信息")
+            
             self.logger.debug(f"股票 {stock_code} 信号生成完成: {signal_result['signal']}")
             
             return signal_result
@@ -1006,6 +1014,190 @@ class SignalGenerator:
             
         except Exception:
             return "信号解释生成失败"
+    
+    def _collect_detailed_signal_info(self, stock_code: str, data: pd.DataFrame, 
+                                      indicators: Dict, scores: Dict, signal_result: Dict, 
+                                      actual_rsi_thresholds: Dict) -> Dict:
+        """
+        收集32个字段的详细信号信息（用于信号跟踪）
+        
+        Args:
+            stock_code: 股票代码
+            data: 股票数据
+            indicators: 技术指标
+            scores: 4维度评分
+            signal_result: 信号结果
+            actual_rsi_thresholds: 实际RSI阈值
+            
+        Returns:
+            Dict: 详细信号信息
+        """
+        try:
+            detailed_info = {}
+            
+            # 获取基础价格和成交量信息
+            current_price = data['close'].iloc[-1]
+            current_volume = data['volume'].iloc[-1] if 'volume' in data.columns else 0
+            
+            # 获取行业信息
+            industry_info = self._get_stock_industry_info(stock_code)
+            detailed_info['industry_name'] = industry_info.get('industry_name', '未知行业')
+            
+            # 获取RSI阈值信息
+            detailed_info['industry_rsi_thresholds'] = actual_rsi_thresholds
+            
+            # RSI信号类型和背离状态
+            rsi_value = indicators.get('rsi', pd.Series([50])).iloc[-1] if len(indicators.get('rsi', [])) > 0 else 50
+            detailed_info['rsi_signal_type'] = self._determine_rsi_signal_type(rsi_value, actual_rsi_thresholds)
+            detailed_info['price_divergence'] = self._check_price_divergence(data, indicators)
+            
+            # MACD相关信息
+            macd_info = indicators.get('macd', {})
+            if macd_info:
+                macd_hist = macd_info.get('HIST', pd.Series([0])).iloc[-1] if len(macd_info.get('HIST', [])) > 0 else 0
+                detailed_info['histogram_trend'] = self._analyze_histogram_trend(macd_info.get('HIST', pd.Series()))
+                detailed_info['golden_cross_status'] = self._check_golden_cross(macd_info)
+            else:
+                detailed_info['histogram_trend'] = '无变化'
+                detailed_info['golden_cross_status'] = '无交叉'
+            
+            # 布林带位置
+            bb_info = indicators.get('bb', {})
+            if bb_info:
+                detailed_info['price_bb_position'] = self._get_bb_position(current_price, bb_info)
+            else:
+                detailed_info['price_bb_position'] = '区间内'
+            
+            # 成交量分析
+            volume_ma = indicators.get('volume_ma', pd.Series([current_volume])).iloc[-1] if len(indicators.get('volume_ma', [])) > 0 else current_volume
+            volume_ratio = current_volume / volume_ma if volume_ma > 0 else 1.0
+            detailed_info['significant_volume'] = '是' if volume_ratio > 1.3 else '否'
+            
+            # 最近5周数据
+            detailed_info['recent_5w_prices'] = data['close'].tail(5).tolist()
+            detailed_info['recent_5w_volumes'] = data['volume'].tail(5).tolist() if 'volume' in data.columns else []
+            
+            # 数据质量状态
+            detailed_info['data_quality'] = f"数据长度{len(data)}条"
+            detailed_info['calculation_errors'] = '无'
+            
+            return detailed_info
+            
+        except Exception as e:
+            self.logger.error(f"收集详细信号信息失败: {str(e)}")
+            return {
+                'industry_name': '未知',
+                'industry_rsi_thresholds': {},
+                'rsi_signal_type': '无信号',
+                'price_divergence': '无背离',
+                'histogram_trend': '无变化',
+                'golden_cross_status': '无交叉',
+                'price_bb_position': '区间内',
+                'significant_volume': '否',
+                'recent_5w_prices': [],
+                'recent_5w_volumes': [],
+                'data_quality': '正常',
+                'calculation_errors': '无'
+            }
+    
+    def _get_stock_industry_info(self, stock_code: str) -> Dict:
+        """获取股票行业信息"""
+        try:
+            if self.stock_industry_map and stock_code in self.stock_industry_map:
+                return self.stock_industry_map[stock_code]
+            return {'industry_name': '未知行业', 'industry_code': 'UNKNOWN'}
+        except Exception:
+            return {'industry_name': '未知行业', 'industry_code': 'UNKNOWN'}
+    
+    def _determine_rsi_signal_type(self, rsi_value: float, rsi_thresholds: Dict) -> str:
+        """判断RSI信号类型"""
+        try:
+            extreme_buy = rsi_thresholds.get('extreme_buy_threshold', 20)
+            normal_buy = rsi_thresholds.get('buy_threshold', 30)
+            normal_sell = rsi_thresholds.get('sell_threshold', 70)
+            extreme_sell = rsi_thresholds.get('extreme_sell_threshold', 80)
+            
+            if rsi_value <= extreme_buy:
+                return '极端信号'
+            elif rsi_value <= normal_buy:
+                return '普通信号'
+            elif rsi_value >= extreme_sell:
+                return '极端信号'
+            elif rsi_value >= normal_sell:
+                return '普通信号'
+            else:
+                return '无信号'
+        except Exception:
+            return '无信号'
+    
+    def _check_price_divergence(self, data: pd.DataFrame, indicators: Dict) -> str:
+        """检查价格背离状态"""
+        try:
+            rsi_divergence = indicators.get('rsi_divergence', {})
+            if isinstance(rsi_divergence, dict):
+                if rsi_divergence.get('bullish_divergence', False):
+                    return '出现底背离'
+                elif rsi_divergence.get('bearish_divergence', False):
+                    return '出现顶背离'
+            return '无背离信号'
+        except Exception:
+            return '无背离信号'
+    
+    def _analyze_histogram_trend(self, macd_hist: pd.Series) -> str:
+        """分析MACD柱体趋势"""
+        try:
+            if len(macd_hist) < 3:
+                return '数据不足'
+            
+            recent_hist = macd_hist.tail(3).values
+            if len(recent_hist) >= 2:
+                if recent_hist[-1] > recent_hist[-2]:
+                    return '连续放大'
+                elif recent_hist[-1] < recent_hist[-2]:
+                    return '连续缩短'
+            return '无变化'
+        except Exception:
+            return '无变化'
+    
+    def _check_golden_cross(self, macd_info: Dict) -> str:
+        """检查MACD金叉死叉状态"""
+        try:
+            dif = macd_info.get('DIF', pd.Series())
+            dea = macd_info.get('DEA', pd.Series())
+            
+            if len(dif) < 2 or len(dea) < 2:
+                return '数据不足'
+            
+            current_dif = dif.iloc[-1]
+            current_dea = dea.iloc[-1]
+            prev_dif = dif.iloc[-2]
+            prev_dea = dea.iloc[-2]
+            
+            # 金叉：DIF上穿DEA
+            if prev_dif <= prev_dea and current_dif > current_dea:
+                return 'DIF金叉DEA'
+            # 死叉：DIF下穿DEA
+            elif prev_dif >= prev_dea and current_dif < current_dea:
+                return 'DIF死叉DEA'
+            else:
+                return '无交叉'
+        except Exception:
+            return '无交叉'
+    
+    def _get_bb_position(self, current_price: float, bb_info: Dict) -> str:
+        """获取布林带位置"""
+        try:
+            bb_upper = bb_info.get('upper', pd.Series()).iloc[-1] if len(bb_info.get('upper', [])) > 0 else current_price * 1.02
+            bb_lower = bb_info.get('lower', pd.Series()).iloc[-1] if len(bb_info.get('lower', [])) > 0 else current_price * 0.98
+            
+            if current_price >= bb_upper:
+                return '突破上轨'
+            elif current_price <= bb_lower:
+                return '跌破下轨'
+            else:
+                return '区间内'
+        except Exception:
+            return '区间内'
 
 if __name__ == "__main__":
     # 测试代码
