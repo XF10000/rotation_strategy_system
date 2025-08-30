@@ -1478,6 +1478,12 @@ class BacktestEngine:
             benchmark_portfolio_data = backtest_results.get('benchmark_portfolio_data', {})
             print(f"🔍 基准持仓数据检查: {list(benchmark_portfolio_data.keys()) if benchmark_portfolio_data else 'None'}")
             
+            # 添加SignalTracker数据用于未执行信号标注
+            signal_tracker_data = {
+                'signal_records': self.signal_tracker.signal_records,
+                'statistics': self.signal_tracker.get_statistics()
+            }
+            
             return {
                 'portfolio_history': portfolio_history.to_dict('records') if not portfolio_history.empty else [],
                 'transactions': transaction_history.to_dict('records') if not transaction_history.empty else [],
@@ -1487,7 +1493,8 @@ class BacktestEngine:
                 'kline_data': kline_data,
                 'dcf_values': getattr(self, 'dcf_values', {}),
                 'initial_prices': initial_prices,  # 从统一数据管理器获取
-                'benchmark_portfolio_data': benchmark_portfolio_data  # 基准持仓数据
+                'benchmark_portfolio_data': benchmark_portfolio_data,  # 基准持仓数据
+                'signal_tracker_data': signal_tracker_data  # 信号跟踪数据（包含未执行信号）
             }
             
         except Exception as e:
