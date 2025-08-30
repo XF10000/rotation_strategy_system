@@ -71,6 +71,8 @@ class IntegratedReportGenerator:
             self._kline_data = kline_data
             # 提取DCF估值数据
             self._dcf_values = backtest_results.get('dcf_values', {})
+            # 提取信号跟踪数据（包含未执行信号）
+            signal_tracker_data = backtest_results.get('signal_tracker_data', {})
             
             # 生成报告内容
             html_content = self._fill_template_safe(
@@ -81,7 +83,8 @@ class IntegratedReportGenerator:
                 performance_metrics,
                 signal_analysis,
                 kline_data,
-                backtest_results
+                backtest_results,
+                signal_tracker_data
             )
             
             # 确定输出路径
@@ -136,7 +139,8 @@ class IntegratedReportGenerator:
     def _fill_template_safe(self, template: str, portfolio_history: List,
                            transactions: List, final_portfolio: Dict,
                            performance_metrics: Dict, signal_analysis: Dict,
-                           kline_data: Dict, backtest_results: Dict) -> str:
+                           kline_data: Dict, backtest_results: Dict,
+                           signal_tracker_data: Dict = None) -> str:
         """安全地填充HTML模板数据"""
         
         print(f"🔧 开始填充HTML模板，接收到performance_metrics键: {list(performance_metrics.keys()) if performance_metrics else 'None'}")
@@ -168,6 +172,11 @@ class IntegratedReportGenerator:
             
             # 7. K线数据替换
             template = self._replace_kline_data_safe(template, kline_data)
+            
+            # 7.1. 未执行信号数据替换
+            if signal_tracker_data:
+                unexecuted_signals = self._extract_unexecuted_signals(signal_tracker_data)
+                template = self._replace_unexecuted_signals_safe(template, unexecuted_signals)
             
             # 7.5. 动态股票名称映射替换
             template = self._replace_stock_name_mapping_safe(template)
@@ -2143,6 +2152,80 @@ class IntegratedReportGenerator:
         except Exception as e:
             print(f"❌ 构建基准持仓表格失败: {e}")
             return '<tr><td colspan="11">基准持仓表格生成失败</td></tr>'
+
+    def _extract_unexecuted_signals(self, signal_tracker_data: Dict) -> Dict[str, List]:
+        """提取未执行信号数据供前端K线图使用"""
+        if not signal_tracker_data:
+            return {}
+            
+        unexecuted_signals = {}
+        
+        for record in signal_tracker_data.get('signal_records', []):
+            if record.get('execution_status') == '未执行':
+                stock_code = record.get('stock_code')
+                if stock_code not in unexecuted_signals:
+                    unexecuted_signals[stock_code] = []
+                
+                # 格式化日期为字符串
+                signal_date = record.get('date')
+                if hasattr(signal_date, 'strftime'):
+                    date_str = signal_date.strftime('%Y-%m-%d')
+                else:
+                    date_str = str(signal_date)
+                
+                unexecuted_signals[stock_code].append({
+                    'date': date_str,
+                    'signal_type': record.get('signal_type'),
+                    'price': record.get('current_price', 0),
+                    'reason': record.get('execution_reason', '未知原因'),
+                    'signal_strength': record.get('signal_strength', 0)
+                })
+        
+        print(f"📊 提取未执行信号: {len(unexecuted_signals)} 只股票，总计 {sum(len(signals) for signals in unexecuted_signals.values())} 个未执行信号")
+        return unexecuted_signals
+
+    def _replace_unexecuted_signals_safe(self, template: str, unexecuted_signals: Dict[str, List]) -> str:
+        """安全地替换HTML模板中的未执行信号数据"""
+        try:
+            # 将未执行信号数据转换为JSON格式，供前端JavaScript使用
+            import json
+            unexecuted_signals_json = json.dumps(unexecuted_signals, ensure_ascii=False, indent=2)
+            
+            # 在HTML模板中查找并替换未执行信号数据占位符
+            # 如果模板中没有占位符，我们将在K线数据附近添加
+            placeholder = "{{UNEXECUTED_SIGNALS_DATA}}"
+            
+            if placeholder in template:
+                template = template.replace(placeholder, unexecuted_signals_json)
+                print(f"✅ 未执行信号数据已替换到模板占位符")
+            else:
+                # 如果没有占位符，在K线数据后面添加
+                kline_data_marker = "const klineData = "
+                if kline_data_marker in template:
+                    # 找到K线数据定义的位置，在其后添加未执行信号数据
+                    insert_pos = template.find(kline_data_marker)
+                    if insert_pos != -1:
+                        # 找到K线数据定义结束的位置（下一个const或let语句之前）
+                        next_const_pos = template.find("\n        const ", insert_pos + len(kline_data_marker))
+                        next_let_pos = template.find("\n        let ", insert_pos + len(kline_data_marker))
+                        
+                        # 选择最近的位置
+                        insert_end_pos = min(pos for pos in [next_const_pos, next_let_pos] if pos != -1) if any(pos != -1 for pos in [next_const_pos, next_let_pos]) else len(template)
+                        
+                        # 插入未执行信号数据
+                        unexecuted_signals_code = f"\n        const unexecutedSignals = {unexecuted_signals_json};\n"
+                        template = template[:insert_end_pos] + unexecuted_signals_code + template[insert_end_pos:]
+                        print(f"✅ 未执行信号数据已添加到K线数据后面")
+                    else:
+                        print("⚠️ 未找到K线数据定义位置，跳过未执行信号数据添加")
+                else:
+                    print("⚠️ 未找到K线数据标记，跳过未执行信号数据添加")
+            
+            return template
+            
+        except Exception as e:
+            print(f"❌ 未执行信号数据替换失败: {e}")
+            return template
 
 def create_integrated_report(backtest_results: Dict[str, Any], output_path: str = None) -> str:
     """

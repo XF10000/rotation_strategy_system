@@ -821,7 +821,8 @@
             
             // 计算买卖点在时间轴底部的显示位置
             let minPrice = Math.min(...klinePoints.map(point => point[3])); // 获取所有K线的最低价
-            let priceRange = Math.max(...klinePoints.map(point => point[4])) - minPrice; // 价格范围
+            let maxPrice = Math.max(...klinePoints.map(point => point[2])); // 获取所有K线的最高价
+            let priceRange = maxPrice - minPrice; // 价格范围
             let buyYPosition = minPrice - priceRange * 0.15; // 买入点在最低价下方15%的位置
             let sellYPosition = minPrice - priceRange * 0.2; // 卖出点在最低价下方20%的位置
             
@@ -832,6 +833,44 @@
                     sellPoints.push([trade.timestamp, sellYPosition]);
                 }
             });
+            
+            // 🆕 准备未执行信号数据
+            const unexecutedBuyPoints = [];
+            const unexecutedSellPoints = [];
+            let unexecutedBuyYPosition = maxPrice + priceRange * 0.15; // 未执行买入点在最高价上方15%的位置
+            let unexecutedSellYPosition = maxPrice + priceRange * 0.1; // 未执行卖出点在最高价上方10%的位置
+            
+            if (typeof unexecutedSignals !== 'undefined' && unexecutedSignals[selectedStock]) {
+                console.log('处理未执行信号，股票:', selectedStock, '信号数量:', unexecutedSignals[selectedStock].length);
+                unexecutedSignals[selectedStock].forEach(signal => {
+                    const signalTimestamp = new Date(signal.date).getTime();
+                    console.log('未执行信号:', signal.date, '时间戳:', signalTimestamp, '类型:', signal.signal_type);
+                    
+                    // 寻找最接近的K线数据点时间戳
+                    let closestTimestamp = null;
+                    let minDiff = Infinity;
+                    klinePoints.forEach(kpoint => {
+                        const diff = Math.abs(kpoint[0] - signalTimestamp);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closestTimestamp = kpoint[0];
+                        }
+                    });
+                    
+                    // 如果找到相近的时间戳（7天内），使用该时间戳
+                    if (closestTimestamp && minDiff <= 7 * 24 * 60 * 60 * 1000) {
+                        console.log('找到匹配的K线时间戳:', new Date(closestTimestamp), '差异:', minDiff / (24 * 60 * 60 * 1000), '天');
+                        if (signal.signal_type === 'BUY') {
+                            unexecutedBuyPoints.push([closestTimestamp, unexecutedBuyYPosition, signal.reason]);
+                        } else if (signal.signal_type === 'SELL') {
+                            unexecutedSellPoints.push([closestTimestamp, unexecutedSellYPosition, signal.reason]);
+                        }
+                    } else {
+                        console.log('未找到匹配的K线时间戳，信号时间:', signal.date, '最小差异:', minDiff / (24 * 60 * 60 * 1000), '天');
+                    }
+                });
+                console.log('未执行买入点:', unexecutedBuyPoints.length, '未执行卖出点:', unexecutedSellPoints.length);
+            }
             
             // 准备布林带数据
             const bbUpperPoints = stockData.bb_upper || [];
@@ -989,7 +1028,7 @@
                     }
                 },
                 legend: {
-                    data: ['K线', '布林上轨(主图)', '布林中轨(主图)', '布林下轨(主图)', '价值比', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点', '分红标志'],
+                    data: ['K线', '布林上轨(主图)', '布林中轨(主图)', '布林下轨(主图)', '价值比', 'RSI', 'MACD', 'MACD信号线', 'MACD柱状图', '买入点', '卖出点', '未执行买入', '未执行卖出', '分红标志'],
                     top: 30
                 },
                 grid: [
@@ -1384,6 +1423,106 @@
                         },
                         xAxisIndex: 3,
                         yAxisIndex: 3
+                    },
+                    // 🆕 未执行买入信号系列
+                    {
+                        name: '未执行买入',
+                        type: 'scatter',
+                        data: unexecutedBuyPoints.map((point, index) => {
+                            const categoryIndex = klinePoints.findIndex(kpoint => kpoint[0] === point[0]);
+                            if (categoryIndex === -1) {
+                                console.log('未找到匹配的K线数据点:', point[0], new Date(point[0]));
+                                return null;
+                            }
+                            return [categoryIndex, point[1]];
+                        }).filter(point => point !== null),
+                        symbol: 'emptyCircle',
+                        symbolSize: 12,
+                        color: '#ff6b7a',
+                        itemStyle: {
+                            color: '#ff6b7a',
+                            borderColor: '#ff6b7a',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: true,
+                            position: 'top',
+                            formatter: '未执行买入',
+                            color: '#ff6b7a',
+                            fontSize: 10,
+                            fontWeight: 'bold',
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            padding: [2, 4],
+                            borderRadius: 3
+                        },
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: function(params) {
+                                const pointIndex = params.dataIndex;
+                                
+                                // 使用原始未执行信号数据来查找原因
+                                let reason = '未知原因';
+                                if (typeof unexecutedSignals !== 'undefined' && unexecutedSignals[selectedStock]) {
+                                    const buySignals = unexecutedSignals[selectedStock].filter(s => s.signal_type === 'BUY');
+                                    if (pointIndex < buySignals.length && buySignals[pointIndex]) {
+                                        reason = buySignals[pointIndex].reason || '未知原因';
+                                    }
+                                }
+                                
+                                return '未执行买入信号<br/>原因: ' + reason;
+                            }
+                        },
+                        z: 95
+                    },
+                    // 🆕 未执行卖出信号系列
+                    {
+                        name: '未执行卖出',
+                        type: 'scatter',
+                        data: unexecutedSellPoints.map((point, index) => {
+                            const categoryIndex = klinePoints.findIndex(kpoint => kpoint[0] === point[0]);
+                            if (categoryIndex === -1) {
+                                console.log('未找到匹配的K线数据点:', point[0], new Date(point[0]));
+                                return null;
+                            }
+                            return [categoryIndex, point[1]];
+                        }).filter(point => point !== null),
+                        symbol: 'emptyCircle',
+                        symbolSize: 12,
+                        color: '#7bed9f',
+                        itemStyle: {
+                            color: '#7bed9f',
+                            borderColor: '#7bed9f',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: true,
+                            position: 'bottom',
+                            formatter: '未执行卖出',
+                            color: '#7bed9f',
+                            fontSize: 10,
+                            fontWeight: 'bold',
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            padding: [2, 4],
+                            borderRadius: 3
+                        },
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: function(params) {
+                                const pointIndex = params.dataIndex;
+                                
+                                // 使用原始未执行信号数据来查找原因
+                                let reason = '未知原因';
+                                if (typeof unexecutedSignals !== 'undefined' && unexecutedSignals[selectedStock]) {
+                                    const sellSignals = unexecutedSignals[selectedStock].filter(s => s.signal_type === 'SELL');
+                                    if (pointIndex < sellSignals.length && sellSignals[pointIndex]) {
+                                        reason = sellSignals[pointIndex].reason || '未知原因';
+                                    }
+                                }
+                                
+                                return '未执行卖出信号<br/>原因: ' + reason;
+                            }
+                        },
+                        z: 95
                     }
                 ]
             };
