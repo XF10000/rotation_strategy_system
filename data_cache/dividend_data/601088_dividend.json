@@ -1,7 +1,7 @@
 {
   "code": "601088",
   "data_type": "dividend",
-  "records": 18,
+  "records": 19,
   "start_date": "2008-06-04",
   "end_date": "2025-07-07",
   "columns": [
@@ -11,5 +11,5 @@
     "allotment_ratio",
     "allotment_price"
   ],
-  "save_time": "2025-08-27T14:21:30.511119"
+  "save_time": "2025-09-01T14:20:34.725468"
 }

@@ -185,10 +185,11 @@ class StockSignalAnalyzer:
                 # 提取技术指标
                 indicators = signal_result.get('technical_indicators', {})
                 
-                # 提取信号详情
-                signal_details = signal_result.get('signal_details', {})
-                scores = signal_details.get('scores', {})
-                rsi_info = signal_details.get('rsi_info', {})
+                # 提取信号详情 - 修复：scores在顶层，不在signal_details中
+                signal_details = signal_result.get('details', {})
+                scores = signal_result.get('scores', {})  # scores在顶层
+                # 修复：RSI阈值信息在signal_result的rsi_thresholds字段中
+                rsi_thresholds = signal_result.get('rsi_thresholds', {})
                 divergence_info = signal_details.get('divergence_info', {})
                 
                 # 构建结果
@@ -203,7 +204,7 @@ class StockSignalAnalyzer:
                     'volume': current_row.get('volume', 0),
                     'signal_result': signal_result,
                     'scores': scores,
-                    'rsi_info': rsi_info,
+                    'rsi_thresholds': rsi_thresholds,
                     'divergence_info': divergence_info,
                     'indicators': indicators
                 }
@@ -229,7 +230,7 @@ class StockSignalAnalyzer:
         for i, result in enumerate(results, 1):
             signal_result = result['signal_result']
             scores = result['scores']
-            rsi_info = result['rsi_info']
+            rsi_thresholds = result['rsi_thresholds']
             indicators = result['indicators']
             
             output.append(f"\n【分析 {i}】")
@@ -260,12 +261,12 @@ class StockSignalAnalyzer:
             # RSI详细信息
             output.append(f"\n📈 RSI详情:")
             output.append(f"   当前RSI: {indicators.get('rsi_14w', 0):.2f}")
-            output.append(f"   超买阈值: {rsi_info.get('sell_threshold', 70):.2f}")
-            output.append(f"   超卖阈值: {rsi_info.get('buy_threshold', 30):.2f}")
-            output.append(f"   极端超买: {rsi_info.get('extreme_sell_threshold', 80):.2f}")
-            output.append(f"   极端超卖: {rsi_info.get('extreme_buy_threshold', 20):.2f}")
-            output.append(f"   RSI顶背离: {'是' if rsi_info.get('top_divergence', False) else '否'}")
-            output.append(f"   RSI底背离: {'是' if rsi_info.get('bottom_divergence', False) else '否'}")
+            output.append(f"   超买阈值: {rsi_thresholds.get('sell_threshold', 70):.2f}")
+            output.append(f"   超卖阈值: {rsi_thresholds.get('buy_threshold', 30):.2f}")
+            output.append(f"   极端超买: {rsi_thresholds.get('extreme_sell_threshold', 80):.2f}")
+            output.append(f"   极端超卖: {rsi_thresholds.get('extreme_buy_threshold', 20):.2f}")
+            output.append(f"   RSI顶背离: {'是' if result['divergence_info'].get('top_divergence', False) else '否'}")
+            output.append(f"   RSI底背离: {'是' if result['divergence_info'].get('bottom_divergence', False) else '否'}")
             
             # 技术指标
             output.append(f"\n🔧 技术指标:")
@@ -291,7 +292,7 @@ class StockSignalAnalyzer:
             for result in results:
                 signal_result = result['signal_result']
                 scores = result['scores']
-                rsi_info = result['rsi_info']
+                rsi_thresholds = result['rsi_thresholds']
                 divergence_info = result['divergence_info']
                 indicators = result['indicators']
                 
@@ -320,10 +321,10 @@ class StockSignalAnalyzer:
                     
                     # RSI详细信息
                     'RSI当前值': indicators.get('rsi_14w', 0),
-                    'RSI超买阈值': rsi_info.get('sell_threshold', 70),
-                    'RSI超卖阈值': rsi_info.get('buy_threshold', 30),
-                    'RSI极端超买阈值': rsi_info.get('extreme_sell_threshold', 80),
-                    'RSI极端超卖阈值': rsi_info.get('extreme_buy_threshold', 20),
+                    'RSI超买阈值': rsi_thresholds.get('sell_threshold', 70),
+                    'RSI超卖阈值': rsi_thresholds.get('buy_threshold', 30),
+                    'RSI极端超买阈值': rsi_thresholds.get('extreme_sell_threshold', 80),
+                    'RSI极端超卖阈值': rsi_thresholds.get('extreme_buy_threshold', 20),
                     'RSI顶背离': divergence_info.get('top_divergence', False),
                     'RSI底背离': divergence_info.get('bottom_divergence', False),
                     

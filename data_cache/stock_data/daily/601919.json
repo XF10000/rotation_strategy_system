@@ -1,9 +1,9 @@
 {
   "code": "601919",
   "period": "daily",
-  "records": 3086,
-  "start_date": "2012-05-10",
-  "end_date": "2025-08-27",
+  "records": 1779,
+  "start_date": "2018-05-11",
+  "end_date": "2025-09-03",
   "columns": [
     "open",
     "high",
@@ -13,5 +13,5 @@
     "amount",
     "turnover_rate"
   ],
-  "save_time": "2025-08-27T14:21:40.186713"
+  "save_time": "2025-09-03T11:45:25.727629"
 }
