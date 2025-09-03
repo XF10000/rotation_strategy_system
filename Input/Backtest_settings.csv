@@ -2,8 +2,8 @@
 data_source,tushare,数据源配置 (akshare/tushare)
 data_fetch_strategy,smart,数据获取策略 (smart:智能补充/simple:简单直接)
 total_capital,100000000,回测总资本
-start_date,2025-01-08,回测开始日期
-end_date,2025-08-27,回测结束日期
+start_date,2021-01-08,回测开始日期
+end_date,2025-09-03,回测结束日期
 min_data_length,120,信号生成器最小数据长度要求(周) - RSI稳定计算需求
 historical_data_weeks,125,回测历史数据获取周期(周) - 满足120周RSI稳定要求+安全边际
 # 估值区间阈值配置,价值比(当前价/DCF估值)的区间划分,

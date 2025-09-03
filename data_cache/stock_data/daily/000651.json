@@ -1,0 +1,17 @@
+{
+  "code": "000651",
+  "period": "daily",
+  "records": 1773,
+  "start_date": "2018-05-11",
+  "end_date": "2025-09-03",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount",
+    "turnover_rate"
+  ],
+  "save_time": "2025-09-03T11:45:26.033397"
+}

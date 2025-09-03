@@ -1,0 +1,15 @@
+{
+  "code": "601668",
+  "data_type": "dividend",
+  "records": 16,
+  "start_date": "2010-06-02",
+  "end_date": "2025-07-17",
+  "columns": [
+    "dividend_amount",
+    "bonus_ratio",
+    "transfer_ratio",
+    "allotment_ratio",
+    "allotment_price"
+  ],
+  "save_time": "2025-09-01T14:20:41.999712"
+}
