@@ -75,6 +75,8 @@ class AkshareDataFetcher(DataFetcher):
     def __init__(self):
         """初始化Akshare数据获取器"""
         self.source_name = "akshare"
+        self.last_request_time = None  # 记录上次请求时间
+        self.min_request_interval = 1.0  # 最小请求间隔（秒）
         logger.info("初始化Akshare数据获取器")
     
     def get_stock_data(self, code: str, start_date: str, end_date: str = None, 
@@ -164,9 +166,21 @@ class AkshareDataFetcher(DataFetcher):
             for attempt in range(max_retries):
                 try:
                     import time
-                    # 增加请求间隔，避免频率限制
+                    
+                    # 控制请求频率，避免触发反爬虫
+                    if self.last_request_time is not None:
+                        elapsed = time.time() - self.last_request_time
+                        if elapsed < self.min_request_interval:
+                            sleep_time = self.min_request_interval - elapsed
+                            logger.debug(f"请求间隔控制：等待 {sleep_time:.2f} 秒")
+                            time.sleep(sleep_time)
+                    
+                    # 重试时增加额外延迟
                     if attempt > 0:
                         time.sleep(2 + attempt)  # 递增延迟
+                    
+                    # 更新请求时间
+                    self.last_request_time = time.time()
                     
                     logger.debug(f"尝试获取股票 {code} 数据，第 {attempt + 1} 次")
                     
@@ -429,6 +443,18 @@ class AkshareDataFetcher(DataFetcher):
             
             # 缓存不存在或过期，从网络获取
             logger.info(f"🌐 从网络获取股票 {code} 的分红配股数据...")
+            
+            # 控制请求频率，避免触发反爬虫
+            import time
+            if self.last_request_time is not None:
+                elapsed = time.time() - self.last_request_time
+                if elapsed < self.min_request_interval:
+                    sleep_time = self.min_request_interval - elapsed
+                    logger.debug(f"请求间隔控制：等待 {sleep_time:.2f} 秒")
+                    time.sleep(sleep_time)
+            
+            # 更新请求时间
+            self.last_request_time = time.time()
             
             # 使用可用的akshare API
             dividend_data = ak.stock_history_dividend_detail(symbol=code)

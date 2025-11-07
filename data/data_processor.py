@@ -459,12 +459,13 @@ class DataProcessor:
                 logger.info(f"   - 成交量NaN数量: {result_df['volume'].isna().sum()}")
                 logger.info(f"   - 成交量范围: {result_df['volume'].min()} - {result_df['volume'].max()}")
                 
-                result_df['volume_ma'] = result_df['volume'].rolling(window=20).mean()
-                logger.info(f"   - 成交量MA20 NaN数量: {result_df['volume_ma'].isna().sum()}")
+                # 使用4周均量（策略文档要求：极端价格量能判断使用4周均量）
+                result_df['volume_ma'] = result_df['volume'].rolling(window=4).mean()
+                logger.info(f"   - 成交量MA4 NaN数量: {result_df['volume_ma'].isna().sum()}")
                 
                 # 检查除零情况
                 zero_volume_ma = (result_df['volume_ma'] == 0).sum()
-                logger.info(f"   - 成交量MA20为0的数量: {zero_volume_ma}")
+                logger.info(f"   - 成交量MA4为0的数量: {zero_volume_ma}")
                 
                 result_df['volume_ratio'] = result_df['volume'] / result_df['volume_ma']
                 logger.info(f"   - 成交量比率 NaN数量: {result_df['volume_ratio'].isna().sum()}")

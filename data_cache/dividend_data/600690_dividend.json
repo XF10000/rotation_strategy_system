@@ -1,0 +1,15 @@
+{
+  "code": "600690",
+  "data_type": "dividend",
+  "records": 32,
+  "start_date": "1994-04-04",
+  "end_date": "2025-11-07",
+  "columns": [
+    "dividend_amount",
+    "bonus_ratio",
+    "transfer_ratio",
+    "allotment_ratio",
+    "allotment_price"
+  ],
+  "save_time": "2025-11-07T15:34:25.493468"
+}
