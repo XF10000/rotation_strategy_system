@@ -1,0 +1,17 @@
+{
+  "code": "600795",
+  "period": "daily",
+  "records": 848,
+  "start_date": "2022-05-13",
+  "end_date": "2025-11-07",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount",
+    "turnover_rate"
+  ],
+  "save_time": "2025-11-07T15:50:27.875475"
+}

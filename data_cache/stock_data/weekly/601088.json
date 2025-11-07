@@ -1,9 +1,9 @@
 {
   "code": "601088",
   "period": "weekly",
-  "records": 374,
-  "start_date": "2018-05-11",
-  "end_date": "2025-09-03",
+  "records": 177,
+  "start_date": "2022-05-13",
+  "end_date": "2025-11-07",
   "columns": [
     "open",
     "high",
@@ -28,5 +28,5 @@
     "volume_ma",
     "volume_ratio"
   ],
-  "save_time": "2025-09-03T11:45:22.460322"
+  "save_time": "2025-11-07T15:34:03.076199"
 }

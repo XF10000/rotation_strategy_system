@@ -1,14 +1,10 @@
 {
   "metadata": {
-    "generated_at": "2025-08-22T17:19:41.786884",
-    "total_stocks": 5209,
+    "generated_at": "2025-10-19T20:25:54.617141",
+    "total_stocks": 5217,
     "version": "1.0"
   },
   "mapping": {
-    "000019": {
-      "industry_code": "801012",
-      "industry_name": "农产品加工"
-    },
     "000505": {
       "industry_code": "801012",
       "industry_name": "农产品加工"
@@ -97,9 +93,9 @@
       "industry_code": "801012",
       "industry_name": "农产品加工"
     },
-    "000702": {
-      "industry_code": "801014",
-      "industry_name": "饲料"
+    "000019": {
+      "industry_code": "801012",
+      "industry_name": "农产品加工"
     },
     "002100": {
       "industry_code": "801014",
@@ -165,9 +161,9 @@
       "industry_code": "801971",
       "industry_name": "环境治理"
     },
-    "000798": {
-      "industry_code": "801015",
-      "industry_name": "渔业"
+    "000702": {
+      "industry_code": "801014",
+      "industry_name": "饲料"
     },
     "002069": {
       "industry_code": "801015",
@@ -189,9 +185,9 @@
       "industry_code": "801015",
       "industry_name": "渔业"
     },
-    "000713": {
-      "industry_code": "801016",
-      "industry_name": "种植业"
+    "000798": {
+      "industry_code": "801015",
+      "industry_name": "渔业"
     },
     "000998": {
       "industry_code": "801016",
@@ -273,9 +269,9 @@
       "industry_code": "801038",
       "industry_name": "农化制品"
     },
-    "000735": {
-      "industry_code": "801017",
-      "industry_name": "养殖业"
+    "000713": {
+      "industry_code": "801016",
+      "industry_name": "种植业"
     },
     "000876": {
       "industry_code": "801017",
@@ -369,9 +365,9 @@
       "industry_code": "801723",
       "industry_name": "基础建设"
     },
-    "002688": {
-      "industry_code": "801018",
-      "industry_name": "动物保健Ⅱ"
+    "000735": {
+      "industry_code": "801017",
+      "industry_name": "养殖业"
     },
     "002868": {
       "industry_code": "801018",
@@ -413,9 +409,9 @@
       "industry_code": "801082",
       "industry_name": "其他电子Ⅱ"
     },
-    "000420": {
-      "industry_code": "801032",
-      "industry_name": "化学纤维"
+    "002688": {
+      "industry_code": "801018",
+      "industry_name": "动物保健Ⅱ"
     },
     "000677": {
       "industry_code": "801032",
@@ -517,9 +513,9 @@
       "industry_code": "801206",
       "industry_name": "互联网电商"
     },
-    "000510": {
-      "industry_code": "801033",
-      "industry_name": "化学原料"
+    "000420": {
+      "industry_code": "801032",
+      "industry_name": "化学纤维"
     },
     "000545": {
       "industry_code": "801033",
@@ -757,9 +753,9 @@
       "industry_code": "801231",
       "industry_name": "综合Ⅱ"
     },
-    "000565": {
-      "industry_code": "801034",
-      "industry_name": "化学制品"
+    "000510": {
+      "industry_code": "801033",
+      "industry_name": "化学原料"
     },
     "000881": {
       "industry_code": "801034",
@@ -1441,9 +1437,9 @@
       "industry_code": "801151",
       "industry_name": "化学制药"
     },
-    "000859": {
-      "industry_code": "801036",
-      "industry_name": "塑料"
+    "000565": {
+      "industry_code": "801034",
+      "industry_name": "化学制品"
     },
     "000973": {
       "industry_code": "801036",
@@ -1737,9 +1733,9 @@
       "industry_code": "801036",
       "industry_name": "塑料"
     },
-    "001207": {
-      "industry_code": "801037",
-      "industry_name": "橡胶"
+    "000859": {
+      "industry_code": "801036",
+      "industry_name": "塑料"
     },
     "002068": {
       "industry_code": "801037",
@@ -1801,9 +1797,9 @@
       "industry_code": "801037",
       "industry_name": "橡胶"
     },
-    "000525": {
-      "industry_code": "801038",
-      "industry_name": "农化制品"
+    "001207": {
+      "industry_code": "801037",
+      "industry_name": "橡胶"
     },
     "000553": {
       "industry_code": "801038",
@@ -2029,9 +2025,9 @@
       "industry_code": "801038",
       "industry_name": "农化制品"
     },
-    "301071": {
-      "industry_code": "801039",
-      "industry_name": "非金属材料Ⅱ"
+    "000525": {
+      "industry_code": "801038",
+      "industry_name": "农化制品"
     },
     "603612": {
       "industry_code": "801039",
@@ -2057,9 +2053,9 @@
       "industry_code": "801039",
       "industry_name": "非金属材料Ⅱ"
     },
-    "000629": {
-      "industry_code": "801043",
-      "industry_name": "冶钢原料"
+    "301071": {
+      "industry_code": "801039",
+      "industry_name": "非金属材料Ⅱ"
     },
     "000655": {
       "industry_code": "801043",
@@ -2093,9 +2089,9 @@
       "industry_code": "801043",
       "industry_name": "冶钢原料"
     },
-    "000709": {
-      "industry_code": "801044",
-      "industry_name": "普钢"
+    "000629": {
+      "industry_code": "801043",
+      "industry_name": "冶钢原料"
     },
     "000717": {
       "industry_code": "801044",
@@ -2185,9 +2181,9 @@
       "industry_code": "801044",
       "industry_name": "普钢"
     },
-    "000708": {
-      "industry_code": "801045",
-      "industry_name": "特钢Ⅱ"
+    "000709": {
+      "industry_code": "801044",
+      "industry_name": "普钢"
     },
     "000825": {
       "industry_code": "801045",
@@ -2237,9 +2233,9 @@
       "industry_code": "801045",
       "industry_name": "特钢Ⅱ"
     },
-    "000633": {
-      "industry_code": "801051",
-      "industry_name": "金属新材料"
+    "000708": {
+      "industry_code": "801045",
+      "industry_name": "特钢Ⅱ"
     },
     "000795": {
       "industry_code": "801051",
@@ -2361,9 +2357,9 @@
       "industry_code": "801051",
       "industry_name": "金属新材料"
     },
-    "000975": {
-      "industry_code": "801053",
-      "industry_name": "贵金属"
+    "000633": {
+      "industry_code": "801051",
+      "industry_name": "金属新材料"
     },
     "002155": {
       "industry_code": "801053",
@@ -2413,9 +2409,9 @@
       "industry_code": "801202",
       "industry_name": "贸易Ⅱ"
     },
-    "000657": {
-      "industry_code": "801054",
-      "industry_name": "小金属"
+    "000975": {
+      "industry_code": "801053",
+      "industry_name": "贵金属"
     },
     "000831": {
       "industry_code": "801054",
@@ -2513,9 +2509,9 @@
       "industry_code": "801054",
       "industry_name": "小金属"
     },
-    "000060": {
-      "industry_code": "801055",
-      "industry_name": "工业金属"
+    "000657": {
+      "industry_code": "801054",
+      "industry_name": "小金属"
     },
     "000426": {
       "industry_code": "801055",
@@ -2753,9 +2749,9 @@
       "industry_code": "801055",
       "industry_name": "工业金属"
     },
-    "000762": {
-      "industry_code": "801056",
-      "industry_name": "能源金属"
+    "000060": {
+      "industry_code": "801055",
+      "industry_name": "工业金属"
     },
     "002240": {
       "industry_code": "801056",
@@ -2809,9 +2805,9 @@
       "industry_code": "801056",
       "industry_name": "能源金属"
     },
-    "000039": {
-      "industry_code": "801072",
-      "industry_name": "通用设备"
+    "000762": {
+      "industry_code": "801056",
+      "industry_name": "能源金属"
     },
     "000410": {
       "industry_code": "801072",
@@ -3689,9 +3685,13 @@
       "industry_code": "801072",
       "industry_name": "通用设备"
     },
-    "000852": {
-      "industry_code": "801074",
-      "industry_name": "专用设备"
+    "688600": {
+      "industry_code": "801972",
+      "industry_name": "环保设备Ⅱ"
+    },
+    "000039": {
+      "industry_code": "801072",
+      "industry_name": "通用设备"
     },
     "000856": {
       "industry_code": "801074",
@@ -4397,9 +4397,9 @@
       "industry_code": "801074",
       "industry_name": "专用设备"
     },
-    "000008": {
-      "industry_code": "801076",
-      "industry_name": "轨交设备Ⅱ"
+    "000852": {
+      "industry_code": "801074",
+      "industry_name": "专用设备"
     },
     "000925": {
       "industry_code": "801076",
@@ -4525,9 +4525,9 @@
       "industry_code": "801736",
       "industry_name": "风电设备"
     },
-    "000157": {
-      "industry_code": "801077",
-      "industry_name": "工程机械"
+    "000008": {
+      "industry_code": "801076",
+      "industry_name": "轨交设备Ⅱ"
     },
     "000425": {
       "industry_code": "801077",
@@ -4633,9 +4633,9 @@
       "industry_code": "801077",
       "industry_name": "工程机械"
     },
-    "000584": {
-      "industry_code": "801078",
-      "industry_name": "自动化设备"
+    "000157": {
+      "industry_code": "801077",
+      "industry_name": "工程机械"
     },
     "000988": {
       "industry_code": "801078",
@@ -4953,9 +4953,9 @@
       "industry_code": "801078",
       "industry_name": "自动化设备"
     },
-    "002049": {
-      "industry_code": "801081",
-      "industry_name": "半导体"
+    "000584": {
+      "industry_code": "801078",
+      "industry_name": "自动化设备"
     },
     "002077": {
       "industry_code": "801081",
@@ -5605,9 +5605,9 @@
       "industry_code": "801081",
       "industry_name": "半导体"
     },
-    "000062": {
-      "industry_code": "801082",
-      "industry_name": "其他电子Ⅱ"
+    "002049": {
+      "industry_code": "801081",
+      "industry_name": "半导体"
     },
     "000701": {
       "industry_code": "801092",
@@ -5757,9 +5757,13 @@
       "industry_code": "801082",
       "industry_name": "其他电子Ⅱ"
     },
-    "000636": {
-      "industry_code": "801083",
-      "industry_name": "元件"
+    "301563": {
+      "industry_code": "801082",
+      "industry_name": "其他电子Ⅱ"
+    },
+    "000062": {
+      "industry_code": "801082",
+      "industry_name": "其他电子Ⅱ"
     },
     "000823": {
       "industry_code": "801083",
@@ -5985,9 +5989,9 @@
       "industry_code": "801083",
       "industry_name": "元件"
     },
-    "000020": {
-      "industry_code": "801084",
-      "industry_name": "光学光电子"
+    "000636": {
+      "industry_code": "801083",
+      "industry_name": "元件"
     },
     "000045": {
       "industry_code": "801084",
@@ -6361,9 +6365,9 @@
       "industry_code": "801084",
       "industry_name": "光学光电子"
     },
-    "000021": {
-      "industry_code": "801085",
-      "industry_name": "消费电子"
+    "000020": {
+      "industry_code": "801084",
+      "industry_name": "光学光电子"
     },
     "002045": {
       "industry_code": "801085",
@@ -6761,9 +6765,9 @@
       "industry_code": "801085",
       "industry_name": "消费电子"
     },
-    "002584": {
-      "industry_code": "801086",
-      "industry_name": "电子化学品Ⅱ"
+    "000021": {
+      "industry_code": "801085",
+      "industry_name": "消费电子"
     },
     "002643": {
       "industry_code": "801086",
@@ -6893,9 +6897,9 @@
       "industry_code": "801086",
       "industry_name": "电子化学品Ⅱ"
     },
-    "000757": {
-      "industry_code": "801092",
-      "industry_name": "汽车服务"
+    "002584": {
+      "industry_code": "801086",
+      "industry_name": "电子化学品Ⅱ"
     },
     "000996": {
       "industry_code": "801092",
@@ -6937,9 +6941,9 @@
       "industry_code": "801231",
       "industry_name": "综合Ⅱ"
     },
-    "000030": {
-      "industry_code": "801093",
-      "industry_name": "汽车零部件"
+    "000757": {
+      "industry_code": "801092",
+      "industry_name": "汽车服务"
     },
     "000338": {
       "industry_code": "801093",
@@ -7841,9 +7845,21 @@
       "industry_code": "801093",
       "industry_name": "汽车零部件"
     },
-    "000572": {
-      "industry_code": "801095",
-      "industry_name": "乘用车"
+    "603418": {
+      "industry_code": "801093",
+      "industry_name": "汽车零部件"
+    },
+    "301656": {
+      "industry_code": "801093",
+      "industry_name": "汽车零部件"
+    },
+    "001285": {
+      "industry_code": "801093",
+      "industry_name": "汽车零部件"
+    },
+    "000030": {
+      "industry_code": "801093",
+      "industry_name": "汽车零部件"
     },
     "000625": {
       "industry_code": "801095",
@@ -7873,9 +7889,9 @@
       "industry_code": "801095",
       "industry_name": "乘用车"
     },
-    "000550": {
-      "industry_code": "801096",
-      "industry_name": "商用车"
+    "000572": {
+      "industry_code": "801095",
+      "industry_name": "乘用车"
     },
     "000800": {
       "industry_code": "801096",
@@ -7929,9 +7945,9 @@
       "industry_code": "801096",
       "industry_name": "商用车"
     },
-    "000066": {
-      "industry_code": "801101",
-      "industry_name": "计算机设备"
+    "000550": {
+      "industry_code": "801096",
+      "industry_name": "商用车"
     },
     "000977": {
       "industry_code": "801101",
@@ -8261,9 +8277,9 @@
       "industry_code": "801101",
       "industry_name": "计算机设备"
     },
-    "000063": {
-      "industry_code": "801102",
-      "industry_name": "通信设备"
+    "000066": {
+      "industry_code": "801101",
+      "industry_name": "计算机设备"
     },
     "000070": {
       "industry_code": "801102",
@@ -8613,9 +8629,9 @@
       "industry_code": "801104",
       "industry_name": "软件开发"
     },
-    "000034": {
-      "industry_code": "801103",
-      "industry_name": "IT服务Ⅱ"
+    "000063": {
+      "industry_code": "801102",
+      "industry_name": "通信设备"
     },
     "000158": {
       "industry_code": "801103",
@@ -9093,9 +9109,9 @@
       "industry_code": "801103",
       "industry_name": "IT服务Ⅱ"
     },
-    "000004": {
-      "industry_code": "801104",
-      "industry_name": "软件开发"
+    "000034": {
+      "industry_code": "801103",
+      "industry_name": "IT服务Ⅱ"
     },
     "000503": {
       "industry_code": "801104",
@@ -9625,9 +9641,9 @@
       "industry_code": "801104",
       "industry_name": "软件开发"
     },
-    "000333": {
-      "industry_code": "801111",
-      "industry_name": "白色家电"
+    "000004": {
+      "industry_code": "801104",
+      "industry_name": "软件开发"
     },
     "000521": {
       "industry_code": "801111",
@@ -9664,6 +9680,10 @@
     "000016": {
       "industry_code": "801112",
       "industry_name": "黑色家电"
+    },
+    "000333": {
+      "industry_code": "801111",
+      "industry_name": "白色家电"
     },
     "000801": {
       "industry_code": "801112",
@@ -9704,10 +9724,6 @@
     "301578": {
       "industry_code": "801112",
       "industry_name": "黑色家电"
-    },
-    "002005": {
-      "industry_code": "801113",
-      "industry_name": "小家电"
     },
     "002032": {
       "industry_code": "801113",
@@ -9785,9 +9801,9 @@
       "industry_code": "801113",
       "industry_name": "小家电"
     },
-    "002035": {
-      "industry_code": "801114",
-      "industry_name": "厨卫电器"
+    "002005": {
+      "industry_code": "801113",
+      "industry_name": "小家电"
     },
     "002508": {
       "industry_code": "801114",
@@ -9821,9 +9837,9 @@
       "industry_code": "801114",
       "industry_name": "厨卫电器"
     },
-    "000541": {
-      "industry_code": "801115",
-      "industry_name": "照明设备Ⅱ"
+    "002035": {
+      "industry_code": "801114",
+      "industry_name": "厨卫电器"
     },
     "002076": {
       "industry_code": "801115",
@@ -9865,9 +9881,9 @@
       "industry_code": "801994",
       "industry_name": "教育"
     },
-    "000404": {
-      "industry_code": "801116",
-      "industry_name": "家电零部件Ⅱ"
+    "000541": {
+      "industry_code": "801115",
+      "industry_name": "照明设备Ⅱ"
     },
     "002011": {
       "industry_code": "801116",
@@ -9965,9 +9981,9 @@
       "industry_code": "801116",
       "industry_name": "家电零部件Ⅱ"
     },
-    "000895": {
-      "industry_code": "801124",
-      "industry_name": "食品加工"
+    "000404": {
+      "industry_code": "801116",
+      "industry_name": "家电零部件Ⅱ"
     },
     "001215": {
       "industry_code": "801124",
@@ -10061,9 +10077,9 @@
       "industry_code": "801124",
       "industry_name": "食品加工"
     },
-    "000568": {
-      "industry_code": "801125",
-      "industry_name": "白酒Ⅱ"
+    "000895": {
+      "industry_code": "801124",
+      "industry_name": "食品加工"
     },
     "000596": {
       "industry_code": "801125",
@@ -10141,9 +10157,9 @@
       "industry_code": "801125",
       "industry_name": "白酒Ⅱ"
     },
-    "000729": {
-      "industry_code": "801126",
-      "industry_name": "非白酒"
+    "000568": {
+      "industry_code": "801125",
+      "industry_name": "白酒Ⅱ"
     },
     "000752": {
       "industry_code": "801126",
@@ -10205,9 +10221,9 @@
       "industry_code": "801126",
       "industry_name": "非白酒"
     },
-    "000848": {
-      "industry_code": "801127",
-      "industry_name": "饮料乳品"
+    "000729": {
+      "industry_code": "801126",
+      "industry_name": "非白酒"
     },
     "002329": {
       "industry_code": "801127",
@@ -10313,9 +10329,9 @@
       "industry_code": "801127",
       "industry_name": "饮料乳品"
     },
-    "001219": {
-      "industry_code": "801128",
-      "industry_name": "休闲食品"
+    "000848": {
+      "industry_code": "801127",
+      "industry_name": "饮料乳品"
     },
     "002557": {
       "industry_code": "801128",
@@ -10397,9 +10413,9 @@
       "industry_code": "801128",
       "industry_name": "休闲食品"
     },
-    "002495": {
-      "industry_code": "801129",
-      "industry_name": "调味发酵品Ⅱ"
+    "001219": {
+      "industry_code": "801128",
+      "industry_name": "休闲食品"
     },
     "002507": {
       "industry_code": "801129",
@@ -10453,9 +10469,9 @@
       "industry_code": "801129",
       "industry_name": "调味发酵品Ⅱ"
     },
-    "000726": {
-      "industry_code": "801131",
-      "industry_name": "纺织制造"
+    "002495": {
+      "industry_code": "801129",
+      "industry_name": "调味发酵品Ⅱ"
     },
     "000850": {
       "industry_code": "801131",
@@ -10601,9 +10617,9 @@
       "industry_code": "801981",
       "industry_name": "个护用品"
     },
-    "001209": {
-      "industry_code": "801132",
-      "industry_name": "服装家纺"
+    "000726": {
+      "industry_code": "801131",
+      "industry_name": "纺织制造"
     },
     "002029": {
       "industry_code": "801132",
@@ -10833,9 +10849,9 @@
       "industry_code": "801132",
       "industry_name": "服装家纺"
     },
-    "000026": {
-      "industry_code": "801133",
-      "industry_name": "饰品"
+    "001209": {
+      "industry_code": "801132",
+      "industry_name": "服装家纺"
     },
     "002345": {
       "industry_code": "801133",
@@ -10897,9 +10913,9 @@
       "industry_code": "801133",
       "industry_name": "饰品"
     },
-    "000659": {
-      "industry_code": "801141",
-      "industry_name": "包装印刷"
+    "000026": {
+      "industry_code": "801133",
+      "industry_name": "饰品"
     },
     "000695": {
       "industry_code": "801737",
@@ -11073,9 +11089,9 @@
       "industry_code": "801141",
       "industry_name": "包装印刷"
     },
-    "000910": {
-      "industry_code": "801142",
-      "industry_name": "家居用品"
+    "000659": {
+      "industry_code": "801141",
+      "industry_name": "包装印刷"
     },
     "001211": {
       "industry_code": "801142",
@@ -11357,9 +11373,13 @@
       "industry_code": "801142",
       "industry_name": "家居用品"
     },
-    "000488": {
-      "industry_code": "801143",
-      "industry_name": "造纸"
+    "301575": {
+      "industry_code": "801142",
+      "industry_name": "家居用品"
+    },
+    "000910": {
+      "industry_code": "801142",
+      "industry_name": "家居用品"
     },
     "002012": {
       "industry_code": "801143",
@@ -11445,9 +11465,9 @@
       "industry_code": "801143",
       "industry_name": "造纸"
     },
-    "002301": {
-      "industry_code": "801145",
-      "industry_name": "文娱用品"
+    "000488": {
+      "industry_code": "801143",
+      "industry_name": "造纸"
     },
     "002348": {
       "industry_code": "801145",
@@ -11533,9 +11553,9 @@
       "industry_code": "801145",
       "industry_name": "文娱用品"
     },
-    "000153": {
-      "industry_code": "801151",
-      "industry_name": "化学制药"
+    "002301": {
+      "industry_code": "801145",
+      "industry_name": "文娱用品"
     },
     "000513": {
       "industry_code": "801151",
@@ -12145,9 +12165,9 @@
       "industry_code": "801151",
       "industry_name": "化学制药"
     },
-    "000403": {
-      "industry_code": "801152",
-      "industry_name": "生物制品"
+    "000153": {
+      "industry_code": "801151",
+      "industry_name": "化学制药"
     },
     "000518": {
       "industry_code": "801152",
@@ -12349,9 +12369,9 @@
       "industry_code": "801153",
       "industry_name": "医疗器械"
     },
-    "002022": {
-      "industry_code": "801153",
-      "industry_name": "医疗器械"
+    "000403": {
+      "industry_code": "801152",
+      "industry_name": "生物制品"
     },
     "002030": {
       "industry_code": "801153",
@@ -12841,9 +12861,9 @@
       "industry_code": "801153",
       "industry_name": "医疗器械"
     },
-    "000028": {
-      "industry_code": "801154",
-      "industry_name": "医药商业"
+    "002022": {
+      "industry_code": "801153",
+      "industry_name": "医疗器械"
     },
     "000078": {
       "industry_code": "801154",
@@ -12969,9 +12989,13 @@
       "industry_code": "801154",
       "industry_name": "医药商业"
     },
-    "000423": {
-      "industry_code": "801155",
-      "industry_name": "中药Ⅱ"
+    "301584": {
+      "industry_code": "801154",
+      "industry_name": "医药商业"
+    },
+    "000028": {
+      "industry_code": "801154",
+      "industry_name": "医药商业"
     },
     "000538": {
       "industry_code": "801155",
@@ -13253,9 +13277,9 @@
       "industry_code": "801155",
       "industry_name": "中药Ⅱ"
     },
-    "000504": {
-      "industry_code": "801156",
-      "industry_name": "医疗服务"
+    "000423": {
+      "industry_code": "801155",
+      "industry_name": "中药Ⅱ"
     },
     "000516": {
       "industry_code": "801156",
@@ -13449,9 +13473,9 @@
       "industry_code": "801156",
       "industry_name": "医疗服务"
     },
-    "000027": {
-      "industry_code": "801161",
-      "industry_name": "电力"
+    "000504": {
+      "industry_code": "801156",
+      "industry_name": "医疗服务"
     },
     "000040": {
       "industry_code": "801161",
@@ -13861,9 +13885,9 @@
       "industry_code": "801161",
       "industry_name": "电力"
     },
-    "000407": {
-      "industry_code": "801163",
-      "industry_name": "燃气Ⅱ"
+    "000027": {
+      "industry_code": "801161",
+      "industry_name": "电力"
     },
     "000593": {
       "industry_code": "801163",
@@ -13977,9 +14001,9 @@
       "industry_code": "801163",
       "industry_name": "燃气Ⅱ"
     },
-    "000626": {
-      "industry_code": "801178",
-      "industry_name": "物流"
+    "000407": {
+      "industry_code": "801163",
+      "industry_name": "燃气Ⅱ"
     },
     "000906": {
       "industry_code": "801178",
@@ -14165,9 +14189,9 @@
       "industry_code": "801181",
       "industry_name": "房地产开发"
     },
-    "000429": {
-      "industry_code": "801179",
-      "industry_name": "铁路公路"
+    "000626": {
+      "industry_code": "801178",
+      "industry_name": "物流"
     },
     "000548": {
       "industry_code": "801179",
@@ -14210,8 +14234,8 @@
       "industry_name": "铁路公路"
     },
     "002627": {
-      "industry_code": "801179",
-      "industry_name": "铁路公路"
+      "industry_code": "801993",
+      "industry_name": "旅游及景区"
     },
     "600012": {
       "industry_code": "801179",
@@ -14305,9 +14329,9 @@
       "industry_code": "801181",
       "industry_name": "房地产开发"
     },
-    "000002": {
-      "industry_code": "801181",
-      "industry_name": "房地产开发"
+    "000429": {
+      "industry_code": "801179",
+      "industry_name": "铁路公路"
     },
     "000006": {
       "industry_code": "801181",
@@ -14693,9 +14717,9 @@
       "industry_code": "801181",
       "industry_name": "房地产开发"
     },
-    "000056": {
-      "industry_code": "801183",
-      "industry_name": "房地产服务"
+    "000002": {
+      "industry_code": "801181",
+      "industry_name": "房地产开发"
     },
     "000560": {
       "industry_code": "801183",
@@ -14737,9 +14761,9 @@
       "industry_code": "801183",
       "industry_name": "房地产服务"
     },
-    "000415": {
-      "industry_code": "801191",
-      "industry_name": "多元金融"
+    "000056": {
+      "industry_code": "801183",
+      "industry_name": "房地产服务"
     },
     "000416": {
       "industry_code": "801191",
@@ -14857,9 +14881,9 @@
       "industry_code": "801191",
       "industry_name": "多元金融"
     },
-    "000166": {
-      "industry_code": "801193",
-      "industry_name": "证券Ⅱ"
+    "000415": {
+      "industry_code": "801191",
+      "industry_name": "多元金融"
     },
     "000686": {
       "industry_code": "801193",
@@ -15057,9 +15081,9 @@
       "industry_code": "801193",
       "industry_name": "证券Ⅱ"
     },
-    "000627": {
-      "industry_code": "801194",
-      "industry_name": "保险Ⅱ"
+    "000166": {
+      "industry_code": "801193",
+      "industry_name": "证券Ⅱ"
     },
     "601318": {
       "industry_code": "801194",
@@ -15081,9 +15105,9 @@
       "industry_code": "801194",
       "industry_name": "保险Ⅱ"
     },
-    "000151": {
-      "industry_code": "801202",
-      "industry_name": "贸易Ⅱ"
+    "000627": {
+      "industry_code": "801194",
+      "industry_name": "保险Ⅱ"
     },
     "002091": {
       "industry_code": "801202",
@@ -15133,9 +15157,9 @@
       "industry_code": "801202",
       "industry_name": "贸易Ⅱ"
     },
-    "000007": {
-      "industry_code": "801203",
-      "industry_name": "一般零售"
+    "000151": {
+      "industry_code": "801202",
+      "industry_name": "贸易Ⅱ"
     },
     "000058": {
       "industry_code": "801203",
@@ -15381,9 +15405,9 @@
       "industry_code": "801203",
       "industry_name": "一般零售"
     },
-    "000829": {
-      "industry_code": "801204",
-      "industry_name": "专业连锁Ⅱ"
+    "000007": {
+      "industry_code": "801203",
+      "industry_name": "一般零售"
     },
     "002416": {
       "industry_code": "801204",
@@ -15409,9 +15433,9 @@
       "industry_code": "801204",
       "industry_name": "专业连锁Ⅱ"
     },
-    "002024": {
-      "industry_code": "801206",
-      "industry_name": "互联网电商"
+    "000829": {
+      "industry_code": "801204",
+      "industry_name": "专业连锁Ⅱ"
     },
     "002127": {
       "industry_code": "801206",
@@ -15489,9 +15513,9 @@
       "industry_code": "801206",
       "industry_name": "互联网电商"
     },
-    "002967": {
-      "industry_code": "801218",
-      "industry_name": "专业服务"
+    "002024": {
+      "industry_code": "801206",
+      "industry_name": "互联网电商"
     },
     "003008": {
       "industry_code": "801218",
@@ -15601,9 +15625,9 @@
       "industry_code": "801982",
       "industry_name": "化妆品"
     },
-    "000428": {
-      "industry_code": "801219",
-      "industry_name": "酒店餐饮"
+    "002967": {
+      "industry_code": "801218",
+      "industry_name": "专业服务"
     },
     "000610": {
       "industry_code": "801993",
@@ -15641,9 +15665,9 @@
       "industry_code": "801219",
       "industry_name": "酒店餐饮"
     },
-    "000889": {
-      "industry_code": "801223",
-      "industry_name": "通信服务"
+    "000428": {
+      "industry_code": "801219",
+      "industry_name": "酒店餐饮"
     },
     "000971": {
       "industry_code": "801223",
@@ -15809,9 +15833,9 @@
       "industry_code": "801223",
       "industry_name": "通信服务"
     },
-    "000622": {
-      "industry_code": "801231",
-      "industry_name": "综合Ⅱ"
+    "000889": {
+      "industry_code": "801223",
+      "industry_name": "通信服务"
     },
     "000632": {
       "industry_code": "801231",
@@ -15893,9 +15917,9 @@
       "industry_code": "801981",
       "industry_name": "个护用品"
     },
-    "000023": {
-      "industry_code": "801711",
-      "industry_name": "水泥"
+    "000622": {
+      "industry_code": "801231",
+      "industry_name": "综合Ⅱ"
     },
     "000401": {
       "industry_code": "801711",
@@ -15989,9 +16013,9 @@
       "industry_code": "801711",
       "industry_name": "水泥"
     },
-    "000012": {
-      "industry_code": "801712",
-      "industry_name": "玻璃玻纤"
+    "000023": {
+      "industry_code": "801711",
+      "industry_name": "水泥"
     },
     "002080": {
       "industry_code": "801712",
@@ -16053,9 +16077,9 @@
       "industry_code": "801712",
       "industry_name": "玻璃玻纤"
     },
-    "000055": {
-      "industry_code": "801713",
-      "industry_name": "装修建材"
+    "000012": {
+      "industry_code": "801712",
+      "industry_name": "玻璃玻纤"
     },
     "000619": {
       "industry_code": "801713",
@@ -16193,9 +16217,9 @@
       "industry_code": "801713",
       "industry_name": "装修建材"
     },
-    "000628": {
-      "industry_code": "801721",
-      "industry_name": "房屋建设Ⅱ"
+    "000055": {
+      "industry_code": "801713",
+      "industry_name": "装修建材"
     },
     "002761": {
       "industry_code": "801721",
@@ -16225,9 +16249,9 @@
       "industry_code": "801721",
       "industry_name": "房屋建设Ⅱ"
     },
-    "002047": {
-      "industry_code": "801722",
-      "industry_name": "装修装饰Ⅱ"
+    "000628": {
+      "industry_code": "801721",
+      "industry_name": "房屋建设Ⅱ"
     },
     "002081": {
       "industry_code": "801722",
@@ -16321,9 +16345,9 @@
       "industry_code": "801722",
       "industry_name": "装修装饰Ⅱ"
     },
-    "000010": {
-      "industry_code": "801723",
-      "industry_name": "基础建设"
+    "002047": {
+      "industry_code": "801722",
+      "industry_name": "装修装饰Ⅱ"
     },
     "000498": {
       "industry_code": "801723",
@@ -16509,9 +16533,9 @@
       "industry_code": "801723",
       "industry_name": "基础建设"
     },
-    "000065": {
-      "industry_code": "801724",
-      "industry_name": "专业工程"
+    "000010": {
+      "industry_code": "801723",
+      "industry_name": "基础建设"
     },
     "000928": {
       "industry_code": "801724",
@@ -16681,9 +16705,9 @@
       "industry_code": "801724",
       "industry_name": "专业工程"
     },
-    "000779": {
-      "industry_code": "801726",
-      "industry_name": "工程咨询服务Ⅱ"
+    "000065": {
+      "industry_code": "801724",
+      "industry_name": "专业工程"
     },
     "002883": {
       "industry_code": "801726",
@@ -16837,9 +16861,9 @@
       "industry_code": "801726",
       "industry_name": "工程咨询服务Ⅱ"
     },
-    "000922": {
-      "industry_code": "801731",
-      "industry_name": "电机Ⅱ"
+    "000779": {
+      "industry_code": "801726",
+      "industry_name": "工程咨询服务Ⅱ"
     },
     "002196": {
       "industry_code": "801731",
@@ -16929,9 +16953,13 @@
       "industry_code": "801736",
       "industry_name": "风电设备"
     },
-    "002255": {
-      "industry_code": "801733",
-      "industry_name": "其他电源设备Ⅱ"
+    "603370": {
+      "industry_code": "801731",
+      "industry_name": "电机Ⅱ"
+    },
+    "000922": {
+      "industry_code": "801731",
+      "industry_name": "电机Ⅱ"
     },
     "002335": {
       "industry_code": "801733",
@@ -17049,9 +17077,9 @@
       "industry_code": "801733",
       "industry_name": "其他电源设备Ⅱ"
     },
-    "002129": {
-      "industry_code": "801735",
-      "industry_name": "光伏设备"
+    "002255": {
+      "industry_code": "801733",
+      "industry_name": "其他电源设备Ⅱ"
     },
     "002459": {
       "industry_code": "801735",
@@ -17293,9 +17321,9 @@
       "industry_code": "801735",
       "industry_name": "光伏设备"
     },
-    "002202": {
-      "industry_code": "801736",
-      "industry_name": "风电设备"
+    "002129": {
+      "industry_code": "801735",
+      "industry_name": "光伏设备"
     },
     "002487": {
       "industry_code": "801736",
@@ -17397,9 +17425,9 @@
       "industry_code": "801736",
       "industry_name": "风电设备"
     },
-    "000009": {
-      "industry_code": "801737",
-      "industry_name": "电池"
+    "002202": {
+      "industry_code": "801736",
+      "industry_name": "风电设备"
     },
     "000049": {
       "industry_code": "801737",
@@ -17773,9 +17801,9 @@
       "industry_code": "801737",
       "industry_name": "电池"
     },
-    "000400": {
-      "industry_code": "801738",
-      "industry_name": "电网设备"
+    "000009": {
+      "industry_code": "801737",
+      "industry_name": "电池"
     },
     "000533": {
       "industry_code": "801738",
@@ -18269,9 +18297,13 @@
       "industry_code": "801738",
       "industry_name": "电网设备"
     },
-    "002829": {
-      "industry_code": "801741",
-      "industry_name": "航天装备Ⅱ"
+    "301668": {
+      "industry_code": "801738",
+      "industry_name": "电网设备"
+    },
+    "000400": {
+      "industry_code": "801738",
+      "industry_name": "电网设备"
     },
     "003009": {
       "industry_code": "801741",
@@ -18301,9 +18333,9 @@
       "industry_code": "801741",
       "industry_name": "航天装备Ⅱ"
     },
-    "000561": {
-      "industry_code": "801742",
-      "industry_name": "航空装备Ⅱ"
+    "002829": {
+      "industry_code": "801741",
+      "industry_name": "航天装备Ⅱ"
     },
     "000697": {
       "industry_code": "801742",
@@ -18485,9 +18517,9 @@
       "industry_code": "801742",
       "industry_name": "航空装备Ⅱ"
     },
-    "000519": {
-      "industry_code": "801743",
-      "industry_name": "地面兵装Ⅱ"
+    "000561": {
+      "industry_code": "801742",
+      "industry_name": "航空装备Ⅱ"
     },
     "000576": {
       "industry_code": "801743",
@@ -18533,9 +18565,9 @@
       "industry_code": "801743",
       "industry_name": "地面兵装Ⅱ"
     },
-    "300008": {
-      "industry_code": "801744",
-      "industry_name": "航海装备Ⅱ"
+    "000519": {
+      "industry_code": "801743",
+      "industry_name": "地面兵装Ⅱ"
     },
     "300065": {
       "industry_code": "801744",
@@ -18573,9 +18605,9 @@
       "industry_code": "801744",
       "industry_name": "航海装备Ⅱ"
     },
-    "000547": {
-      "industry_code": "801745",
-      "industry_name": "军工电子Ⅱ"
+    "300008": {
+      "industry_code": "801744",
+      "industry_name": "航海装备Ⅱ"
     },
     "000733": {
       "industry_code": "801745",
@@ -18821,9 +18853,9 @@
       "industry_code": "801745",
       "industry_name": "军工电子Ⅱ"
     },
-    "002174": {
-      "industry_code": "801764",
-      "industry_name": "游戏Ⅱ"
+    "000547": {
+      "industry_code": "801745",
+      "industry_name": "军工电子Ⅱ"
     },
     "002425": {
       "industry_code": "801764",
@@ -18925,9 +18957,9 @@
       "industry_code": "801764",
       "industry_name": "游戏Ⅱ"
     },
-    "000607": {
-      "industry_code": "801765",
-      "industry_name": "广告营销"
+    "002174": {
+      "industry_code": "801764",
+      "industry_name": "游戏Ⅱ"
     },
     "000676": {
       "industry_code": "801765",
@@ -19026,8 +19058,8 @@
       "industry_name": "广告营销"
     },
     "600640": {
-      "industry_code": "801765",
-      "industry_name": "广告营销"
+      "industry_code": "801767",
+      "industry_name": "数字媒体"
     },
     "301171": {
       "industry_code": "801765",
@@ -19037,9 +19069,9 @@
       "industry_code": "801765",
       "industry_name": "广告营销"
     },
-    "000802": {
-      "industry_code": "801766",
-      "industry_name": "影视院线"
+    "000607": {
+      "industry_code": "801765",
+      "industry_name": "广告营销"
     },
     "000892": {
       "industry_code": "801766",
@@ -19117,9 +19149,9 @@
       "industry_code": "801766",
       "industry_name": "影视院线"
     },
-    "000681": {
-      "industry_code": "801767",
-      "industry_name": "数字媒体"
+    "000802": {
+      "industry_code": "801766",
+      "industry_name": "影视院线"
     },
     "002095": {
       "industry_code": "801767",
@@ -19169,9 +19201,9 @@
       "industry_code": "801767",
       "industry_name": "数字媒体"
     },
-    "000719": {
-      "industry_code": "801769",
-      "industry_name": "出版"
+    "000681": {
+      "industry_code": "801767",
+      "industry_name": "数字媒体"
     },
     "000793": {
       "industry_code": "801769",
@@ -19285,9 +19317,9 @@
       "industry_code": "801769",
       "industry_name": "出版"
     },
-    "601288": {
-      "industry_code": "801782",
-      "industry_name": "国有大型银行Ⅱ"
+    "000719": {
+      "industry_code": "801769",
+      "industry_name": "出版"
     },
     "601328": {
       "industry_code": "801782",
@@ -19309,9 +19341,9 @@
       "industry_code": "801782",
       "industry_name": "国有大型银行Ⅱ"
     },
-    "000001": {
-      "industry_code": "801783",
-      "industry_name": "股份制银行Ⅱ"
+    "601288": {
+      "industry_code": "801782",
+      "industry_name": "国有大型银行Ⅱ"
     },
     "600000": {
       "industry_code": "801783",
@@ -19345,9 +19377,9 @@
       "industry_code": "801783",
       "industry_name": "股份制银行Ⅱ"
     },
-    "002142": {
-      "industry_code": "801784",
-      "industry_name": "城商行Ⅱ"
+    "000001": {
+      "industry_code": "801783",
+      "industry_name": "股份制银行Ⅱ"
     },
     "002936": {
       "industry_code": "801784",
@@ -19413,9 +19445,9 @@
       "industry_code": "801784",
       "industry_name": "城商行Ⅱ"
     },
-    "002807": {
-      "industry_code": "801785",
-      "industry_name": "农商行Ⅱ"
+    "002142": {
+      "industry_code": "801784",
+      "industry_name": "城商行Ⅱ"
     },
     "002839": {
       "industry_code": "801785",
@@ -19453,9 +19485,9 @@
       "industry_code": "801785",
       "industry_name": "农商行Ⅱ"
     },
-    "000913": {
-      "industry_code": "801881",
-      "industry_name": "摩托车及其他"
+    "002807": {
+      "industry_code": "801785",
+      "industry_name": "农商行Ⅱ"
     },
     "002105": {
       "industry_code": "801881",
@@ -19513,9 +19545,9 @@
       "industry_code": "801881",
       "industry_name": "摩托车及其他"
     },
-    "000552": {
-      "industry_code": "801951",
-      "industry_name": "煤炭开采"
+    "000913": {
+      "industry_code": "801881",
+      "industry_name": "摩托车及其他"
     },
     "000571": {
       "industry_code": "801951",
@@ -19633,9 +19665,9 @@
       "industry_code": "801951",
       "industry_name": "煤炭开采"
     },
-    "000723": {
-      "industry_code": "801952",
-      "industry_name": "焦炭Ⅱ"
+    "000552": {
+      "industry_code": "801951",
+      "industry_name": "煤炭开采"
     },
     "600408": {
       "industry_code": "801952",
@@ -19661,9 +19693,9 @@
       "industry_code": "801952",
       "industry_name": "焦炭Ⅱ"
     },
-    "002207": {
-      "industry_code": "801962",
-      "industry_name": "油服工程"
+    "000723": {
+      "industry_code": "801952",
+      "industry_name": "焦炭Ⅱ"
     },
     "002554": {
       "industry_code": "801962",
@@ -19713,9 +19745,9 @@
       "industry_code": "801962",
       "industry_name": "油服工程"
     },
-    "000059": {
-      "industry_code": "801963",
-      "industry_name": "炼化及贸易"
+    "002207": {
+      "industry_code": "801962",
+      "industry_name": "油服工程"
     },
     "000096": {
       "industry_code": "801963",
@@ -19833,9 +19865,9 @@
       "industry_code": "801971",
       "industry_name": "环境治理"
     },
-    "000005": {
-      "industry_code": "801971",
-      "industry_name": "环境治理"
+    "000059": {
+      "industry_code": "801963",
+      "industry_name": "炼化及贸易"
     },
     "000035": {
       "industry_code": "801971",
@@ -20253,9 +20285,9 @@
       "industry_code": "801972",
       "industry_name": "环保设备Ⅱ"
     },
-    "000551": {
-      "industry_code": "801972",
-      "industry_name": "环保设备Ⅱ"
+    "000005": {
+      "industry_code": "801971",
+      "industry_name": "环境治理"
     },
     "000967": {
       "industry_code": "801972",
@@ -20313,10 +20345,6 @@
       "industry_code": "801972",
       "industry_name": "环保设备Ⅱ"
     },
-    "688600": {
-      "industry_code": "801972",
-      "industry_name": "环保设备Ⅱ"
-    },
     "301288": {
       "industry_code": "801972",
       "industry_name": "环保设备Ⅱ"
@@ -20350,6 +20378,10 @@
       "industry_name": "环保设备Ⅱ"
     },
     "688671": {
+      "industry_code": "801972",
+      "industry_name": "环保设备Ⅱ"
+    },
+    "000551": {
       "industry_code": "801972",
       "industry_name": "环保设备Ⅱ"
     },
@@ -20401,10 +20433,6 @@
       "industry_code": "801981",
       "industry_name": "个护用品"
     },
-    "002094": {
-      "industry_code": "801982",
-      "industry_name": "化妆品"
-    },
     "300132": {
       "industry_code": "801982",
       "industry_name": "化妆品"
@@ -20453,9 +20481,9 @@
       "industry_code": "801982",
       "industry_name": "化妆品"
     },
-    "000089": {
-      "industry_code": "801991",
-      "industry_name": "航空机场"
+    "002094": {
+      "industry_code": "801982",
+      "industry_name": "化妆品"
     },
     "000099": {
       "industry_code": "801991",
@@ -20501,9 +20529,9 @@
       "industry_code": "801991",
       "industry_name": "航空机场"
     },
-    "000088": {
-      "industry_code": "801992",
-      "industry_name": "航运港口"
+    "000089": {
+      "industry_code": "801991",
+      "industry_name": "航空机场"
     },
     "000520": {
       "industry_code": "801992",
@@ -20637,9 +20665,9 @@
       "industry_code": "801992",
       "industry_name": "航运港口"
     },
-    "000430": {
-      "industry_code": "801993",
-      "industry_name": "旅游及景区"
+    "000088": {
+      "industry_code": "801992",
+      "industry_name": "航运港口"
     },
     "000524": {
       "industry_code": "801993",
@@ -20717,9 +20745,9 @@
       "industry_code": "801993",
       "industry_name": "旅游及景区"
     },
-    "000526": {
-      "industry_code": "801994",
-      "industry_name": "教育"
+    "000430": {
+      "industry_code": "801993",
+      "industry_name": "旅游及景区"
     },
     "002607": {
       "industry_code": "801994",
@@ -20785,9 +20813,9 @@
       "industry_code": "801994",
       "industry_name": "教育"
     },
-    "000156": {
-      "industry_code": "801995",
-      "industry_name": "电视广播Ⅱ"
+    "000526": {
+      "industry_code": "801994",
+      "industry_name": "教育"
     },
     "000665": {
       "industry_code": "801995",
@@ -20838,6 +20866,10 @@
       "industry_name": "电视广播Ⅱ"
     },
     "301551": {
+      "industry_code": "801995",
+      "industry_name": "电视广播Ⅱ"
+    },
+    "000156": {
       "industry_code": "801995",
       "industry_name": "电视广播Ⅱ"
     }

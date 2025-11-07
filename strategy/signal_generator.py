@@ -714,11 +714,19 @@ class SignalGenerator:
             
             volume_ma = indicators['volume_ma'].iloc[-1]
             
+            # 调试日志：极端价格量能判断
+            self.logger.info(f"🔍 极端价格量能判断 - 当前价格: {current_price:.2f}, 布林上轨: {bb_upper:.2f}")
+            self.logger.info(f"🔍 极端价格量能判断 - 当前成交量: {current_volume:.0f}, 成交量均线: {volume_ma:.0f}")
+            self.logger.info(f"🔍 极端价格量能判断 - 成交量阈值(×{self.params['volume_sell_ratio']}): {volume_ma * self.params['volume_sell_ratio']:.0f}")
+            self.logger.info(f"🔍 极端价格量能判断 - 价格条件: {current_price >= bb_upper}, 成交量条件: {current_volume >= volume_ma * self.params['volume_sell_ratio']}")
+            self.logger.info(f"🔍 极端价格量能判断 - bb_upper is NaN: {pd.isna(bb_upper)}, volume_ma is NaN: {pd.isna(volume_ma)}")
+            
             # 阶段高点：收盘价 ≥ 布林上轨 且 本周量 ≥ 4周均量 × 1.3
             if (not pd.isna(bb_upper) and not pd.isna(volume_ma) and
                 current_price >= bb_upper and 
                 current_volume >= volume_ma * self.params['volume_sell_ratio']):
                 scores['extreme_price_volume_high'] = True
+                self.logger.debug(f"✅ 极端价格量能卖出信号触发！")
             
             # 阶段低点：收盘价 ≤ 布林下轨 且 本周量 ≥ 4周均量 × 0.8
             if (not pd.isna(bb_lower) and not pd.isna(volume_ma) and
