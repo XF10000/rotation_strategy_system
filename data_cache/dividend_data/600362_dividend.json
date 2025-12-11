@@ -3,7 +3,7 @@
   "data_type": "dividend",
   "records": 26,
   "start_date": "2002-07-01",
-  "end_date": "2025-07-22",
+  "end_date": "2025-11-28",
   "columns": [
     "dividend_amount",
     "bonus_ratio",
@@ -11,5 +11,5 @@
     "allotment_ratio",
     "allotment_price"
   ],
-  "save_time": "2025-11-07T15:50:23.021351"
+  "save_time": "2025-12-10T14:40:48.188096"
 }
