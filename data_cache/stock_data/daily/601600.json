@@ -1,5 +1,5 @@
 {
-  "code": "601919",
+  "code": "601600",
   "period": "daily",
   "records": 1112,
   "start_date": "2021-05-14",
@@ -13,5 +13,5 @@
     "amount",
     "turnover_rate"
   ],
-  "save_time": "2025-12-10T14:28:34.922538"
+  "save_time": "2025-12-10T14:29:01.868563"
 }

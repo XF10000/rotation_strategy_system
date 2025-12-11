@@ -1,9 +1,9 @@
 {
   "code": "603345",
   "period": "daily",
-  "records": 848,
-  "start_date": "2022-05-13",
-  "end_date": "2025-11-07",
+  "records": 1152,
+  "start_date": "2021-03-15",
+  "end_date": "2025-12-10",
   "columns": [
     "open",
     "high",
@@ -13,5 +13,5 @@
     "amount",
     "turnover_rate"
   ],
-  "save_time": "2025-11-07T15:34:14.578762"
+  "save_time": "2025-12-10T14:26:20.211053"
 }

@@ -410,6 +410,10 @@ class BacktestEngine:
                 self.logger.info(f"   📊 周线数据: 总计{len(weekly_data)}条, 回测期{len(weekly_backtest_data)}条")
                 self.logger.info(f"   📊 RSI指标: 有效值{rsi_valid_count}个, NaN值{rsi_nan_count}个")
             
+                # 增加缓冲等待，避免处理下一只股票过快导致连接断开
+                import time
+                time.sleep(1.5)
+            
             # 显示最终缓存统计
             final_cache_stats = self.data_storage.get_cache_statistics()
             self.logger.info(f"📊 数据准备完成后缓存统计: {final_cache_stats}")
@@ -2300,6 +2304,9 @@ class BacktestEngine:
             self.logger.error(f"❌ {stock_code} 智能数据获取失败: {e}")
             # 降级到直接网络获取
             try:
+                import time
+                self.logger.info(f"⏳ 智能获取失败，等待 3 秒后降级重试...")
+                time.sleep(3)  # 增加降级前的等待
                 return self.data_fetcher.get_stock_data(stock_code, start_date, end_date, period)
             except Exception as fallback_error:
                 self.logger.error(f"❌ {stock_code} 降级获取也失败: {fallback_error}")

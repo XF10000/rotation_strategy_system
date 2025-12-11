@@ -1,5 +1,5 @@
 {
-  "code": "000807",
+  "code": "601600",
   "period": "weekly",
   "records": 235,
   "start_date": "2021-05-14",
@@ -28,5 +28,5 @@
     "volume_ma",
     "volume_ratio"
   ],
-  "save_time": "2025-12-10T14:20:49.378690"
+  "save_time": "2025-12-10T14:29:04.818084"
 }

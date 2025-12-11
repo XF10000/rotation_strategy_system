@@ -1,9 +1,9 @@
 {
   "code": "000651",
   "period": "daily",
-  "records": 848,
-  "start_date": "2022-05-13",
-  "end_date": "2025-11-07",
+  "records": 1112,
+  "start_date": "2021-05-14",
+  "end_date": "2025-12-10",
   "columns": [
     "open",
     "high",
@@ -13,5 +13,5 @@
     "amount",
     "turnover_rate"
   ],
-  "save_time": "2025-11-07T15:34:23.029593"
+  "save_time": "2025-12-10T14:28:52.985191"
 }

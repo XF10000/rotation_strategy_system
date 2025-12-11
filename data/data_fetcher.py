@@ -76,7 +76,7 @@ class AkshareDataFetcher(DataFetcher):
         """初始化Akshare数据获取器"""
         self.source_name = "akshare"
         self.last_request_time = None  # 记录上次请求时间
-        self.min_request_interval = 1.0  # 最小请求间隔（秒）
+        self.min_request_interval = 3.0  # 最小请求间隔（秒）- 增加到3秒以避免连接中断
         logger.info("初始化Akshare数据获取器")
     
     def get_stock_data(self, code: str, start_date: str, end_date: str = None, 
@@ -177,7 +177,9 @@ class AkshareDataFetcher(DataFetcher):
                     
                     # 重试时增加额外延迟
                     if attempt > 0:
-                        time.sleep(2 + attempt)  # 递增延迟
+                        wait_time = 5 + attempt * 5  # 增加重试等待时间: 5, 10, 15, 20...
+                        logger.debug(f"重试等待: {wait_time}秒")
+                        time.sleep(wait_time)
                     
                     # 更新请求时间
                     self.last_request_time = time.time()
@@ -212,8 +214,15 @@ class AkshareDataFetcher(DataFetcher):
                         
                 except Exception as e:
                     logger.warning(f"第 {attempt + 1} 次尝试获取股票 {code} 数据失败: {str(e)}")
+                    # 检测是否为连接中断错误
+                    is_connection_error = "RemoteDisconnected" in str(e) or "Connection aborted" in str(e)
+                    
                     if attempt < max_retries - 1:
-                        time.sleep(3 + attempt)  # 递增等待时间
+                        # 如果是连接错误，等待更长时间
+                        base_wait = 10 if is_connection_error else 3
+                        sleep_time = base_wait + attempt * 5
+                        logger.warning(f"等待 {sleep_time} 秒后重试...")
+                        time.sleep(sleep_time)
                     else:
                         # 最后一次尝试，记录详细错误信息
                         logger.error(f"所有重试均失败，股票 {code} 可能暂时无法获取数据")

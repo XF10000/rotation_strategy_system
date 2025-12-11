@@ -522,10 +522,14 @@ class DataStorage:
             
             # 返回缓存的日期范围
             if metadata.get('start_date') and metadata.get('end_date'):
-                return {
+                result = {
                     'start_date': metadata['start_date'],
                     'end_date': metadata['end_date']
                 }
+                # 添加保存时间
+                if 'save_time' in metadata:
+                    result['save_time'] = metadata['save_time']
+                return result
             
             return None
             
@@ -552,6 +556,18 @@ class DataStorage:
                 logger.debug(f"分红配股数据无缓存: {code}")
                 return False
             
+            # 1. 首先检查缓存文件的生成时间（save_time）
+            # 如果缓存是最近（30天内）生成的，直接认为有效，因为分红数据更新不频繁
+            if 'save_time' in cache_coverage:
+                try:
+                    save_time = datetime.fromisoformat(cache_coverage['save_time'])
+                    age_days = (datetime.now() - save_time).days
+                    if age_days < 30:
+                        logger.info(f"分红缓存文件较新 ({age_days}天前), 直接使用: {code}")
+                        return True
+                except Exception as e:
+                    logger.warning(f"检查分红缓存save_time失败: {e}")
+
             # 转换为日期对象进行比较
             cache_start = pd.to_datetime(cache_coverage['start_date'])
             cache_end = pd.to_datetime(cache_coverage['end_date'])
@@ -563,7 +579,6 @@ class DataStorage:
             
             # 对于结束日期，如果缓存的结束日期距离当前时间较近（比如90天内），
             # 则认为缓存是足够的，因为分红配股数据更新频率较低
-            from datetime import datetime, timedelta
             current_date = datetime.now()
             cache_end_age = (current_date - cache_end).days
             
