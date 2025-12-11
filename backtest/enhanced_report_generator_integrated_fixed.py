@@ -1371,8 +1371,8 @@ class IntegratedReportGenerator:
                             <div>
                                 <strong style="color: #dc3545;">💰 价值比过滤器（硬性条件）:</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：价值比 < 80%（当前价格/DCF估值 < 0.8）</li>
-                                    <li>卖出条件：价值比 > 70%（当前价格/DCF估值 > 0.7）</li>
+                                    <li>买入条件：价值比 < 70%（当前价格/DCF估值 < 0.7，低估）</li>
+                                    <li>卖出条件：价值比 > 80%（当前价格/DCF估值 > 0.8，高估）</li>
                                 </ul>
                             </div>
                             <div>
