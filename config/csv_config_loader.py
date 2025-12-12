@@ -236,6 +236,21 @@ def create_csv_config() -> Dict[str, Any]:
             if key not in ['total_capital', 'start_date', 'end_date']:
                 strategy_params[key] = value
         
+        # 读取数据源配置
+        data_source = backtest_settings.get('data_source', 'akshare')
+        backup_data_source = backtest_settings.get('backup_data_source', None)
+        tushare_token = backtest_settings.get('tushare_token', None)
+        data_fetch_strategy = backtest_settings.get('data_fetch_strategy', 'simple')
+        
+        # 如果backup_data_source是空字符串或'none'，设为None
+        if backup_data_source and backup_data_source.lower() in ['none', '', 'null']:
+            backup_data_source = None
+        
+        # 如果tushare_token是空字符串，尝试从环境变量读取
+        if not tushare_token or tushare_token == '':
+            import os
+            tushare_token = os.getenv('TUSHARE_TOKEN')
+        
         # 创建完整配置
         config = {
             'name': 'CSV配置',
@@ -245,7 +260,12 @@ def create_csv_config() -> Dict[str, Any]:
             'start_date': backtest_settings['start_date'],
             'end_date': backtest_settings['end_date'],
             'strategy_params': strategy_params,  # 包含所有策略相关参数
-            'cost_config': DEFAULT_COST_CONFIG.copy()
+            'cost_config': DEFAULT_COST_CONFIG.copy(),
+            # 数据源配置
+            'data_source': data_source,
+            'backup_data_source': backup_data_source,
+            'tushare_token': tushare_token,
+            'data_fetch_strategy': data_fetch_strategy
         }
         
         logger.info("CSV配置创建成功")
@@ -253,6 +273,8 @@ def create_csv_config() -> Dict[str, Any]:
         logger.info(f"回测期间: {config['start_date']} 至 {config['end_date']}")
         logger.info(f"股票数量: {len([k for k in initial_holdings.keys() if k != 'cash'])}")
         logger.info(f"轮动比例: {strategy_params['rotation_percentage']:.1%}")
+        logger.info(f"📊 数据源: {config['data_source']}" + 
+                   (f" (备用: {config['backup_data_source']})" if config['backup_data_source'] else ""))
         
         return config
         
