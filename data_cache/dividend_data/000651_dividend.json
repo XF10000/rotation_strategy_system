@@ -1,8 +1,8 @@
 {
   "code": "000651",
   "data_type": "dividend",
-  "records": 34,
-  "start_date": "1996-12-30",
+  "records": 32,
+  "start_date": "1997-11-18",
   "end_date": "2025-08-29",
   "columns": [
     "dividend_amount",
@@ -11,5 +11,5 @@
     "allotment_ratio",
     "allotment_price"
   ],
-  "save_time": "2025-12-10T14:48:25.695432"
+  "save_time": "2025-12-12T16:44:10.759260"
 }

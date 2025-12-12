@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
         # 导入其他模块
-from data.data_fetcher import AkshareDataFetcher
+from data.data_fetcher import AkshareDataFetcher, DataFetcherFactory
 from data.data_processor import DataProcessor
 from data.data_storage import DataStorage
 from strategy.signal_generator import SignalGenerator
@@ -53,8 +53,31 @@ class BacktestEngine:
         # 成本配置
         cost_config = config.get('cost_config', {})
         
+        # 【新增】数据源配置
+        data_source = config.get('data_source', 'akshare')
+        backup_data_source = config.get('backup_data_source', None)
+        tushare_token = config.get('tushare_token', None)
+        data_fetch_strategy = config.get('data_fetch_strategy', 'simple')
+        
         # 初始化各个组件
-        self.data_fetcher = AkshareDataFetcher()
+        # 【修改】使用工厂模式创建数据获取器
+        fetcher_config = {
+            'tushare_token': tushare_token
+        }
+        
+        if data_fetch_strategy == 'smart' and backup_data_source:
+            # 智能切换模式：使用降级策略
+            self.logger.info(f"🔄 使用降级模式创建数据获取器")
+            self.data_fetcher = DataFetcherFactory.create_with_fallback(
+                data_source, backup_data_source, fetcher_config
+            )
+            self.logger.info(f"✅ 数据源初始化完成")
+        else:
+            # 单一数据源模式
+            self.logger.info(f"📊 使用单一数据源模式")
+            self.data_fetcher = DataFetcherFactory.create_fetcher(data_source, fetcher_config)
+            self.logger.info(f"✅ 数据源初始化: {data_source}")
+        
         self.data_processor = DataProcessor()
         self.data_storage = DataStorage()  # 添加数据存储组件
         # SignalGenerator将在DCF数据加载后初始化
@@ -2253,7 +2276,7 @@ class BacktestEngine:
                 if need_fetch_before:
                     # 获取早期数据
                     early_end = (cached_start - pd.Timedelta(days=1)).strftime('%Y-%m-%d')
-                    self.logger.info(f"🌐 {stock_code} 获取早期数据: {start_date} 到 {early_end}")
+                    self.logger.info(f"🌐 {stock_code} 从{self.data_fetcher.source_name}获取早期数据: {start_date} 到 {early_end}")
                     early_data = self.data_fetcher.get_stock_data(stock_code, start_date, early_end, period)
                     if early_data is not None and not early_data.empty:
                         new_data_parts.append(early_data)
@@ -2261,7 +2284,7 @@ class BacktestEngine:
                 if need_fetch_after:
                     # 获取后期数据
                     late_start = (cached_end + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
-                    self.logger.info(f"🌐 {stock_code} 获取后期数据: {late_start} 到 {end_date}")
+                    self.logger.info(f"🌐 {stock_code} 从{self.data_fetcher.source_name}获取后期数据: {late_start} 到 {end_date}")
                     late_data = self.data_fetcher.get_stock_data(stock_code, late_start, end_date, period)
                     if late_data is not None and not late_data.empty:
                         new_data_parts.append(late_data)
@@ -2290,7 +2313,7 @@ class BacktestEngine:
             
             else:
                 # 7. 无缓存，直接从网络获取
-                self.logger.info(f"🌐 {stock_code} 无缓存，从akshare获取完整数据: {start_date} 到 {end_date}")
+                self.logger.info(f"🌐 {stock_code} 无缓存，从{self.data_fetcher.source_name}获取完整数据: {start_date} 到 {end_date}")
                 fresh_data = self.data_fetcher.get_stock_data(stock_code, start_date, end_date, period)
                 
                 if fresh_data is not None and not fresh_data.empty:

@@ -1,7 +1,7 @@
 {
   "code": "600900",
   "period": "weekly",
-  "records": 233,
+  "records": 240,
   "start_date": "2021-05-14",
   "end_date": "2025-12-12",
   "columns": [
@@ -11,7 +11,6 @@
     "close",
     "volume",
     "amount",
-    "turnover_rate",
     "rsi",
     "ema_20",
     "ema_50",
@@ -28,5 +27,5 @@
     "volume_ma",
     "volume_ratio"
   ],
-  "save_time": "2025-12-10T14:26:38.890717"
+  "save_time": "2025-12-12T16:44:03.600525"
 }
