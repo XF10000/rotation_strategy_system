@@ -1032,11 +1032,65 @@ class TushareDataFetcher(DataFetcher):
     def align_dividend_with_weekly_data(self, weekly_data: pd.DataFrame,
                                       dividend_data: pd.DataFrame) -> pd.DataFrame:
         """
-        将分红配股数据与周线数据对齐（复用AkshareDataFetcher的实现）
+        将分红配股数据与周线数据对齐
+        
+        Args:
+            weekly_data: 周线数据
+            dividend_data: 分红配股数据
+            
+        Returns:
+            pd.DataFrame: 对齐后的周线数据（包含分红配股信息）
         """
-        # 直接调用父类或AkshareDataFetcher的实现
-        akshare_fetcher = AkshareDataFetcher()
-        return akshare_fetcher.align_dividend_with_weekly_data(weekly_data, dividend_data)
+        try:
+            # 如果没有分红数据，添加空列并返回
+            if dividend_data is None or dividend_data.empty:
+                weekly_data['dividend_amount'] = 0.0
+                weekly_data['allotment_ratio'] = 0.0
+                weekly_data['allotment_price'] = 0.0
+                weekly_data['bonus_ratio'] = 0.0
+                weekly_data['transfer_ratio'] = 0.0
+                return weekly_data
+            
+            # 初始化分红配股列
+            weekly_data['dividend_amount'] = 0.0
+            weekly_data['allotment_ratio'] = 0.0
+            weekly_data['allotment_price'] = 0.0
+            weekly_data['bonus_ratio'] = 0.0
+            weekly_data['transfer_ratio'] = 0.0
+            
+            # 遍历每个分红事件
+            for ex_date, dividend_row in dividend_data.iterrows():
+                # 找到最接近的周线日期
+                closest_date = None
+                min_diff = pd.Timedelta(days=999999)
+                
+                for week_date in weekly_data.index:
+                    diff = abs(week_date - ex_date)
+                    if diff < min_diff:
+                        min_diff = diff
+                        closest_date = week_date
+                
+                # 如果找到匹配的周线日期（允许7天内的差异）
+                if closest_date is not None and min_diff <= pd.Timedelta(days=7):
+                    weekly_data.loc[closest_date, 'dividend_amount'] = dividend_row.get('dividend_amount', 0)
+                    weekly_data.loc[closest_date, 'allotment_ratio'] = dividend_row.get('allotment_ratio', 0)
+                    weekly_data.loc[closest_date, 'allotment_price'] = dividend_row.get('allotment_price', 0)
+                    weekly_data.loc[closest_date, 'bonus_ratio'] = dividend_row.get('bonus_ratio', 0)
+                    weekly_data.loc[closest_date, 'transfer_ratio'] = dividend_row.get('transfer_ratio', 0)
+                    
+                    logger.debug(f"分红配股信息已对齐: {ex_date.date()} -> {closest_date.date()}")
+            
+            return weekly_data
+            
+        except Exception as e:
+            logger.error(f"分红配股数据对齐失败: {str(e)}")
+            # 返回原始数据，添加空的分红配股列
+            weekly_data['dividend_amount'] = 0.0
+            weekly_data['allotment_ratio'] = 0.0
+            weekly_data['allotment_price'] = 0.0
+            weekly_data['bonus_ratio'] = 0.0
+            weekly_data['transfer_ratio'] = 0.0
+            return weekly_data
     
     def test_connection(self) -> bool:
         """

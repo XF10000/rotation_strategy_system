@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
         # 导入其他模块
-from data.data_fetcher import AkshareDataFetcher, DataFetcherFactory
+from data.data_fetcher import DataFetcherFactory
 from data.data_processor import DataProcessor
 from data.data_storage import DataStorage
 from strategy.signal_generator import SignalGenerator
