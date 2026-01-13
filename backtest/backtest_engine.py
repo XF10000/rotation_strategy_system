@@ -2275,19 +2275,35 @@ class BacktestEngine:
                 
                 if need_fetch_before:
                     # 获取早期数据
+                    # 计算早期数据的结束日期（缓存开始日期的前一天）
                     early_end = (cached_start - pd.Timedelta(days=1)).strftime('%Y-%m-%d')
-                    self.logger.info(f"🌐 {stock_code} 从{self.data_fetcher.source_name}获取早期数据: {start_date} 到 {early_end}")
-                    early_data = self.data_fetcher.get_stock_data(stock_code, start_date, early_end, period)
-                    if early_data is not None and not early_data.empty:
-                        new_data_parts.append(early_data)
+                    
+                    # 检查日期范围是否有效（避免开始日期晚于结束日期）
+                    if pd.to_datetime(start_date) <= pd.to_datetime(early_end):
+                        self.logger.info(f"🌐 {stock_code} 从{self.data_fetcher.source_name}获取早期数据: {start_date} 到 {early_end}")
+                        early_data = self.data_fetcher.get_stock_data(stock_code, start_date, early_end, period)
+                        if early_data is not None and not early_data.empty:
+                            new_data_parts.append(early_data)
+                        else:
+                            self.logger.warning(f"⚠️ {stock_code} 未获取到早期数据，将仅使用缓存数据")
+                    else:
+                        self.logger.warning(f"⚠️ {stock_code} 早期数据日期范围无效（{start_date} > {early_end}），跳过获取")
                 
                 if need_fetch_after:
                     # 获取后期数据
+                    # 计算后期数据的开始日期（缓存结束日期的后一天）
                     late_start = (cached_end + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
-                    self.logger.info(f"🌐 {stock_code} 从{self.data_fetcher.source_name}获取后期数据: {late_start} 到 {end_date}")
-                    late_data = self.data_fetcher.get_stock_data(stock_code, late_start, end_date, period)
-                    if late_data is not None and not late_data.empty:
-                        new_data_parts.append(late_data)
+                    
+                    # 检查日期范围是否有效（避免开始日期晚于结束日期）
+                    if pd.to_datetime(late_start) <= pd.to_datetime(end_date):
+                        self.logger.info(f"🌐 {stock_code} 从{self.data_fetcher.source_name}获取后期数据: {late_start} 到 {end_date}")
+                        late_data = self.data_fetcher.get_stock_data(stock_code, late_start, end_date, period)
+                        if late_data is not None and not late_data.empty:
+                            new_data_parts.append(late_data)
+                        else:
+                            self.logger.warning(f"⚠️ {stock_code} 未获取到后期数据，将仅使用缓存数据")
+                    else:
+                        self.logger.warning(f"⚠️ {stock_code} 后期数据日期范围无效（{late_start} > {end_date}），跳过获取")
                 
                 # 4. 合并所有数据
                 all_data_parts = []
