@@ -354,7 +354,7 @@ def validate_cache_before_backtest(stock_codes: List[str], period: str = 'weekly
         return True
     else:
         logger.error("❌ 缓存存在需要手动处理的问题，建议检查后再回测")
-        logger.error("💡 可以运行 'python3 fix_cache_issues.py' 进行深度修复")
+        logger.error("💡 建议手动删除 data_cache/ 目录后重新运行回测")
         return False
 
 

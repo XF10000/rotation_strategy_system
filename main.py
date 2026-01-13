@@ -80,7 +80,7 @@ def main():
         
         if not cache_validation_passed:
             logger.error("❌ 缓存验证失败，回测终止")
-            logger.error("💡 建议运行 'python3 fix_cache_issues.py' 进行深度修复")
+            logger.error("💡 建议手动删除 data_cache/ 目录后重新运行回测")
             return
         
         # 创建并运行回测引擎
@@ -135,7 +135,7 @@ def main():
         logger.info("✅ 周K线图标注 - 在图表上标注交易位置")
         logger.info("✅ 技术指标面板 - RSI、MACD、成交量等多指标显示")
         logger.info("")
-        logger.info("💡 提示: 运行 'python3 run_signal_detailed_analysis.py' 查看更详细的信号分析")
+        logger.info("💡 提示: 打开生成的HTML报告查看完整的信号分析和K线图")
         
     except Exception as e:
         logger.error(f"程序执行出错: {str(e)}", exc_info=True)
