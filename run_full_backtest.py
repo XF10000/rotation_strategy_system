@@ -27,7 +27,7 @@ def main():
     try:
         # 加载配置
         logger.info("加载配置文件...")
-        backtest_settings = load_backtest_settings('Input/Backtest_settings_regression_test.csv')
+        backtest_settings = load_backtest_settings('Input/Backtest_settings.csv')  # 使用主配置文件
         initial_holdings = load_portfolio_config('Input/portfolio_config.csv')
         config = {**backtest_settings}
         config['initial_holdings'] = initial_holdings
