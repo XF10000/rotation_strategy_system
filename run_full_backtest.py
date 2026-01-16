@@ -125,20 +125,34 @@ def main():
                 print(f"   {code}: {shares:>10,.0f} 股 @ ¥{price:>8.2f} = ¥{value:>12,.2f} ({weight:>5.2f}%)")
         
         print("\n" + "=" * 80)
-        print("✅ 回测验证完成")
-        print("=" * 80)
+        print(f"\n💼 交易统计:")
+        print(f"   总交易次数: {len(transactions)} 笔")
+        print(f"   买入次数: {buy_count} 笔")
+        print(f"   卖出次数: {sell_count} 笔")
         
-        # 生成报告
-        logger.info("\n生成回测报告...")
-        orchestrator.generate_reports()
-        logger.info("报告生成完成")
+        print("\n" + "=" * 80)
+        
+        # 生成HTML报告
+        logger.info("\n生成HTML报告...")
+        try:
+            report_paths = orchestrator.generate_reports()
+            if report_paths:
+                print(f"\n📄 报告已生成:")
+                for report_type, path in report_paths.items():
+                    print(f"   {report_type}: {path}")
+        except Exception as e:
+            logger.error(f"报告生成失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         
         return True
         
     except Exception as e:
-        logger.error(f"回测失败: {e}", exc_info=True)
+        logger.error(f"回测失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)

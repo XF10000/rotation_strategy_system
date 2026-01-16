@@ -245,11 +245,17 @@ class IntegratedReportGenerator:
     def _replace_basic_metrics_safe(self, template: str, metrics: Dict) -> str:
         """安全地替换基础指标"""
         try:
+            print(f"🔍 _replace_basic_metrics_safe 开始")
+            print(f"📊 接收到的metrics: {metrics}")
+            
             initial_capital = metrics.get('initial_capital', 1000000)
             final_value = metrics.get('final_value', initial_capital)
             total_return = metrics.get('total_return', 0)
             annual_return = metrics.get('annual_return', 0)
             max_drawdown = metrics.get('max_drawdown', 0)
+            
+            print(f"💰 提取的数据: initial_capital={initial_capital:,.0f}, final_value={final_value:,.0f}")
+            print(f"📈 提取的数据: total_return={total_return:.2f}%, annual_return={annual_return:.2f}%")
             
             # 安全替换
             replacements = [
@@ -261,11 +267,16 @@ class IntegratedReportGenerator:
             ]
             
             for old, new in replacements:
+                count = template.count(old)
+                print(f"🔄 替换 '{old}' -> '{new}' (找到{count}处)")
                 template = template.replace(old, new)
             
+            print(f"✅ 基础指标替换完成")
             return template
         except Exception as e:
-            print(f"基础指标替换错误: {e}")
+            print(f"❌ 基础指标替换错误: {e}")
+            import traceback
+            traceback.print_exc()
             return template
     
     def _replace_benchmark_comparison_safe(self, template: str, metrics: Dict) -> str:

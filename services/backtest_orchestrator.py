@@ -212,11 +212,15 @@ class BacktestOrchestrator(BaseService):
             # 准备回测结果
             backtest_results = self._prepare_backtest_results()
             
+            # 🔧 修复：使用portfolio_manager的transaction_history，而不是空的self.transaction_history
+            transaction_history = self.portfolio_service.portfolio_manager.transaction_history
+            self.logger.info(f"📋 交易记录数量: {len(transaction_history)}")
+            
             # 使用ReportService生成报告
             report_paths = self.report_service.generate_all_reports(
                 backtest_results,
                 self.stock_data,
-                self.transaction_history,
+                transaction_history,
                 signal_tracker=self.signal_service.signal_tracker,
                 portfolio_manager=self.portfolio_service.portfolio_manager
             )
@@ -226,6 +230,8 @@ class BacktestOrchestrator(BaseService):
             
         except Exception as e:
             self.logger.error(f"报告生成失败: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return {}
     
     def _get_trading_dates(self) -> pd.DatetimeIndex:
@@ -292,6 +298,10 @@ class BacktestOrchestrator(BaseService):
         final_date = trading_dates[-1]
         final_prices = self._get_current_prices(final_date)
         
+        # 🔧 修复：获取交易记录
+        transaction_history = portfolio_manager.transaction_history
+        self.logger.info(f"📋 准备回测结果，交易记录数量: {len(transaction_history)}")
+        
         # 计算收益
         initial_value = self.config.get('total_capital', 1000000)
         final_value = portfolio_manager.get_total_value(final_prices)
@@ -306,11 +316,20 @@ class BacktestOrchestrator(BaseService):
         return {
             'initial_value': initial_value,
             'final_value': final_value,
-            'total_return': total_return,
-            'annual_return': annual_return,
-            'transaction_count': len(self.transaction_history),
+            'total_return': total_return * 100,  # 转换为百分比
+            'annual_return': annual_return * 100,
+            'transaction_count': len(transaction_history),
+            'transactions': transaction_history,  # 🔧 修复：添加交易记录
+            'performance_metrics': {  # 🔧 修复：添加performance_metrics
+                'initial_capital': initial_value,
+                'final_value': final_value,
+                'total_return': total_return * 100,
+                'annual_return': annual_return * 100,
+                'max_drawdown': 0,  # TODO: 计算最大回撤
+            },
             'start_date': self.start_date,
-            'end_date': self.end_date
+            'end_date': self.end_date,
+            'kline_data': {}
         }
     
     def get_results(self) -> Dict[str, Any]:
