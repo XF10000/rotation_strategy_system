@@ -337,7 +337,7 @@ class BacktestOrchestrator(BaseService):
             },
             'benchmark_portfolio': benchmark_portfolio,  # 🔧 修复：添加基准持仓
             'signal_analysis': signal_analysis,  # 🔧 修复：添加信号分析
-            'final_portfolio': portfolio_manager.get_portfolio_summary(final_prices),  # 🔧 修复：添加最终持仓
+            'final_portfolio': portfolio_manager.get_portfolio_summary(),  # 🔧 修复：添加最终持仓
             'start_date': self.start_date,
             'end_date': self.end_date,
             'kline_data': {}
