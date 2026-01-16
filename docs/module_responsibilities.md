@@ -16,18 +16,165 @@
 | 模块 | 职责 | 重要性 | 状态 |
 |------|------|--------|------|
 | main.py | 程序入口，系统初始化 | ⭐⭐⭐⭐⭐ | ✅ 正常 |
-| backtest/ | 回测引擎和相关功能 | ⭐⭐⭐⭐⭐ | ⚠️ 待重构 |
+| **services/** | **服务层（推荐）** | ⭐⭐⭐⭐⭐ | ✅ **已完成** |
+| backtest/ | 回测引擎和相关功能 | ⭐⭐⭐⭐⭐ | ⚠️ Deprecated |
 | strategy/ | 策略逻辑和信号生成 | ⭐⭐⭐⭐⭐ | ✅ 正常 |
-| data/ | 数据获取、处理、缓存 | ⭐⭐⭐⭐ | ⚠️ 待优化 |
+| data/ | 数据获取、处理、缓存 | ⭐⭐⭐⭐ | ✅ 正常 |
 | indicators/ | 技术指标计算 | ⭐⭐⭐⭐ | ✅ 正常 |
-| config/ | 配置管理 | ⭐⭐⭐ | ⚠️ 待统一 |
+| config/ | 配置管理 | ⭐⭐⭐ | ✅ 已统一 |
 | utils/ | 工具函数 | ⭐⭐⭐ | ✅ 正常 |
 
 ---
 
 ## 📦 核心模块详解
 
-### 1. 程序入口 (main.py)
+### 1. 服务层 (services/) ✨ 推荐使用
+
+#### 1.1 BacktestOrchestrator (services/backtest_orchestrator.py)
+
+**职责：**
+- 协调各服务完成回测
+- 管理服务初始化顺序
+- 控制回测主循环
+- 协调服务间数据流
+- 收集和整理回测结果
+
+**对外接口：**
+```python
+class BacktestOrchestrator(BaseService):
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """初始化回测协调器"""
+        pass
+    
+    def initialize(self) -> bool:
+        """初始化所有服务"""
+        pass
+    
+    def run_backtest(self) -> bool:
+        """运行回测"""
+        pass
+    
+    def get_results(self) -> Dict:
+        """获取回测结果"""
+        pass
+```
+
+**依赖：**
+- `services.data_service` - 数据服务
+- `services.signal_service` - 信号服务
+- `services.portfolio_service` - 投资组合服务
+- `services.report_service` - 报告服务
+
+**优势：**
+- ✅ 职责清晰（~330行 vs BacktestEngine 2400行）
+- ✅ 易于测试
+- ✅ 易于扩展
+- ✅ 100%功能一致性
+
+**代码规模：** 328行
+
+---
+
+#### 1.2 DataService (services/data_service.py)
+
+**职责：**
+- 数据获取协调
+- DCF估值加载
+- RSI阈值加载
+- 股票-行业映射加载
+- 数据缓存管理
+
+**对外接口：**
+```python
+class DataService(BaseService):
+    def initialize(self) -> bool:
+        """初始化数据服务"""
+        pass
+    
+    def get_stock_data(self, stock_code: str, 
+                      start_date: str, 
+                      end_date: str) -> Dict:
+        """获取股票数据"""
+        pass
+```
+
+**代码规模：** ~200行
+
+---
+
+#### 1.3 SignalService (services/signal_service.py)
+
+**职责：**
+- 信号生成协调
+- SignalGenerator管理
+- 信号详情收集
+
+**对外接口：**
+```python
+class SignalService(BaseService):
+    def initialize(self) -> bool:
+        """初始化信号服务"""
+        pass
+    
+    def generate_signals(self, stock_data: Dict, 
+                        current_date: pd.Timestamp) -> Dict[str, str]:
+        """生成交易信号"""
+        pass
+```
+
+**代码规模：** ~150行
+
+---
+
+#### 1.4 PortfolioService (services/portfolio_service.py)
+
+**职责：**
+- 持仓管理协调
+- 交易执行
+- 动态仓位管理
+- 交易成本计算
+
+**对外接口：**
+```python
+class PortfolioService(BaseService):
+    def initialize(self, stock_data: Dict, 
+                   start_date: pd.Timestamp,
+                   dcf_values: Dict) -> bool:
+        """初始化投资组合服务"""
+        pass
+    
+    def execute_trades(self, signals: Dict[str, str], 
+                      current_date: pd.Timestamp,
+                      stock_data: Dict) -> List[str]:
+        """执行交易"""
+        pass
+```
+
+**代码规模：** ~250行
+
+---
+
+#### 1.5 ReportService (services/report_service.py)
+
+**职责：**
+- 报告生成协调
+- CSV报告生成
+- HTML报告生成
+
+**对外接口：**
+```python
+class ReportService(BaseService):
+    def generate_reports(self, backtest_results: Dict,
+                        config: Dict) -> Dict[str, str]:
+        """生成所有报告"""
+        pass
+```
+
+**代码规模：** ~100行
+
+---
+
+### 2. 程序入口 (main.py)
 
 **职责：**
 - 系统初始化
@@ -60,12 +207,14 @@ def main() -> None:
 
 ---
 
-### 2. 回测引擎模块 (backtest/)
+### 3. 回测引擎模块 (backtest/) ⚠️ Deprecated
 
-#### 2.1 BacktestEngine (backtest_engine.py)
+#### 3.1 BacktestEngine (backtest_engine.py) - 已废弃
+
+**⚠️ 状态：已废弃，请使用 services/BacktestOrchestrator**
 
 **职责：**
-- 协调回测流程
+- 协调回测流程（单体架构）
 - 数据准备
 - 信号计算协调
 - 交易执行协调
@@ -76,7 +225,12 @@ def main() -> None:
 ```python
 class BacktestEngine:
     def __init__(self, config: Dict[str, Any]) -> None:
-        """初始化回测引擎"""
+        """初始化回测引擎
+        
+        ⚠️ DEPRECATED: 请使用 BacktestOrchestrator
+        """
+        warnings.warn("BacktestEngine已废弃，请使用BacktestOrchestrator", 
+                     DeprecationWarning)
         pass
     
     def run_backtest(self) -> bool:
@@ -99,16 +253,27 @@ class BacktestEngine:
 - `backtest.portfolio_manager` - 持仓管理
 - `backtest.enhanced_report_generator_integrated_fixed` - 报告生成
 
-**不负责：**
-- ❌ 具体的数据获取实现
-- ❌ 具体的信号生成逻辑
-- ❌ 具体的报告格式
+**问题：**
+- ❌ 职责过重（2400行）
+- ❌ 难以维护
+- ❌ 难以测试
+- ✅ 已被 BacktestOrchestrator 替代
 
-**⚠️ 当前问题：**
-- 职责过重（2400行）
-- 计划重构为服务化架构
+**迁移指南：**
+```python
+# 旧方式（不推荐）
+from backtest.backtest_engine import BacktestEngine
+engine = BacktestEngine(config)
+engine.run_backtest()
 
-**代码规模：** 2400行
+# 新方式（推荐）
+from services.backtest_orchestrator import BacktestOrchestrator
+orchestrator = BacktestOrchestrator(config)
+orchestrator.initialize()
+orchestrator.run_backtest()
+```
+
+**代码规模：** 2412行
 
 ---
 
@@ -809,3 +974,10 @@ class ModuleName:
 
 **文档版本历史：**
 - v1.0 (2026-01-16) - 初始版本，阶段0模块职责文档创建
+- v1.1 (2026-01-16) - 阶段3更新：
+  - 添加services层完整说明
+  - 标记BacktestEngine为Deprecated
+  - 更新config/状态为"已统一"
+  - 更新data/状态为"正常"
+  - 添加Import规范说明（见coding_standards.md）
+  - 消除循环依赖（backtest ↔ services已解决）
