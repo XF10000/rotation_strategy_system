@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List
 
+from models.signal_result import SignalResult
 from utils.stock_name_mapper import get_stock_display_name, load_stock_name_mapping
 
 
@@ -1282,10 +1283,19 @@ class IntegratedReportGenerator:
                 price = transaction.get('price', 0)
                 shares = transaction.get('shares', 0)
                 
-                # 获取真实的技术指标数据
-                technical_indicators = transaction.get('technical_indicators', {})
-                signal_details = transaction.get('signal_details', {})
-                dimension_status = signal_details.get('dimension_status', {})
+                # 🆕 阶段6：优先使用SignalResult对象（单一数据源原则）
+                signal_result_obj = transaction.get('signal_result')
+                
+                if signal_result_obj and isinstance(signal_result_obj, SignalResult):
+                    # 使用SignalResult对象（避免重复计算）
+                    technical_indicators = self._extract_from_signal_result(signal_result_obj)
+                    signal_details = transaction.get('signal_details', {})
+                    dimension_status = signal_details.get('dimension_status', {})
+                else:
+                    # 回退到旧逻辑（向后兼容）
+                    technical_indicators = transaction.get('technical_indicators', {})
+                    signal_details = transaction.get('signal_details', {})
+                    dimension_status = signal_details.get('dimension_status', {})
                 
                 # 提取技术指标
                 close_price = technical_indicators.get('close', price)
@@ -2226,6 +2236,36 @@ class IntegratedReportGenerator:
         except Exception as e:
             print(f"❌ 未执行信号数据替换失败: {e}")
             return template
+    
+    def _extract_from_signal_result(self, signal_result: SignalResult) -> Dict:
+        """
+        从SignalResult对象提取技术指标数据
+        
+        这是阶段6的核心方法：从SignalResult对象提取数据，避免重复计算。
+        
+        Args:
+            signal_result: SignalResult对象
+            
+        Returns:
+            Dict: 技术指标字典（与旧格式兼容）
+        """
+        try:
+            return {
+                'close': signal_result.close_price,
+                'volume': signal_result.volume,
+                'ema_20w': signal_result.ema_20,
+                'rsi_14w': signal_result.rsi_value,
+                'macd_dif': signal_result.macd_value,
+                'macd_dea': signal_result.macd_signal,
+                'macd_hist': signal_result.macd_histogram,
+                'bb_upper': signal_result.bb_upper,
+                'bb_middle': signal_result.bb_middle,
+                'bb_lower': signal_result.bb_lower,
+                'volume_4w_avg': signal_result.volume_ma_4,
+            }
+        except Exception as e:
+            print(f"⚠️ 从SignalResult提取数据失败: {e}，使用空字典")
+            return {}
 
 def create_integrated_report(backtest_results: Dict[str, Any], output_path: str = None) -> str:
     """
