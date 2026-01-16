@@ -291,6 +291,7 @@ class ReportService(BaseService):
                 bb_upper_list = []
                 bb_middle_list = []
                 bb_lower_list = []
+                pvr_list = []  # 价值比数据
                 
                 for idx, row in weekly_data.iterrows():
                     timestamp = int(idx.timestamp() * 1000)
@@ -323,6 +324,10 @@ class ReportService(BaseService):
                         bb_middle_list.append([timestamp, float(row['bb_middle'])])
                     if 'bb_lower' in row and pd.notna(row['bb_lower']):
                         bb_lower_list.append([timestamp, float(row['bb_lower'])])
+                    
+                    # 价值比数据（如果有DCF估值）
+                    if 'price_value_ratio' in row and pd.notna(row['price_value_ratio']):
+                        pvr_list.append([timestamp, float(row['price_value_ratio'])])
                 
                 # 准备交易标记 - 使用模板期望的格式
                 trades_list = []
@@ -355,6 +360,7 @@ class ReportService(BaseService):
                     'bb_upper': bb_upper_list,
                     'bb_middle': bb_middle_list,
                     'bb_lower': bb_lower_list,
+                    'pvr': pvr_list,  # 价值比数据
                     'trades': trades_list
                 }
             
