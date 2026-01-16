@@ -2,8 +2,9 @@
 
 ## 📋 文档概述
 
-**文档版本：** v1.0  
+**文档版本：** v1.2  
 **创建日期：** 2026-01-16  
+**更新日期：** 2026-01-16（阶段4：数据管道集成）  
 **目标读者：** 开发工程师、系统维护人员  
 **阅读时间：** 约10-15分钟
 
@@ -17,6 +18,7 @@
 |------|------|--------|------|
 | main.py | 程序入口，系统初始化 | ⭐⭐⭐⭐⭐ | ✅ 正常 |
 | **services/** | **服务层（推荐）** | ⭐⭐⭐⭐⭐ | ✅ **已完成** |
+| **pipelines/** | **数据管道（阶段4新增）** | ⭐⭐⭐⭐ | ✅ **已集成** |
 | backtest/ | 回测引擎和相关功能 | ⭐⭐⭐⭐⭐ | ⚠️ Deprecated |
 | strategy/ | 策略逻辑和信号生成 | ⭐⭐⭐⭐⭐ | ✅ 正常 |
 | data/ | 数据获取、处理、缓存 | ⭐⭐⭐⭐ | ✅ 正常 |
@@ -972,6 +974,83 @@ class ModuleName:
 
 ---
 
+---
+
+## 📦 数据管道模块 (pipelines/) - 阶段4新增
+
+### DataPipeline (pipelines/data_pipeline.py)
+
+**职责：**
+- 管理数据处理流程
+- 责任链模式实现
+- 支持链式调用
+- 详细日志记录
+
+**对外接口：**
+```python
+class DataPipeline:
+    def add_step(self, step: DataProcessor) -> 'DataPipeline':
+        """添加处理步骤"""
+        pass
+    
+    def process(self, data: pd.DataFrame) -> pd.DataFrame:
+        """执行管道处理"""
+        pass
+```
+
+**代码规模：** 135行
+
+---
+
+### 数据处理器 (pipelines/processors.py)
+
+#### DataValidator
+**职责：** 验证数据完整性和正确性
+- 验证必要列存在
+- 验证数据类型
+- 验证价格合理性
+- 验证成交量非负
+
+#### DataNormalizer
+**职责：** 标准化和清洗数据
+- 按日期排序
+- 移除重复行
+- 填充缺失值
+- 重置索引
+
+#### TechnicalIndicatorCalculator
+**职责：** 计算技术指标（可选使用）
+- RSI计算
+- MACD计算
+- EMA计算
+- 布林带计算
+
+**代码规模：** 271行
+
+---
+
+### 集成位置
+
+**DataService** 中使用：
+```python
+# 初始化
+self.data_pipeline = (DataPipeline()
+    .add_step(DataValidator())
+    .add_step(DataNormalizer())
+)
+
+# 使用
+processed_data = self.data_pipeline.process(raw_data)
+```
+
+**优势：**
+- ✅ 数据质量保证
+- ✅ 可扩展性强
+- ✅ 职责清晰
+- ✅ 易于测试
+
+---
+
 **文档版本历史：**
 - v1.0 (2026-01-16) - 初始版本，阶段0模块职责文档创建
 - v1.1 (2026-01-16) - 阶段3更新：
@@ -981,3 +1060,7 @@ class ModuleName:
   - 更新data/状态为"正常"
   - 添加Import规范说明（见coding_standards.md）
   - 消除循环依赖（backtest ↔ services已解决）
+- v1.2 (2026-01-16) - 阶段4更新：
+  - 添加pipelines/模块完整说明
+  - 添加数据管道架构和使用方式
+  - 更新DataService集成数据管道
