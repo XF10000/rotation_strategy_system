@@ -285,7 +285,12 @@ class ReportService(BaseService):
                 # 准备K线数据
                 kline_list = []
                 rsi_list = []
-                macd_list = []
+                macd_dif_list = []
+                macd_dea_list = []
+                macd_histogram_list = []
+                bb_upper_list = []
+                bb_middle_list = []
+                bb_lower_list = []
                 
                 for idx, row in weekly_data.iterrows():
                     timestamp = int(idx.timestamp() * 1000)
@@ -303,18 +308,24 @@ class ReportService(BaseService):
                     if 'rsi' in row and pd.notna(row['rsi']):
                         rsi_list.append([timestamp, float(row['rsi'])])
                     
-                    # MACD数据
+                    # MACD数据 - 分别存储DIF、DEA和柱状图
                     if 'macd' in row and pd.notna(row['macd']):
-                        macd_list.append([
-                            timestamp,
-                            float(row['macd']),
-                            float(row.get('macd_signal', 0)),
-                            float(row.get('macd_histogram', 0))
-                        ])
+                        macd_dif_list.append([timestamp, float(row['macd'])])
+                    if 'macd_signal' in row and pd.notna(row['macd_signal']):
+                        macd_dea_list.append([timestamp, float(row['macd_signal'])])
+                    if 'macd_histogram' in row and pd.notna(row['macd_histogram']):
+                        macd_histogram_list.append([timestamp, float(row['macd_histogram'])])
+                    
+                    # 布林带数据
+                    if 'bb_upper' in row and pd.notna(row['bb_upper']):
+                        bb_upper_list.append([timestamp, float(row['bb_upper'])])
+                    if 'bb_middle' in row and pd.notna(row['bb_middle']):
+                        bb_middle_list.append([timestamp, float(row['bb_middle'])])
+                    if 'bb_lower' in row and pd.notna(row['bb_lower']):
+                        bb_lower_list.append([timestamp, float(row['bb_lower'])])
                 
-                # 准备交易标记
-                buy_markers = []
-                sell_markers = []
+                # 准备交易标记 - 使用模板期望的格式
+                trades_list = []
                 
                 for trade in transaction_history:
                     if trade.get('stock_code') != stock_code:
@@ -324,26 +335,27 @@ class ReportService(BaseService):
                     if trade_date in weekly_data.index:
                         timestamp = int(trade_date.timestamp() * 1000)
                         price = float(trade.get('price', 0))
+                        action = trade.get('action', '')
                         
-                        if trade.get('action') == 'buy':
-                            buy_markers.append({
-                                'timestamp': timestamp,
-                                'price': price,
-                                'shares': trade.get('shares', 0)
-                            })
-                        elif trade.get('action') == 'sell':
-                            sell_markers.append({
-                                'timestamp': timestamp,
-                                'price': price,
-                                'shares': trade.get('shares', 0)
-                            })
+                        trades_list.append({
+                            'timestamp': timestamp,
+                            'type': 'BUY' if action == 'buy' else 'SELL',
+                            'price': price,
+                            'shares': trade.get('shares', 0)
+                        })
                 
                 kline_data[stock_code] = {
                     'kline': kline_list,
                     'rsi': rsi_list,
-                    'macd': macd_list,
-                    'buy_markers': buy_markers,
-                    'sell_markers': sell_markers
+                    'macd': {
+                        'dif': macd_dif_list,
+                        'dea': macd_dea_list,
+                        'histogram': macd_histogram_list
+                    },
+                    'bb_upper': bb_upper_list,
+                    'bb_middle': bb_middle_list,
+                    'bb_lower': bb_lower_list,
+                    'trades': trades_list
                 }
             
             self.logger.info(f"✅ 已准备 {len(kline_data)} 只股票的K线数据")
