@@ -1442,7 +1442,7 @@ DATA_SOURCES['sources'].append({
 
 **目标：** 消除重复计算
 
-#### 5.1 创建信号结果对象
+#### 6.1 创建信号结果对象
 
 **文件：** `models/signal_result.py`
 
@@ -1547,7 +1547,7 @@ class SignalResult:
         )
 ```
 
-#### 5.2 修改SignalGenerator返回SignalResult
+#### 6.2 修改SignalGenerator返回SignalResult
 
 ```python
 # strategy/signal_generator.py
@@ -1577,7 +1577,7 @@ class SignalGenerator:
         return result
 ```
 
-#### 5.3 修改报告生成器使用SignalResult
+#### 6.3 修改报告生成器使用SignalResult
 
 ```python
 # backtest/enhanced_report_generator.py
@@ -1608,7 +1608,7 @@ class IntegratedReportGenerator:
 
 ### 阶段7：测试和文档（持续）
 
-#### 6.1 单元测试
+#### 7.1 单元测试
 
 **测试结构：**
 ```
@@ -1651,7 +1651,7 @@ def test_get_industry():
     assert len(industry) > 0
 ```
 
-#### 6.2 集成测试
+#### 7.2 集成测试
 
 ```python
 # tests/integration/test_backtest_flow.py
@@ -1668,7 +1668,7 @@ def test_full_backtest_flow():
     assert results.final_value > 0
 ```
 
-#### 6.3 回归测试
+#### 7.3 回归测试
 
 **创建基准结果：**
 ```python
