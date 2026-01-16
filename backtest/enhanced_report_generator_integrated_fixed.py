@@ -74,9 +74,14 @@ class IntegratedReportGenerator:
             # 提取DCF估值数据
             self._dcf_values = backtest_results.get('dcf_values', {})
             # 提取信号跟踪数据（包含未执行信号）
-            signal_tracker_data = backtest_results.get('signal_tracker_data', {})
+            signal_tracker_data = backtest_results.get('signal_tracker_data', None)
             
-            # 生成报告内容
+            # 调试日志
+            print(f"🔍 generate_report中提取signal_tracker_data: {type(signal_tracker_data)}")
+            if signal_tracker_data:
+                print(f"   signal_records数量: {len(signal_tracker_data.get('signal_records', []))}")
+            
+            # 填充模板
             html_content = self._fill_template_safe(
                 html_template,
                 portfolio_history,
@@ -176,9 +181,13 @@ class IntegratedReportGenerator:
             template = self._replace_kline_data_safe(template, kline_data)
             
             # 7.1. 未执行信号数据替换
+            print(f"🔍 检查signal_tracker_data: {type(signal_tracker_data)}, 是否为None: {signal_tracker_data is None}")
             if signal_tracker_data:
+                print(f"✅ signal_tracker_data存在，开始提取未执行信号")
                 unexecuted_signals = self._extract_unexecuted_signals(signal_tracker_data)
                 template = self._replace_unexecuted_signals_safe(template, unexecuted_signals)
+            else:
+                print(f"⚠️ signal_tracker_data为空，跳过未执行信号提取")
             
             # 7.5. 动态股票名称映射替换
             template = self._replace_stock_name_mapping_safe(template)
@@ -2176,8 +2185,19 @@ class IntegratedReportGenerator:
 
     def _extract_unexecuted_signals(self, signal_tracker_data: Dict) -> Dict[str, List]:
         """提取未执行信号数据供前端K线图使用"""
+        print(f"🔍 _extract_unexecuted_signals 被调用")
+        print(f"   signal_tracker_data类型: {type(signal_tracker_data)}")
+        print(f"   signal_tracker_data keys: {signal_tracker_data.keys() if signal_tracker_data else 'None'}")
+        
         if not signal_tracker_data:
+            print(f"⚠️ signal_tracker_data为空，返回空字典")
             return {}
+        
+        if 'signal_records' not in signal_tracker_data:
+            print(f"⚠️ signal_tracker_data中没有signal_records键")
+            return {}
+        
+        print(f"   signal_records数量: {len(signal_tracker_data.get('signal_records', []))}")
             
         unexecuted_signals = {}
         

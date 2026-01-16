@@ -222,14 +222,10 @@ class BacktestOrchestrator(BaseService):
             self.logger.info(f"🔍 backtest_results包含的键: {list(backtest_results.keys())}")
             self.logger.info(f"🔍 kline_data包含的股票: {list(backtest_results.get('kline_data', {}).keys())}")
             
-            # 生成HTML报告（不再传递stock_data，使用backtest_results中的kline_data）
-            html_report = self.report_service.generate_html_report(
-                backtest_results=backtest_results
-            )
-            
-            # 使用ReportService生成报告
+            # 使用ReportService生成所有报告（包括HTML、CSV、信号跟踪等）
             report_paths = self.report_service.generate_all_reports(
                 backtest_results=backtest_results,
+                stock_data=self.stock_data,
                 transaction_history=transaction_history,
                 signal_tracker=self.signal_service.signal_tracker,
                 portfolio_manager=self.portfolio_service.portfolio_manager
