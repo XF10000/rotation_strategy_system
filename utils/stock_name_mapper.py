@@ -3,9 +3,11 @@
 从 portfolio_config.csv 读取股票名称映射
 """
 
-import pandas as pd
-from typing import Dict
 import os
+from typing import Dict
+
+import pandas as pd
+
 
 def load_stock_name_mapping(config_path: str = 'Input/portfolio_config.csv') -> Dict[str, str]:
     """

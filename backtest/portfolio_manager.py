@@ -3,11 +3,11 @@
 负责管理持仓、现金、执行交易等核心功能
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Optional
 import logging
 from datetime import datetime
+from typing import Dict, Tuple
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -623,7 +623,6 @@ class PortfolioManager:
             current_prices: 当前价格字典
         """
         # 这个方法主要用于兼容性，实际价格更新在get_total_value中处理
-        pass
     
     @property
     def positions(self) -> Dict[str, int]:

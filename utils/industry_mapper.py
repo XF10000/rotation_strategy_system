@@ -3,13 +3,15 @@
 生成并维护股票-行业映射缓存文件
 """
 
-import akshare as ak
-import pandas as pd
 import json
 import os
-from typing import Dict, Optional
-from datetime import datetime
 import time
+from datetime import datetime
+from typing import Dict, Optional
+
+import akshare as ak
+import pandas as pd
+
 
 class IndustryMapper:
     """申万二级行业映射生成器"""

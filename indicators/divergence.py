@@ -3,13 +3,14 @@
 检测价格与技术指标之间的背离现象
 """
 
-import pandas as pd
-import numpy as np
 import logging
-from typing import Dict, Tuple
+from typing import Dict
+
+import numpy as np
+import pandas as pd
 
 from .exceptions import IndicatorCalculationError, InsufficientDataError, InvalidParameterError
-from .momentum import calculate_rsi, calculate_macd
+from .momentum import calculate_macd, calculate_rsi
 
 logger = logging.getLogger(__name__)
 

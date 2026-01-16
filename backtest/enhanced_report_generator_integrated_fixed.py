@@ -1,9 +1,10 @@
-import os
 import json
+import os
 from datetime import datetime
-from typing import Dict, List, Any, Optional
-import pandas as pd
-from utils.stock_name_mapper import get_cached_stock_mapping, get_stock_display_name, load_stock_name_mapping
+from typing import Any, Dict, List
+
+from utils.stock_name_mapper import get_stock_display_name, load_stock_name_mapping
+
 
 class IntegratedReportGenerator:
     """集成HTML模板的回测报告生成器 - 修复版"""
@@ -189,7 +190,6 @@ class IntegratedReportGenerator:
             
         except Exception as e:
             print(f"❌ 模板填充错误: {e}")
-            import traceback
     
     def _replace_stock_name_mapping_safe(self, template: str) -> str:
         """动态替换HTML模板中的股票名称映射"""

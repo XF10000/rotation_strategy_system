@@ -3,13 +3,14 @@
 定义策略的基本接口和通用功能
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
-import pandas as pd
 import logging
+from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Dict, Tuple
 
-from .exceptions import StrategyError, StrategyConfigError
+import pandas as pd
+
+from .exceptions import StrategyConfigError, StrategyError
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,6 @@ class BaseStrategy(ABC):
         Returns:
             Dict[str, str]: 信号字典 {stock_code: signal}
         """
-        pass
     
     @abstractmethod
     def calculate_position_size(self, stock_code: str, signal: str, 
@@ -70,7 +70,6 @@ class BaseStrategy(ABC):
         Returns:
             float: 仓位大小（股数）
         """
-        pass
     
     @abstractmethod
     def should_exit_position(self, stock_code: str, data: pd.DataFrame) -> bool:
@@ -84,7 +83,6 @@ class BaseStrategy(ABC):
         Returns:
             bool: 是否退出
         """
-        pass
     
     def update_positions(self, stock_code: str, action: str, 
                         quantity: float, price: float, timestamp: datetime):

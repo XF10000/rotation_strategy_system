@@ -3,12 +3,13 @@
 支持从不同数据源获取股票数据
 """
 
+import logging
+from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
+from typing import Dict, List
+
 import akshare as ak
 import pandas as pd
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from abc import ABC, abstractmethod
 
 try:
     import tushare as ts
@@ -42,7 +43,6 @@ class DataFetcher(ABC):
         Raises:
             DataFetchError: 数据获取失败
         """
-        pass
     
     def get_multiple_stocks_data(self, codes: List[str], start_date: str, 
                                end_date: str = None, period: str = 'weekly') -> Dict[str, pd.DataFrame]:
@@ -173,7 +173,7 @@ class AkshareDataFetcher(DataFetcher):
             for attempt in range(max_retries):
                 try:
                     import time
-                    
+
                     # 控制请求频率，避免触发反爬虫
                     if self.last_request_time is not None:
                         elapsed = time.time() - self.last_request_time

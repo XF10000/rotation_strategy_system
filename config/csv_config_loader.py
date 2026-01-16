@@ -3,10 +3,11 @@ CSV配置加载器
 从Input文件夹的CSV文件中加载回测配置
 """
 
-import pandas as pd
-import os
 import logging
-from typing import Dict, Any
+import os
+from typing import Any, Dict
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -227,8 +228,8 @@ def create_csv_config() -> Dict[str, Any]:
         backtest_settings = load_backtest_settings()
         
         # 导入默认参数
-        from config.backtest_configs import DEFAULT_STRATEGY_PARAMS, DEFAULT_COST_CONFIG
-        
+        from config.backtest_configs import DEFAULT_COST_CONFIG, DEFAULT_STRATEGY_PARAMS
+
         # 合并策略参数（CSV中的参数会覆盖默认值）
         strategy_params = DEFAULT_STRATEGY_PARAMS.copy()
         # 将所有从backtest_settings加载的参数（除了基本信息）都放入strategy_params

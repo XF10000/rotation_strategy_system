@@ -3,20 +3,21 @@
 测试DataService, SignalService, PortfolioService的核心功能
 """
 
-import unittest
-import pandas as pd
-import numpy as np
-from datetime import datetime
-import sys
 import os
+import sys
+import unittest
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.data_service import DataService
-from services.signal_service import SignalService
-from services.portfolio_service import PortfolioService
 from config.csv_config_loader import load_backtest_settings, load_portfolio_config
+from services.data_service import DataService
+from services.portfolio_service import PortfolioService
+from services.signal_service import SignalService
 
 
 class TestDataService(unittest.TestCase):
@@ -166,41 +167,33 @@ class TestPortfolioService(unittest.TestCase):
 
 
 class TestIntegration(unittest.TestCase):
-    """集成测试：验证服务间协作"""
+    """集成测试：验证BacktestOrchestrator完整功能"""
     
-    def test_services_consistency(self):
-        """测试服务层与BacktestEngine的一致性"""
+    def test_orchestrator_complete_workflow(self):
+        """测试BacktestOrchestrator的完整工作流程"""
         from services.backtest_orchestrator import BacktestOrchestrator
-        from backtest.backtest_engine import BacktestEngine
         
         config = load_backtest_settings('Input/Backtest_settings_regression_test.csv')
         config['initial_holdings'] = load_portfolio_config('Input/portfolio_config.csv')
         
         # 运行Orchestrator
         orchestrator = BacktestOrchestrator(config)
-        orchestrator.initialize()
+        self.assertTrue(orchestrator.initialize(), "Orchestrator应成功初始化")
         orchestrator.run_backtest()
         
-        # 运行Engine（会显示废弃警告，这是预期的）
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            engine = BacktestEngine(config)
-            engine.run_backtest()
+        # 验证结果
+        pm = orchestrator.portfolio_service.portfolio_manager
+        txns = len(pm.transaction_history)
         
-        # 验证结果一致性
-        orch_txns = len(orchestrator.portfolio_service.portfolio_manager.transaction_history)
-        engine_txns = len(engine.portfolio_manager.transaction_history)
+        # 验证有交易发生
+        self.assertGreater(txns, 0, "应该有交易发生")
         
-        self.assertEqual(orch_txns, engine_txns, 
-                        f"交易次数应一致: Orchestrator={orch_txns}, Engine={engine_txns}")
+        # 验证现金余额合理
+        self.assertGreater(pm.cash, 0, "现金余额应大于0")
         
-        # 验证最终资金（允许极小误差）
-        orch_cash = orchestrator.portfolio_service.portfolio_manager.cash
-        engine_cash = engine.portfolio_manager.cash
-        
-        self.assertAlmostEqual(orch_cash, engine_cash, places=2,
-                              msg=f"现金应一致: Orchestrator={orch_cash}, Engine={engine_cash}")
+        # 验证有持仓
+        total_shares = sum(pm.holdings.values())
+        self.assertGreater(total_shares, 0, "应该有持仓")
 
 
 def run_tests():

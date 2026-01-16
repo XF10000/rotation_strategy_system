@@ -3,10 +3,11 @@
 提供数据验证、清洗和格式转换功能
 """
 
-import pandas as pd
-import numpy as np
 import logging
-from typing import Tuple, List, Optional
+from typing import List, Tuple
+
+import numpy as np
+import pandas as pd
 
 from .exceptions import DataProcessError
 
@@ -512,7 +513,7 @@ class DataProcessor:
             # v4.2修复：使用TA-Lib计算EMA，但确保回测期间100%有效
             # 策略：TA-Lib需要预热期，但我们有125周历史数据足够覆盖预热期
             from indicators.trend import calculate_ema
-            
+
             # 使用TA-Lib计算EMA（会有前period-1个NaN）
             ema_full = calculate_ema(prices, period)
             

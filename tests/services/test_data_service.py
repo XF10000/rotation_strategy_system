@@ -3,17 +3,18 @@ DataService单元测试
 测试数据获取、缓存、处理和技术指标计算功能
 """
 
-import pytest
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch, call
 import os
 import tempfile
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, call, patch
 
-from services.data_service import DataService
+import numpy as np
+import pandas as pd
+import pytest
+
 from data.data_processor import DataProcessor
 from data.data_storage import DataStorage
+from services.data_service import DataService
 
 
 class TestDataServiceInitialization:

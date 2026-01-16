@@ -6,11 +6,12 @@
 每个季度第一次运行时自动更新股票-行业映射文件
 """
 
-import os
 import json
 import logging
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 from typing import Optional, Tuple
+
 try:
     from .industry_mapper import IndustryMapper
 except ImportError:

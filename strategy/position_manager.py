@@ -3,17 +3,15 @@
 管理股票持仓、资金分配和交易执行
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Optional
 import logging
-from datetime import datetime
-
-import sys
 import os
+import sys
+from datetime import datetime
+from typing import Dict, List
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from strategy.exceptions import PositionManagementError, InsufficientDataError
+from strategy.exceptions import PositionManagementError
 
 logger = logging.getLogger(__name__)
 

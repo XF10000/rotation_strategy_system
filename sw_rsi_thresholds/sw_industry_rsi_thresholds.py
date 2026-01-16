@@ -3,21 +3,34 @@
 根据行业波动率分层，动态计算RSI超买超卖阈值
 """
 
-import akshare as ak
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import logging
 import os
 import time
-from typing import Dict, Tuple, List
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
+
+import akshare as ak
+import numpy as np
+import pandas as pd
 
 # 导入配置文件
 try:
-    from .config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG, EXTREME_THRESHOLD_COEFFICIENTS
+    from .config import (
+        CALCULATION_PERIODS,
+        DATA_QUALITY,
+        EXTREME_THRESHOLD_COEFFICIENTS,
+        OUTPUT_CONFIG,
+        RSI_THRESHOLDS,
+    )
 except ImportError:
     # 如果作为脚本直接运行，使用相对导入
-    from config import RSI_THRESHOLDS, CALCULATION_PERIODS, DATA_QUALITY, OUTPUT_CONFIG, EXTREME_THRESHOLD_COEFFICIENTS
+    from config import (
+        CALCULATION_PERIODS,
+        DATA_QUALITY,
+        EXTREME_THRESHOLD_COEFFICIENTS,
+        OUTPUT_CONFIG,
+        RSI_THRESHOLDS,
+    )
 
 try:
     import talib

@@ -10,10 +10,11 @@
 - > 100% = 股价被高估（如120% = 高估20%）
 """
 
-import pandas as pd
-import numpy as np
-from typing import Union, Optional, Dict, Any
 import logging
+from typing import Any, Dict, Optional
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 

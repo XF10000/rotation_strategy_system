@@ -3,15 +3,13 @@
 负责持仓管理、交易执行和投资组合状态跟踪
 """
 
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
-import logging
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime
+
+from backtest.portfolio_manager import PortfolioManager
 
 from .base_service import BaseService
-from backtest.portfolio_manager import PortfolioManager
-from backtest.portfolio_data_manager import PortfolioDataManager
-from strategy.dynamic_position_manager import DynamicPositionManager
 
 
 class PortfolioService(BaseService):

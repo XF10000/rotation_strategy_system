@@ -5,16 +5,17 @@
 """
 
 import argparse
-import sys
 import os
+import sys
 from datetime import datetime
+
 import pandas as pd
 
 # 添加项目路径
 sys.path.append('..')
 
-from sw_rsi_thresholds.sw_industry_rsi_thresholds import SWIndustryRSIThresholds
 from sw_rsi_thresholds.config import CALCULATION_PERIODS, RSI_THRESHOLDS
+from sw_rsi_thresholds.sw_industry_rsi_thresholds import SWIndustryRSIThresholds
 
 
 def main():

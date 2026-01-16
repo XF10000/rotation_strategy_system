@@ -6,13 +6,13 @@ RSI动态阈值文件季度自动更新器
 每个季度第一次运行时自动更新申万二级行业RSI阈值文件
 """
 
-import os
-import json
 import logging
+import os
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Tuple
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)

@@ -3,11 +3,11 @@
 计算各种回测绩效指标和风险指标
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Optional
 import logging
-from datetime import datetime
+from typing import Dict
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -432,8 +432,7 @@ class PerformanceAnalyzer:
 if __name__ == "__main__":
     # 测试代码
     import pandas as pd
-    from datetime import datetime, timedelta
-    
+
     # 创建测试数据
     dates = pd.date_range(start='2023-01-01', end='2023-12-31', freq='W-FRI')
     

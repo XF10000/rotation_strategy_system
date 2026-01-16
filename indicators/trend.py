@@ -3,10 +3,10 @@
 包含EMA等趋势相关指标的计算
 """
 
-import pandas as pd
-import numpy as np
 import logging
-from typing import Union
+
+import numpy as np
+import pandas as pd
 
 try:
     import talib
@@ -192,7 +192,7 @@ def calculate_sma(data: pd.Series, period: int) -> pd.Series:
 if __name__ == "__main__":
     # 测试代码
     import matplotlib.pyplot as plt
-    
+
     # 创建测试数据
     dates = pd.date_range('2023-01-01', periods=100, freq='D')
     prices = pd.Series([100 + i + np.random.normal(0, 1) for i in range(100)], index=dates)

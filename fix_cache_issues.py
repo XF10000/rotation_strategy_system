@@ -13,8 +13,8 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from data.cache_validator import CacheValidator
 from config.csv_config_loader import load_backtest_config
+from data.cache_validator import CacheValidator
 
 # 配置日志
 logging.basicConfig(

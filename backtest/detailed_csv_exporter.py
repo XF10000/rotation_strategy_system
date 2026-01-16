@@ -1,14 +1,14 @@
 import csv
+import logging
 import os
 import sys
 from datetime import datetime
-import logging
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.industry_classifier import get_stock_industry_auto
 from config.industry_rsi_loader import get_rsi_loader
+from utils.industry_classifier import get_stock_industry_auto
 from utils.stock_name_mapper import get_cached_stock_mapping, get_stock_display_name
 
 logger = logging.getLogger(__name__)
@@ -133,9 +133,9 @@ class DetailedCSVExporter:
                     # 如果有有效的数值，直接使用
                     if value is not None:
                         # 检查是否为NaN
-                        import pandas as pd
                         import numpy as np
-                        
+                        import pandas as pd
+
                         # 字符串'nan'的情况
                         if isinstance(value, str) and value.lower() == 'nan':
                             logger.warning(f"指标 {key} 为字符串'nan'，使用默认值 {default}")
@@ -284,7 +284,6 @@ class DetailedCSVExporter:
                         logger.debug(f"RSI极端信号触发: RSI={rsi_value:.2f}, 极端阈值=[{extreme_oversold_threshold}, {extreme_overbought_threshold}]")
                 except (ValueError, TypeError):
                     logger.warning(f"RSI值格式错误，无法判断极端信号: {rsi14}")
-                    pass
             
             return [
                 date, action, symbol, quantity, position_after, 

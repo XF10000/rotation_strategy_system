@@ -2,15 +2,16 @@
 中线轮动策略系统 - 主程序入口
 """
 
+import logging
 import os
 import sys
-import logging
 from datetime import datetime
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import LOGGING_CONFIG, OUTPUT_CONFIG
+
 
 def setup_logging():
     """设置日志系统"""
@@ -50,7 +51,7 @@ def main():
         from backtest.performance_analyzer import PerformanceAnalyzer
         from config.csv_config_loader import create_csv_config
         from data.cache_validator import validate_cache_before_backtest
-        
+
         # 直接使用CSV配置运行回测
         logger.info("使用CSV配置文件进行回测...")
         

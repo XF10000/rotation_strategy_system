@@ -3,27 +3,22 @@
 严格按照设计文档实现4维度评分系统的信号生成逻辑
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Optional
 import logging
-from datetime import datetime
-
-import sys
 import os
+import sys
+from typing import Dict
+
+import pandas as pd
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from indicators.trend import calculate_ema, detect_ema_trend
-from indicators.momentum import calculate_rsi, calculate_macd
-from indicators.volatility import calculate_bollinger_bands
-from indicators.divergence import detect_rsi_divergence, detect_macd_divergence
-from strategy.exceptions import SignalGenerationError, InsufficientDataError
-from config.industry_rsi_thresholds import get_rsi_thresholds, get_industry_from_stock_code
-from config.industry_signal_rules import get_industry_signal_rules, should_require_divergence
 from config.comprehensive_industry_rules import get_comprehensive_industry_rules
-from config.industry_rsi_loader import get_industry_rsi_thresholds, get_rsi_loader
-from config.enhanced_industry_rsi_loader import get_enhanced_rsi_loader
 from config.stock_industry_mapping import get_stock_industry
+from indicators.divergence import detect_macd_divergence, detect_rsi_divergence
+from indicators.momentum import calculate_macd, calculate_rsi
+from indicators.trend import calculate_ema, detect_ema_trend
+from indicators.volatility import calculate_bollinger_bands
+from strategy.exceptions import InsufficientDataError, SignalGenerationError
 from utils.industry_classifier import get_stock_industry_auto
 
 logger = logging.getLogger(__name__)
@@ -1207,8 +1202,8 @@ class SignalGenerator:
 
 if __name__ == "__main__":
     # 测试代码
-    import sys
     import os
+    import sys
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     from data.data_fetcher import AkshareDataFetcher

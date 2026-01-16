@@ -6,12 +6,11 @@
 自动识别股票所属的申万二级行业
 """
 
-import akshare as ak
-import pandas as pd
 import logging
-from typing import Optional, Dict, Any
 import time
-import re
+from typing import Dict, Optional
+
+import akshare as ak
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ class IndustryClassifier:
         """加载申万行业分类映射表"""
         import json
         import os
-        
+
         # 尝试加载本地缓存的股票行业映射文件
         mapping_file = os.path.join(os.path.dirname(__file__), 
                                   'stock_to_industry_map.json')

@@ -3,11 +3,12 @@ PortfolioService单元测试
 测试投资组合管理、交易执行、分红处理功能
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from datetime import datetime
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from services.portfolio_service import PortfolioService
 

@@ -3,28 +3,28 @@
 负责执行回测逻辑，管理投资组合，记录交易历史
 """
 
-import pandas as pd
-import numpy as np
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
 import warnings
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import pandas as pd
+
 warnings.filterwarnings('ignore')
 
         # 导入其他模块
 from data.data_fetcher import DataFetcherFactory
 from data.data_processor import DataProcessor
 from data.data_storage import DataStorage
-from strategy.signal_generator import SignalGenerator
-from strategy.dynamic_position_manager import DynamicPositionManager
-from .portfolio_manager import PortfolioManager
-from .portfolio_data_manager import PortfolioDataManager
-from .transaction_cost import TransactionCostCalculator
-from .enhanced_report_generator_integrated_fixed import IntegratedReportGenerator
-from .detailed_csv_exporter import DetailedCSVExporter
 from indicators.price_value_ratio import calculate_pvr, get_pvr_status
-from config.csv_config_loader import load_portfolio_config
-from services.signal_service import SignalService
+from strategy.dynamic_position_manager import DynamicPositionManager
+from strategy.signal_generator import SignalGenerator
+
+from .detailed_csv_exporter import DetailedCSVExporter
+from .enhanced_report_generator_integrated_fixed import IntegratedReportGenerator
+from .portfolio_data_manager import PortfolioDataManager
+from .portfolio_manager import PortfolioManager
+from .transaction_cost import TransactionCostCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +75,8 @@ class BacktestEngine:
         self.config = config
         self.logger = logging.getLogger(__name__)
         
-        # SignalService将在数据准备后初始化
-        self.signal_service = None
+        # 信号生成器将在数据准备后初始化
+        self.signal_generator = None
         
         # 基本配置
         self.start_date = config.get('start_date', '2022-01-01')
@@ -240,8 +240,9 @@ class BacktestEngine:
             Dict[str, Dict[str, float]]: 行业代码到RSI阈值的映射
         """
         try:
-            import pandas as pd
             import os
+
+            import pandas as pd
             
             rsi_file_path = 'sw_rsi_thresholds/output/sw2_rsi_threshold.csv'
             
@@ -421,7 +422,6 @@ class BacktestEngine:
                     except Exception as e:
                         self.logger.error(f"❌ {stock_code} 技术指标计算失败: {e}")
                         # 如果计算失败，尝试使用现有数据
-                        pass
                 else:
                     self.logger.info(f"✅ {stock_code} 技术指标已存在且有效，跳过计算")
                 
@@ -480,22 +480,8 @@ class BacktestEngine:
             self.logger.info(f"📊 数据准备完成后缓存统计: {final_cache_stats}")
             self.logger.info(f"🎉 所有股票数据准备完成，共处理 {len(self.stock_data)} 只股票")
             
-            # 初始化SignalService（在数据准备完成后）
-            if self.signal_service is None:
-                self.signal_service = SignalService(
-                    self.config,
-                    self.dcf_values,
-                    self.rsi_thresholds,
-                    self.stock_industry_map,
-                    self.stock_pool,  # 传入BacktestEngine的stock_pool
-                    self.signal_tracker
-                )
-                # 不调用initialize，因为signal_generator已经在prepare_data中创建
-                # 直接使用已创建的signal_generator
-                self.signal_service.signal_generator = self.signal_generator
-                self.signal_service._initialized = True
-                
-                self.logger.info("✅ SignalService 初始化完成")
+            # SignalGenerator已在prepare_data中初始化
+            self.logger.info("✅ SignalGenerator 已准备就绪")
             
             return True
             
@@ -745,7 +731,7 @@ class BacktestEngine:
     
     def _generate_signals(self, current_date: pd.Timestamp) -> Dict[str, str]:
         """
-        生成交易信号（使用SignalService）
+        生成交易信号（使用SignalGenerator）
         
         Args:
             current_date: 当前日期
@@ -753,15 +739,37 @@ class BacktestEngine:
         Returns:
             Dict[str, str]: 股票代码到信号的映射
         """
-        # 使用SignalService生成信号
-        signals = self.signal_service.generate_signals(self.stock_data, current_date)
+        # 使用SignalGenerator直接生成信号
+        signals = {}
         
         # 获取信号详情用于报告
         if not hasattr(self, 'signal_details'):
             self.signal_details = {}
         
-        # 从SignalService获取信号详情
-        self.signal_details.update(self.signal_service.signal_details)
+        # 遍历每只股票生成信号
+        for stock_code in self.stock_pool:
+            if stock_code not in self.stock_data:
+                continue
+            
+            # 获取当前日期的数据
+            stock_weekly = self.stock_data[stock_code]['weekly']
+            if current_date not in stock_weekly.index:
+                continue
+            
+            # 使用SignalGenerator生成信号（只传递stock_code和data）
+            result = self.signal_generator.generate_signal(
+                stock_code,
+                self.stock_data[stock_code]
+            )
+            
+            if result and result.signal_type != 'HOLD':
+                signals[stock_code] = result.signal_type
+                # 记录信号详情
+                self.signal_details[f"{stock_code}_{current_date.strftime('%Y-%m-%d')}"] = {
+                    'signal_type': result.signal_type,
+                    'reasons': result.reasons,
+                    'scores': result.scores
+                }
         
         return signals
     

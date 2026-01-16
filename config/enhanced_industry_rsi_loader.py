@@ -3,10 +3,11 @@
 支持动态计算的申万二级行业RSI阈值
 """
 
-import pandas as pd
-import os
-from typing import Dict, Any, Optional
 import logging
+import os
+from typing import Any, Dict
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 

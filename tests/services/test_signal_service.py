@@ -3,11 +3,12 @@ SignalService单元测试
 测试信号生成、详情记录、统计分析功能
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from services.signal_service import SignalService
 from strategy.signal_generator import SignalGenerator

@@ -5,8 +5,9 @@
 
 import logging
 import sys
-from services.backtest_orchestrator import BacktestOrchestrator
+
 from config.csv_config_loader import load_backtest_settings, load_portfolio_config
+from services.backtest_orchestrator import BacktestOrchestrator
 
 # 设置日志
 logging.basicConfig(

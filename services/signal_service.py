@@ -3,12 +3,13 @@
 负责交易信号生成和分析
 """
 
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
-import logging
-from typing import Dict, Optional, Any, Tuple, List
+
+from strategy.signal_generator import SignalGenerator
 
 from .base_service import BaseService
-from strategy.signal_generator import SignalGenerator
 
 
 class SignalService(BaseService):
