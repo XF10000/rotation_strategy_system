@@ -79,7 +79,12 @@ class BacktestOrchestrator(BaseService):
             rsi_thresholds = self.data_service.rsi_thresholds
             stock_industry_map = self.data_service.stock_industry_map
             
-            # 3. 初始化SignalService
+            # 3. 创建SignalTracker
+            from backtest.signal_tracker import SignalTracker
+            signal_tracker = SignalTracker()
+            self.logger.info(f"✅ SignalTracker已创建: {signal_tracker.output_path}")
+            
+            # 4. 初始化SignalService
             self.logger.info("🎯 初始化SignalService...")
             signal_config = self.config.get('strategy_params', {})
             self.signal_service = SignalService(
@@ -87,13 +92,14 @@ class BacktestOrchestrator(BaseService):
                 dcf_values,
                 rsi_thresholds,
                 stock_industry_map,
-                self.data_service.stock_pool
+                self.data_service.stock_pool,
+                signal_tracker  # 传递signal_tracker
             )
             if not self.signal_service.initialize():
                 self.logger.error("SignalService初始化失败")
                 return False
             
-            # 4. 创建并初始化PortfolioService
+            # 5. 创建并初始化PortfolioService
             self.logger.info("📊 初始化PortfolioService...")
             self.portfolio_service = PortfolioService(self.config, dcf_values)
             start_date = pd.Timestamp(self.start_date)
@@ -106,7 +112,7 @@ class BacktestOrchestrator(BaseService):
                 self.logger.error("PortfolioService初始化失败")
                 return False
             
-            # 5. 初始化ReportService
+            # 6. 初始化ReportService
             self.logger.info("📄 初始化ReportService...")
             self.report_service = ReportService(self.config)
             if not self.report_service.initialize():
