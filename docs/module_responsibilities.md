@@ -2,9 +2,9 @@
 
 ## 📋 文档概述
 
-**文档版本：** v1.2  
+**文档版本：** v1.3  
 **创建日期：** 2026-01-16  
-**更新日期：** 2026-01-16（阶段4：数据管道集成）  
+**更新日期：** 2026-01-16（阶段5：数据源插件化）  
 **目标读者：** 开发工程师、系统维护人员  
 **阅读时间：** 约10-15分钟
 
@@ -1051,6 +1051,113 @@ processed_data = self.data_pipeline.process(raw_data)
 
 ---
 
+---
+
+## 📦 数据源插件系统 (data/) - 阶段5新增
+
+### DataSourcePlugin (data/data_source_plugin.py)
+
+**职责：**
+- 数据源插件抽象基类
+- 统一的数据获取接口
+- 通用重试和频率控制
+- 统一数据标准化
+
+**对外接口：**
+```python
+class DataSourcePlugin(ABC):
+    @abstractmethod
+    def fetch_raw_data(self, code, start_date, end_date, period):
+        """获取原始数据（子类实现）"""
+        pass
+    
+    def get_stock_data(self, code, start_date, end_date, period):
+        """模板方法：验证 → 重试 → 标准化"""
+        pass
+```
+
+**已实现的插件：**
+- `AksharePlugin` - 免费，无需API密钥
+- `TusharePlugin` - 需要Token，备用数据源
+
+**代码规模：** 445行
+
+---
+
+### DataSourceManager (data/data_source_manager.py)
+
+**职责：**
+- 管理多个数据源插件
+- 按优先级自动降级
+- 健康检查和监控
+- 手动切换数据源
+
+**对外接口：**
+```python
+class DataSourceManager:
+    def register_plugin(self, plugin):
+        """注册数据源插件"""
+        pass
+    
+    def get_stock_data(self, code, start_date, end_date, period):
+        """获取数据（自动降级）"""
+        pass
+    
+    def check_health(self):
+        """健康检查"""
+        pass
+```
+
+**代码规模：** 185行
+
+---
+
+### PluginDataFetcherAdapter (data/data_fetcher_adapter.py)
+
+**职责：**
+- 适配新插件系统到现有DataFetcher接口
+- 保持向后兼容
+- 零代码修改
+
+**对外接口：**
+```python
+class PluginDataFetcherAdapter(DataFetcher):
+    def get_stock_data(self, code, start_date, end_date, period):
+        """使用管理器获取数据（自动降级）"""
+        pass
+```
+
+**代码规模：** 75行
+
+---
+
+### 使用示例
+
+```python
+# 基础使用（自动降级）
+from data.data_fetcher_adapter import PluginDataFetcherAdapter
+
+fetcher = PluginDataFetcherAdapter()
+data = fetcher.get_stock_data("000001", "2024-01-01", "2024-12-31")
+
+# 高级使用（多数据源）
+from data.data_source_manager import DataSourceManager
+from data.data_source_plugin import AksharePlugin, TusharePlugin
+
+manager = DataSourceManager()
+manager.register_plugin(AksharePlugin(config))
+manager.register_plugin(TusharePlugin(config))
+data = manager.get_stock_data("000001", "2024-01-01", "2024-12-31")
+```
+
+**优势：**
+- ✅ 可扩展 - 添加新数据源只需实现插件接口
+- ✅ 可靠 - 主数据源失败自动切换备用
+- ✅ 可维护 - 职责清晰，易于测试
+- ✅ 兼容 - 通过适配器保持向后兼容
+
+---
+
 **文档版本历史：**
 - v1.0 (2026-01-16) - 初始版本，阶段0模块职责文档创建
 - v1.1 (2026-01-16) - 阶段3更新：
@@ -1064,3 +1171,7 @@ processed_data = self.data_pipeline.process(raw_data)
   - 添加pipelines/模块完整说明
   - 添加数据管道架构和使用方式
   - 更新DataService集成数据管道
+- v1.3 (2026-01-16) - 阶段5更新：
+  - 添加数据源插件系统完整说明
+  - 添加DataSourcePlugin、DataSourceManager、PluginDataFetcherAdapter
+  - 说明自动降级和多数据源支持

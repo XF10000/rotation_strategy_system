@@ -2,9 +2,9 @@
 
 ## 文档概述
 
-**文档版本：** v1.1  
+**文档版本：** v1.2  
 **创建日期：** 2026-01-16  
-**更新日期：** 2026-01-16（阶段4：数据管道集成）  
+**更新日期：** 2026-01-16（阶段5：数据源插件化）  
 **目标读者：** 开发工程师、系统维护人员  
 **阅读时间：** 约15-20分钟
 
@@ -757,6 +757,107 @@ DataProcessor
 
 ---
 
+## 🔌 数据源插件系统 (阶段5新增)
+
+### 插件架构
+
+**位置**: `data/` 模块
+
+**设计模式**: 模板方法模式 + 策略模式 + 适配器模式
+
+```
+DataSourceManager (管理器)
+    ↓
+[AksharePlugin, TusharePlugin, ...] (多个插件)
+    ↓
+自动降级 + 健康检查
+    ↓
+统一的数据输出
+```
+
+### 核心组件
+
+**1. DataSourcePlugin (抽象基类)**
+```python
+class DataSourcePlugin(ABC):
+    @abstractmethod
+    def fetch_raw_data(self, code, start_date, end_date, period):
+        """获取原始数据（子类实现）"""
+        pass
+    
+    def get_stock_data(self, code, start_date, end_date, period):
+        """模板方法：验证 → 重试 → 标准化"""
+        pass
+```
+
+**2. DataSourceManager (管理器)**
+- 管理多个数据源插件
+- 按优先级自动降级
+- 健康检查和监控
+- 手动切换数据源
+
+**3. 已实现的插件**
+- `AksharePlugin` - 免费，无需API密钥
+- `TusharePlugin` - 需要Token，备用数据源
+
+**4. PluginDataFetcherAdapter (适配器)**
+- 适配新插件系统到现有DataFetcher接口
+- 保持100%向后兼容
+
+### 使用示例
+
+```python
+# 基础使用（自动降级）
+from data.data_fetcher_adapter import PluginDataFetcherAdapter
+
+fetcher = PluginDataFetcherAdapter()
+data = fetcher.get_stock_data("000001", "2024-01-01", "2024-12-31")
+
+# 高级使用（多数据源）
+from data.data_source_manager import DataSourceManager
+from data.data_source_plugin import AksharePlugin, TusharePlugin
+
+manager = DataSourceManager()
+manager.register_plugin(AksharePlugin(config))
+manager.register_plugin(TusharePlugin(config))
+
+# 自动降级：Akshare失败 → 自动切换Tushare
+data = manager.get_stock_data("000001", "2024-01-01", "2024-12-31")
+```
+
+### 添加新数据源
+
+只需3步：
+```python
+# 1. 实现插件类
+class WindPlugin(DataSourcePlugin):
+    def fetch_raw_data(self, code, start_date, end_date, period):
+        return wind_data
+    
+    def test_connection(self):
+        return True
+    
+    def get_source_name(self):
+        return "Wind"
+
+# 2. 注册插件
+manager.register_plugin(WindPlugin(config))
+
+# 3. 自动生效，无需修改其他代码
+```
+
+### 优势
+
+1. **可扩展** - 添加新数据源只需实现插件接口
+2. **可靠** - 主数据源失败自动切换备用
+3. **可维护** - 职责清晰，易于测试
+4. **兼容** - 通过适配器保持向后兼容
+
+---
+
 **文档版本历史：**
 - v1.1 (2026-01-16) - 阶段1完成，添加ConfigManager和PathManager说明
 - v1.0 (2026-01-16) - 初始版本，阶段0架构文档创建
+- v1.2 (2026-01-16) - 阶段5更新：添加数据源插件系统说明
+
+**最后更新：** 2026-01-16) - 阶段5更新：添加数据源插件系统说明
