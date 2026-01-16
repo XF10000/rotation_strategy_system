@@ -25,26 +25,27 @@ class BacktestOrchestrator(BaseService):
     4. 收集和整理回测结果
     """
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], logger=None):
         """
         初始化回测协调器
         
         Args:
             config: 配置字典
+            logger: 日志记录器
         """
-        super().__init__(config)
+        super().__init__(logger)
+        self.config = config
+        self.start_date = config.get('start_date')
+        self.end_date = config.get('end_date')
         
-        # 配置参数
-        self.start_date = config.get('start_date', '2022-01-01')
-        self.end_date = config.get('end_date', '2024-12-31')
-        
-        # 服务实例（延迟初始化）
+        # 初始化各个服务
         self.data_service = None
         self.signal_service = None
         self.portfolio_service = None
         self.report_service = None
+        self.backtest_engine = None  # 🔧 添加：保存backtest_engine引用
         
-        # 回测状态
+        # 存储股票数据
         self.stock_data = {}
         self.transaction_history = []
         self.signal_details = {}
@@ -216,11 +217,20 @@ class BacktestOrchestrator(BaseService):
             transaction_history = self.portfolio_service.portfolio_manager.transaction_history
             self.logger.info(f"📋 交易记录数量: {len(transaction_history)}")
             
+            # 🔧 修复：确保backtest_results包含完整的kline_data
+            # backtest_engine的_prepare_backtest_results已经准备了kline_data
+            self.logger.info(f"🔍 backtest_results包含的键: {list(backtest_results.keys())}")
+            self.logger.info(f"🔍 kline_data包含的股票: {list(backtest_results.get('kline_data', {}).keys())}")
+            
+            # 生成HTML报告（不再传递stock_data，使用backtest_results中的kline_data）
+            html_report = self.report_service.generate_html_report(
+                backtest_results=backtest_results
+            )
+            
             # 使用ReportService生成报告
             report_paths = self.report_service.generate_all_reports(
-                backtest_results,
-                self.stock_data,
-                transaction_history,
+                backtest_results=backtest_results,
+                transaction_history=transaction_history,
                 signal_tracker=self.signal_service.signal_tracker,
                 portfolio_manager=self.portfolio_service.portfolio_manager
             )
@@ -324,6 +334,20 @@ class BacktestOrchestrator(BaseService):
         # 🔧 修复：构建完整的最终持仓状态
         final_portfolio = self._build_final_portfolio_state(portfolio_manager, final_prices, final_date)
         
+        # 🔧 修复：获取完整的K线数据（包含所有技术指标和买卖点）
+        # 如果有backtest_engine，使用它的_prepare_kline_data方法
+        kline_data = {}
+        if hasattr(self, 'backtest_engine') and self.backtest_engine:
+            try:
+                # 🔧 修复：将transaction_history传递给backtest_engine
+                self.backtest_engine.transaction_history = transaction_history
+                kline_data = self.backtest_engine._prepare_kline_data()
+                self.logger.info(f"✅ 从backtest_engine获取K线数据，包含 {len(kline_data)} 只股票")
+            except Exception as e:
+                self.logger.error(f"从backtest_engine获取K线数据失败: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+        
         return {
             'initial_value': initial_value,
             'final_value': final_value,
@@ -343,7 +367,7 @@ class BacktestOrchestrator(BaseService):
             'final_portfolio': final_portfolio,  # 🔧 修复：添加最终持仓状态
             'start_date': self.start_date,
             'end_date': self.end_date,
-            'kline_data': {}
+            'kline_data': kline_data  # 🔧 修复：使用完整的K线数据
         }
     
     def _extract_signal_analysis(self, transaction_history: List[Dict]) -> Dict[str, Any]:

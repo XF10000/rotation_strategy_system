@@ -8,6 +8,7 @@ import sys
 
 from config.csv_config_loader import load_backtest_settings, load_portfolio_config
 from services.backtest_orchestrator import BacktestOrchestrator
+from backtest.backtest_engine import BacktestEngine
 
 # 设置日志
 logging.basicConfig(
@@ -35,9 +36,23 @@ def main():
         logger.info(f"初始资金: ¥{config['total_capital']:,.0f}")
         logger.info(f"股票池: {len(initial_holdings)-1} 只股票")  # -1 排除现金
         
+        # 🔧 修复：创建BacktestEngine用于K线数据准备
+        logger.info("\n创建BacktestEngine（用于K线数据准备）...")
+        backtest_engine = BacktestEngine(config)
+        logger.info("BacktestEngine创建完成")
+        
+        # 🔧 修复：准备股票数据
+        logger.info("准备股票数据...")
+        backtest_engine.prepare_data()
+        logger.info(f"股票数据准备完成，共 {len(backtest_engine.stock_data)} 只股票")
+        
         # 创建并初始化Orchestrator
         logger.info("\n创建BacktestOrchestrator...")
         orchestrator = BacktestOrchestrator(config)
+        
+        # 🔧 修复：将backtest_engine传递给orchestrator
+        orchestrator.backtest_engine = backtest_engine
+        orchestrator.stock_data = backtest_engine.stock_data  # 共享股票数据
         
         logger.info("初始化服务层...")
         if not orchestrator.initialize():

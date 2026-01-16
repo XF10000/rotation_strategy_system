@@ -113,28 +113,36 @@ class ReportService(BaseService):
         
         return report_paths
     
-    def generate_html_report(self, backtest_results: Dict[str, Any],
-                            stock_data: Dict[str, Dict[str, pd.DataFrame]]) -> Optional[str]:
+    def generate_html_report(self, backtest_results: Dict[str, Any]) -> Optional[str]:
         """
-        生成HTML报告
+        生成HTML格式的回测报告
         
         Args:
-            backtest_results: 回测结果
-            stock_data: 股票数据
+            backtest_results: 回测结果数据
             
         Returns:
-            报告文件路径
+            str: 报告文件路径，失败返回None
         """
         try:
+            self.logger.info("开始生成HTML报告...")
+            
+            # 🔧 修复：直接使用backtest_results中已准备好的kline_data
+            # backtest_engine已经完整准备了所有技术指标数据
+            kline_data = backtest_results.get('kline_data', {})
+            
+            if not kline_data:
+                self.logger.warning("⚠️ K线数据为空，报告中将不显示K线图")
+            else:
+                self.logger.info(f"✅ 使用已准备的K线数据，包含 {len(kline_data)} 只股票")
+            
+            # 确保K线数据在回测结果中
+            backtest_results['kline_data'] = kline_data
+            
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             output_path = os.path.join(
                 self.report_dir,
                 f'integrated_backtest_report_{timestamp}.html'
             )
-            
-            # 准备K线数据
-            kline_data = self._prepare_kline_data(stock_data, backtest_results)
-            backtest_results['kline_data'] = kline_data
             
             # 生成报告
             self.html_generator.generate_report(backtest_results, output_path)
