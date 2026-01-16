@@ -313,6 +313,16 @@ class BacktestOrchestrator(BaseService):
         years = (end_date - start_date).days / 365.25
         annual_return = (1 + total_return) ** (1 / years) - 1 if years > 0 else 0
         
+        # 🔧 修复：准备基准持仓数据
+        benchmark_portfolio = None
+        if hasattr(self, 'benchmark_service') and self.benchmark_service:
+            benchmark_portfolio = self.benchmark_service.get_benchmark_portfolio()
+        
+        # 🔧 修复：准备信号分析数据
+        signal_analysis = {}
+        if hasattr(self, 'signal_service') and self.signal_service:
+            signal_analysis = self.signal_service.get_signal_analysis()
+        
         return {
             'initial_value': initial_value,
             'final_value': final_value,
@@ -327,6 +337,9 @@ class BacktestOrchestrator(BaseService):
                 'annual_return': annual_return * 100,
                 'max_drawdown': 0,  # TODO: 计算最大回撤
             },
+            'benchmark_portfolio': benchmark_portfolio,  # 🔧 修复：添加基准持仓
+            'signal_analysis': signal_analysis,  # 🔧 修复：添加信号分析
+            'final_portfolio': portfolio_manager.get_portfolio_summary(final_prices),  # 🔧 修复：添加最终持仓
             'start_date': self.start_date,
             'end_date': self.end_date,
             'kline_data': {}

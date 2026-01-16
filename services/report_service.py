@@ -261,7 +261,14 @@ class ReportService(BaseService):
         kline_data = {}
         
         try:
-            transaction_history = backtest_results.get('transaction_history', [])
+            # 🔧 修复：使用正确的字段名
+            transaction_history = backtest_results.get('transactions', [])
+            
+            # 如果transactions不存在，尝试从旧字段名获取
+            if not transaction_history:
+                transaction_history = backtest_results.get('transaction_history', [])
+            
+            self.logger.info(f"📋 准备K线数据，交易记录数量: {len(transaction_history)}")
             
             # 获取有交易的股票列表
             traded_stocks = set()
