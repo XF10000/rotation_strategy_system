@@ -1277,6 +1277,46 @@
                         },
                         z: 100
                     },
+                    // 🆕 未执行买入信号系列
+                    {
+                        name: '未执行买入',
+                        type: 'scatter',
+                        data: unexecutedBuyPoints.map((point, index) => {
+                            const categoryIndex = klinePoints.findIndex(kpoint => kpoint[0] === point[0]);
+                            return [categoryIndex, point[1]];
+                        }),
+                        symbol: 'circle',
+                        symbolSize: 12,
+                        itemStyle: {
+                            color: 'rgba(229, 62, 62, 0)',  // 透明填充
+                            borderColor: '#e53e3e',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false
+                        },
+                        z: 95
+                    },
+                    // 🆕 未执行卖出信号系列
+                    {
+                        name: '未执行卖出',
+                        type: 'scatter',
+                        data: unexecutedSellPoints.map((point, index) => {
+                            const categoryIndex = klinePoints.findIndex(kpoint => kpoint[0] === point[0]);
+                            return [categoryIndex, point[1]];
+                        }),
+                        symbol: 'circle',
+                        symbolSize: 12,
+                        itemStyle: {
+                            color: 'rgba(56, 161, 105, 0)',  // 透明填充
+                            borderColor: '#38a169',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false
+                        },
+                        z: 95
+                    },
                     // 🆕 分红标志系列
                     {
                         name: '分红标志',
