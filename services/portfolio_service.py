@@ -259,6 +259,16 @@ class PortfolioService(BaseService):
         )
         
         if success:
+            # 🆕 阶段6修复：添加signal_details到trade_info（包含signal_result）
+            if signal_details and stock_code in signal_details:
+                stock_signal_details = signal_details[stock_code]
+                # 添加signal_result对象
+                if 'signal_result' in stock_signal_details:
+                    trade_info['signal_result'] = stock_signal_details['signal_result']
+                # 添加其他signal_details信息
+                trade_info['signal_details'] = stock_signal_details
+                trade_info['technical_indicators'] = stock_signal_details.get('technical_indicators', {})
+            
             # 记录交易后的仓位信息
             position_after = self.portfolio_manager.holdings.get(stock_code, 0)
             total_value_after = self.portfolio_manager.get_total_value(current_prices)
@@ -316,6 +326,16 @@ class PortfolioService(BaseService):
         )
         
         if success:
+            # 🆕 阶段6修复：添加signal_details到trade_info（包含signal_result）
+            if signal_details and stock_code in signal_details:
+                stock_signal_details = signal_details[stock_code]
+                # 添加signal_result对象
+                if 'signal_result' in stock_signal_details:
+                    trade_info['signal_result'] = stock_signal_details['signal_result']
+                # 添加其他signal_details信息
+                trade_info['signal_details'] = stock_signal_details
+                trade_info['technical_indicators'] = stock_signal_details.get('technical_indicators', {})
+            
             # 记录交易后的仓位信息
             position_after = self.portfolio_manager.holdings.get(stock_code, 0)
             total_value_after = self.portfolio_manager.get_total_value(current_prices)
