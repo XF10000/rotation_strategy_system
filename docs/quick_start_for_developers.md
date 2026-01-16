@@ -2,8 +2,9 @@
 
 ## 📋 文档概述
 
-**文档版本：** v1.0  
+**文档版本：** v1.1  
 **创建日期：** 2026-01-16  
+**更新日期：** 2026-01-16（阶段3更新）  
 **目标读者：** 新加入的开发工程师  
 **阅读时间：** 约20-30分钟
 
@@ -31,29 +32,38 @@
 **从哪里开始看代码？**
 
 ```
-推荐阅读顺序：
+推荐阅读顺序（V2.0 服务层架构）：
 
 1. main.py (5分钟)
    ↓ 理解程序入口和主流程
    
-2. strategy/signal_generator.py (10分钟)
+2. services/backtest_orchestrator.py (10分钟)
+   ↓ 理解回测协调流程（推荐）
+   
+3. strategy/signal_generator.py (10分钟)
    ↓ 理解核心策略逻辑
    
-3. backtest/backtest_engine.py (15分钟)
-   ↓ 理解回测执行流程
+4. services/data_service.py (5分钟)
+   ↓ 理解数据服务
    
-4. 其他模块 (按需查看)
+5. 其他模块 (按需查看)
+
+⚠️ 注意：backtest/backtest_engine.py 已废弃，请使用 services/ 层
 ```
 
-**核心文件速览：**
+**核心文件速览（V2.0架构）：**
 
-| 文件 | 作用 | 重要性 | 代码量 |
-|------|------|--------|--------|
-| `main.py` | 程序入口 | ⭐⭐⭐⭐⭐ | 145行 |
-| `strategy/signal_generator.py` | 信号生成（核心） | ⭐⭐⭐⭐⭐ | 1264行 |
-| `backtest/backtest_engine.py` | 回测引擎（核心） | ⭐⭐⭐⭐⭐ | 2400行 |
-| `data/data_fetcher.py` | 数据获取 | ⭐⭐⭐⭐ | 1303行 |
-| `backtest/portfolio_manager.py` | 持仓管理 | ⭐⭐⭐ | 600行 |
+| 文件 | 作用 | 重要性 | 代码量 | 状态 |
+|------|------|--------|--------|------|
+| `main.py` | 程序入口 | ⭐⭐⭐⭐⭐ | 145行 | ✅ 正常 |
+| **`services/backtest_orchestrator.py`** | **回测协调器（推荐）** | ⭐⭐⭐⭐⭐ | 328行 | ✅ **推荐** |
+| `services/data_service.py` | 数据服务 | ⭐⭐⭐⭐ | ~200行 | ✅ 正常 |
+| `services/signal_service.py` | 信号服务 | ⭐⭐⭐⭐ | ~150行 | ✅ 正常 |
+| `services/portfolio_service.py` | 投资组合服务 | ⭐⭐⭐⭐ | ~250行 | ✅ 正常 |
+| `strategy/signal_generator.py` | 信号生成（核心） | ⭐⭐⭐⭐⭐ | 1264行 | ✅ 正常 |
+| ~~`backtest/backtest_engine.py`~~ | ~~回测引擎（旧）~~ | ⭐⭐⭐⭐⭐ | 2412行 | ⚠️ **Deprecated** |
+| `data/data_fetcher.py` | 数据获取 | ⭐⭐⭐⭐ | 1303行 | ✅ 正常 |
+| `backtest/portfolio_manager.py` | 持仓管理 | ⭐⭐⭐ | 600行 | ✅ 正常 |
 
 ### 第3步：运行第一个回测（15分钟）
 
@@ -239,11 +249,13 @@ def main():
     # 2. 加载配置
     config = create_csv_config()
     
-    # 3. 创建回测引擎
-    engine = BacktestEngine(config)
+    # 3. 创建回测协调器（V2.0推荐）
+    from services.backtest_orchestrator import BacktestOrchestrator
+    orchestrator = BacktestOrchestrator(config)
     
-    # 4. 运行回测
-    success = engine.run_backtest()
+    # 4. 初始化并运行回测
+    orchestrator.initialize()
+    success = orchestrator.run_backtest()
     
     # 5. 生成报告
     report_files = engine.generate_reports()
@@ -253,10 +265,13 @@ def main():
     performance_report = analyzer.generate_performance_report(...)
 ```
 
-**关键点：**
+**关键点（V2.0架构）：**
 - 配置驱动：所有参数从CSV读取
-- 单一入口：所有功能通过BacktestEngine协调
+- 服务层架构：通过BacktestOrchestrator协调各服务
+- 职责清晰：DataService、SignalService、PortfolioService、ReportService
 - 自动化：数据获取、缓存、报告生成全自动
+
+**⚠️ 注意**：旧的BacktestEngine已废弃，请使用BacktestOrchestrator
 
 ### 信号生成逻辑 (signal_generator.py)
 
@@ -291,11 +306,19 @@ class SignalGenerator:
 - 3选2逻辑：其余3维至少2维满足
 - 详细记录：保存所有评分和触发原因
 
-### 回测执行流程 (backtest_engine.py)
+### 回测执行流程 (services/backtest_orchestrator.py)
+
+**V2.0 服务层架构（推荐）：**
 
 ```python
-class BacktestEngine:
-    """回测引擎"""
+class BacktestOrchestrator(BaseService):
+    """回测协调器 - 协调各服务完成回测"""
+    
+    def initialize(self):
+        """初始化所有服务"""
+        self.data_service.initialize()
+        self.signal_service.initialize()
+        # ...
     
     def run_backtest(self):
         """执行回测"""
