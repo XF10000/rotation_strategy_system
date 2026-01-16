@@ -12,6 +12,7 @@ from config.path_manager import get_path_manager
 from data.data_fetcher import DataFetcherFactory
 from data.data_processor import DataProcessor
 from data.data_storage import DataStorage
+from pipelines import DataPipeline, DataValidator, DataNormalizer
 
 from .base_service import BaseService
 
@@ -43,6 +44,13 @@ class DataService(BaseService):
         self.data_fetcher = None
         self.data_processor = DataProcessor()
         self.data_storage = DataStorage()
+        
+        # 创建数据处理管道
+        self.data_pipeline = (DataPipeline()
+            .add_step(DataValidator())
+            .add_step(DataNormalizer(fill_method='ffill', remove_duplicates=True))
+        )
+        self.logger.info(f"📊 数据管道已创建: {self.data_pipeline.get_steps()}")
         
         # 数据缓存
         self.stock_data: Dict[str, Dict[str, pd.DataFrame]] = {}
@@ -462,6 +470,15 @@ class DataService(BaseService):
                     self.logger.warning(f"⚠️ {stock_code} 数据量不足 ({len(weekly_data)} < 30)")
                 
                 self.logger.info(f"🔧 {stock_code} 开始计算技术指标，数据量: {len(weekly_data)}")
+                
+                # 使用数据管道处理数据（验证和标准化）
+                try:
+                    weekly_data = self.data_pipeline.process(weekly_data)
+                    self.logger.debug(f"✅ {stock_code} 数据管道处理完成")
+                except Exception as e:
+                    self.logger.warning(f"⚠️ {stock_code} 数据管道处理失败: {e}，使用原始数据")
+                
+                # 计算技术指标
                 weekly_data = self.data_processor.calculate_technical_indicators(weekly_data)
                 self.logger.info(f"✅ {stock_code} 技术指标计算完成")
                 
