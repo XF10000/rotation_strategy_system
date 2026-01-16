@@ -6,6 +6,7 @@
 import logging
 import os
 import sys
+from datetime import datetime
 from typing import Dict
 
 import pandas as pd
@@ -18,6 +19,7 @@ from indicators.divergence import detect_macd_divergence, detect_rsi_divergence
 from indicators.momentum import calculate_macd, calculate_rsi
 from indicators.trend import calculate_ema, detect_ema_trend
 from indicators.volatility import calculate_bollinger_bands
+from models.signal_result import SignalResult
 from strategy.exceptions import InsufficientDataError, SignalGenerationError
 from utils.industry_classifier import get_stock_industry_auto
 
@@ -170,6 +172,16 @@ class SignalGenerator:
                 )
                 signal_result['detailed_info'] = detailed_signal_info
                 self.logger.debug(f"📊 已收集 {stock_code} 的详细信号信息")
+            
+            # 🆕 阶段6：生成SignalResult对象（单一数据源原则）
+            try:
+                signal_result_obj = self._create_signal_result(
+                    stock_code, data, indicators, scores, signal_result, actual_rsi_thresholds
+                )
+                signal_result['signal_result'] = signal_result_obj
+                self.logger.debug(f"✅ 已生成 {stock_code} 的SignalResult对象")
+            except Exception as e:
+                self.logger.warning(f"⚠️ SignalResult对象生成失败: {e}，继续使用Dict格式")
             
             self.logger.debug(f"股票 {stock_code} 信号生成完成: {signal_result['signal']}")
             
@@ -1199,6 +1211,132 @@ class SignalGenerator:
                 return '区间内'
         except Exception:
             return '区间内'
+    
+    def _create_signal_result(self, stock_code: str, data: pd.DataFrame, 
+                             indicators: Dict, scores: Dict, 
+                             signal_dict: Dict, rsi_thresholds: Dict) -> SignalResult:
+        """
+        从信号字典创建SignalResult对象
+        
+        这是阶段6的核心方法：将所有计算结果封装到SignalResult对象中，
+        确保单一数据源原则，避免重复计算。
+        """
+        try:
+            # 获取当前数据
+            current_data = data.iloc[-1]
+            current_date = current_data.name if hasattr(current_data.name, 'strftime') else datetime.now()
+            
+            # 获取股票名称
+            stock_name = signal_dict.get('detailed_info', {}).get('stock_name', stock_code)
+            
+            # 获取行业信息
+            industry_info = self._get_stock_industry_info(stock_code)
+            industry = industry_info.get('industry_name', '未知行业')
+            
+            # 提取技术指标值
+            tech_indicators = signal_dict.get('technical_indicators', {})
+            details = signal_dict.get('details', {})
+            
+            # 获取EMA信息
+            ema_value = tech_indicators.get('ema_20w', details.get('ema', 0.0))
+            ema_trend = 'flat'
+            ema_slope = 0.0
+            
+            # 获取MACD信息
+            macd_value = details.get('macd_dif', 0.0)
+            macd_signal_val = details.get('macd_dea', 0.0)
+            macd_histogram = details.get('macd_hist', 0.0)
+            macd_histogram_prev = 0.0
+            
+            # 判断MACD交叉
+            macd_cross = None
+            if macd_value > macd_signal_val and macd_histogram > 0:
+                macd_cross = 'golden'
+            elif macd_value < macd_signal_val and macd_histogram < 0:
+                macd_cross = 'death'
+            
+            # 获取布林带信息
+            bb_upper = tech_indicators.get('bb_upper', 0.0)
+            bb_middle = tech_indicators.get('bb_middle', 0.0)
+            bb_lower = tech_indicators.get('bb_lower', 0.0)
+            
+            # 计算布林带位置
+            bb_position = 0.5
+            if bb_upper > bb_lower and bb_upper > 0:
+                bb_position = (current_data['close'] - bb_lower) / (bb_upper - bb_lower)
+                bb_position = max(0.0, min(1.0, bb_position))
+            
+            # 获取成交量信息
+            volume_ma_4 = tech_indicators.get('volume_ma_4w', 0.0)
+            volume_ratio = 0.0
+            if volume_ma_4 > 0:
+                volume_ratio = current_data['volume'] / volume_ma_4
+            
+            # 获取RSI背离信息
+            rsi_divergence = None
+            if details.get('rsi_divergence'):
+                div_str = str(details['rsi_divergence']).lower()
+                if 'bullish' in div_str:
+                    rsi_divergence = 'bullish'
+                elif 'bearish' in div_str:
+                    rsi_divergence = 'bearish'
+            
+            # 获取价值比信息
+            dcf_value = signal_dict.get('dcf_value')
+            price_value_ratio = signal_dict.get('value_price_ratio')
+            
+            # 构建触发原因列表
+            trigger_reasons = []
+            if signal_dict['signal'] in ['BUY', 'SELL']:
+                trigger_reasons.append(signal_dict.get('reason', ''))
+            
+            # 创建SignalResult对象
+            signal_result = SignalResult(
+                stock_code=stock_code,
+                stock_name=stock_name,
+                date=current_date,
+                signal_type=signal_dict['signal'].lower(),
+                close_price=float(current_data['close']),
+                open_price=float(current_data['open']),
+                high_price=float(current_data['high']),
+                low_price=float(current_data['low']),
+                volume=float(current_data['volume']),
+                trend_score=1.0 if (scores.get('trend_filter_high') or scores.get('trend_filter_low')) else 0.0,
+                rsi_score=1.0 if (scores.get('overbought_oversold_high') or scores.get('overbought_oversold_low')) else 0.0,
+                macd_score=1.0 if (scores.get('momentum_high') or scores.get('momentum_low')) else 0.0,
+                volume_score=1.0 if (scores.get('extreme_price_volume_high') or scores.get('extreme_price_volume_low')) else 0.0,
+                total_score=signal_dict.get('confidence', 0.0),
+                ema_20=float(ema_value),
+                ema_trend=ema_trend,
+                ema_slope=float(ema_slope),
+                rsi_value=float(details.get('rsi', tech_indicators.get('rsi', 0.0))),
+                rsi_threshold_overbought=float(rsi_thresholds.get('overbought', 70.0)),
+                rsi_threshold_oversold=float(rsi_thresholds.get('oversold', 30.0)),
+                rsi_extreme_overbought=float(rsi_thresholds.get('extreme_overbought', 80.0)),
+                rsi_extreme_oversold=float(rsi_thresholds.get('extreme_oversold', 20.0)),
+                rsi_divergence=rsi_divergence,
+                macd_value=float(macd_value),
+                macd_signal=float(macd_signal_val),
+                macd_histogram=float(macd_histogram),
+                macd_histogram_prev=float(macd_histogram_prev),
+                macd_cross=macd_cross,
+                bb_upper=float(bb_upper),
+                bb_middle=float(bb_middle),
+                bb_lower=float(bb_lower),
+                bb_position=float(bb_position),
+                volume_ma_4=float(volume_ma_4),
+                volume_ratio=float(volume_ratio),
+                dcf_value=float(dcf_value) if dcf_value else None,
+                price_value_ratio=float(price_value_ratio) if price_value_ratio else None,
+                industry=industry,
+                trigger_reasons=trigger_reasons
+            )
+            
+            return signal_result
+            
+        except Exception as e:
+            self.logger.error(f"创建SignalResult对象失败: {e}")
+            raise
 
 if __name__ == "__main__":
     # 测试代码
