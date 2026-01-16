@@ -3,7 +3,7 @@
 负责协调各个服务完成回测流程
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -318,10 +318,8 @@ class BacktestOrchestrator(BaseService):
         if hasattr(self, 'benchmark_service') and self.benchmark_service:
             benchmark_portfolio = self.benchmark_service.get_benchmark_portfolio()
         
-        # 🔧 修复：准备信号分析数据
-        signal_analysis = {}
-        if hasattr(self, 'signal_service') and self.signal_service:
-            signal_analysis = self.signal_service.get_signal_analysis()
+        # 🔧 修复：从交易记录中提取信号统计
+        signal_analysis = self._extract_signal_analysis(transaction_history)
         
         return {
             'initial_value': initial_value,
@@ -343,6 +341,44 @@ class BacktestOrchestrator(BaseService):
             'start_date': self.start_date,
             'end_date': self.end_date,
             'kline_data': {}
+        }
+    
+    def _extract_signal_analysis(self, transaction_history: List[Dict]) -> Dict[str, Any]:
+        """
+        从交易记录中提取信号统计
+        
+        Args:
+            transaction_history: 交易记录列表
+            
+        Returns:
+            Dict[str, Any]: 信号分析数据
+        """
+        buy_count = 0
+        sell_count = 0
+        stock_signals = {}
+        
+        for trade in transaction_history:
+            action = trade.get('action', '')
+            stock_code = trade.get('stock_code', '')
+            
+            if action == 'buy':
+                buy_count += 1
+            elif action == 'sell':
+                sell_count += 1
+            
+            # 统计每只股票的信号
+            if stock_code not in stock_signals:
+                stock_signals[stock_code] = {'buy': 0, 'sell': 0}
+            
+            if action == 'buy':
+                stock_signals[stock_code]['buy'] += 1
+            elif action == 'sell':
+                stock_signals[stock_code]['sell'] += 1
+        
+        return {
+            'total_buy_signals': buy_count,
+            'total_sell_signals': sell_count,
+            'stock_signals': stock_signals
         }
     
     def get_results(self) -> Dict[str, Any]:
