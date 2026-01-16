@@ -1912,6 +1912,16 @@ class BacktestEngine:
             # 使用portfolio_manager的交易记录，因为它包含所有实际执行的交易
             trade_points = []
             stock_trade_count = 0
+            
+            # 调试：检查portfolio_manager.transaction_history
+            if stock_code == '600900':
+                pm_600900_count = sum(1 for t in self.portfolio_manager.transaction_history if t.get('stock_code') == '600900')
+                self.logger.info(f"🔍 portfolio_manager中600900的交易数: {pm_600900_count}")
+                if pm_600900_count > 0:
+                    for t in self.portfolio_manager.transaction_history:
+                        if t.get('stock_code') == '600900':
+                            self.logger.info(f"  交易: {t.get('date')} {t.get('type')} {t.get('shares')}股")
+            
             for transaction in self.portfolio_manager.transaction_history:
                 if transaction.get('stock_code') == stock_code:
                     try:
@@ -1929,7 +1939,7 @@ class BacktestEngine:
                             stock_trade_count += 1
                             self.logger.info(f"添加交易点: {stock_code} {transaction['date']} {transaction['type']} {transaction['price']}")
                         else:
-                            self.logger.warning(f"交易日期超出回测范围: {transaction['date']}")
+                            self.logger.warning(f"交易日期超出回测范围: {transaction['date']} (范围: {start_date} - {end_date})")
                     except Exception as e:
                         self.logger.warning(f"处理交易点数据失败: {e}, 交易记录: {transaction}")
         

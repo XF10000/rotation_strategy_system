@@ -341,6 +341,8 @@ class BacktestOrchestrator(BaseService):
         kline_data = {}
         if hasattr(self, 'backtest_engine') and self.backtest_engine:
             try:
+                # 🔧 修复：设置portfolio_manager引用，以便_prepare_kline_data可以访问交易记录
+                self.backtest_engine.portfolio_manager = portfolio_manager
                 # 🔧 修复：将transaction_history传递给backtest_engine
                 self.backtest_engine.transaction_history = transaction_history
                 kline_data = self.backtest_engine._prepare_kline_data()
