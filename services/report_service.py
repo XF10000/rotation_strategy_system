@@ -87,7 +87,7 @@ class ReportService(BaseService):
         report_paths = {}
         
         # 1. 生成HTML报告
-        html_path = self.generate_html_report(backtest_results, stock_data)
+        html_path = self.generate_html_report(backtest_results, stock_data, signal_tracker)
         if html_path:
             report_paths['html_report'] = html_path
         
@@ -113,12 +113,16 @@ class ReportService(BaseService):
         
         return report_paths
     
-    def generate_html_report(self, backtest_results: Dict[str, Any]) -> Optional[str]:
+    def generate_html_report(self, backtest_results: Dict[str, Any], 
+                            stock_data: Dict[str, Dict[str, pd.DataFrame]] = None,
+                            signal_tracker=None) -> Optional[str]:
         """
         生成HTML格式的回测报告
         
         Args:
             backtest_results: 回测结果数据
+            stock_data: 股票数据（可选）
+            signal_tracker: 信号跟踪器（可选）
             
         Returns:
             str: 报告文件路径，失败返回None
@@ -137,6 +141,17 @@ class ReportService(BaseService):
             
             # 确保K线数据在回测结果中
             backtest_results['kline_data'] = kline_data
+            
+            # 🆕 准备signal_tracker数据
+            signal_tracker_data = None
+            if signal_tracker and hasattr(signal_tracker, 'signal_records'):
+                signal_tracker_data = {
+                    'signal_records': signal_tracker.signal_records
+                }
+                self.logger.info(f"✅ 传递signal_tracker数据，包含 {len(signal_tracker.signal_records)} 条信号记录")
+            
+            # 将signal_tracker_data添加到backtest_results
+            backtest_results['signal_tracker_data'] = signal_tracker_data
             
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             output_path = os.path.join(
