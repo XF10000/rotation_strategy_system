@@ -1782,6 +1782,11 @@ class BacktestEngine:
         # 调试信息
         print("\n=== K线数据准备开始 ===")
         print(f"🔍 开始准备K线数据")
+        print(f"🔍 transaction_history数量: {len(self.transaction_history)}")
+        
+        # 检查600900的交易记录
+        count_600900 = sum(1 for t in self.transaction_history if t.get('stock_code') == '600900')
+        print(f"🔍 600900的交易记录数量: {count_600900}")
         print(f"📊 股票数据总数: {len(self.stock_data)}")
         print(f"📈 股票代码列表: {list(self.stock_data.keys())}")
         print(f"📋 交易记录数量: {len(self.transaction_history)}")
@@ -1904,9 +1909,10 @@ class BacktestEngine:
                     continue
             
             # 准备交易点数据 - 只包含该股票的交易
+            # 使用portfolio_manager的交易记录，因为它包含所有实际执行的交易
             trade_points = []
             stock_trade_count = 0
-            for transaction in self.transaction_history:
+            for transaction in self.portfolio_manager.transaction_history:
                 if transaction.get('stock_code') == stock_code:
                     try:
                         trade_date = pd.to_datetime(transaction['date'])
