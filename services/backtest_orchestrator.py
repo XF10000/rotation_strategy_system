@@ -321,6 +321,9 @@ class BacktestOrchestrator(BaseService):
         # 🔧 修复：从交易记录中提取信号统计
         signal_analysis = self._extract_signal_analysis(transaction_history)
         
+        # 🔧 修复：构建完整的最终持仓状态
+        final_portfolio = self._build_final_portfolio_state(portfolio_manager, final_prices, final_date)
+        
         return {
             'initial_value': initial_value,
             'final_value': final_value,
@@ -337,7 +340,7 @@ class BacktestOrchestrator(BaseService):
             },
             'benchmark_portfolio': benchmark_portfolio,  # 🔧 修复：添加基准持仓
             'signal_analysis': signal_analysis,  # 🔧 修复：添加信号分析
-            'final_portfolio': portfolio_manager.get_portfolio_summary(),  # 🔧 修复：添加最终持仓
+            'final_portfolio': final_portfolio,  # 🔧 修复：添加最终持仓状态
             'start_date': self.start_date,
             'end_date': self.end_date,
             'kline_data': {}
@@ -380,6 +383,71 @@ class BacktestOrchestrator(BaseService):
             'total_sell_signals': sell_count,
             'stock_signals': stock_signals
         }
+    
+    def _build_final_portfolio_state(self, portfolio_manager, final_prices: Dict[str, float], 
+                                    final_date) -> Dict[str, Any]:
+        """
+        构建完整的最终持仓状态
+        
+        Args:
+            portfolio_manager: 投资组合管理器
+            final_prices: 最终价格字典
+            final_date: 最终日期
+            
+        Returns:
+            Dict[str, Any]: 完整的持仓状态
+        """
+        total_value = portfolio_manager.get_total_value(final_prices)
+        cash = portfolio_manager.cash
+        
+        # 计算股票总市值
+        stock_value = 0
+        positions = {}
+        
+        for stock_code, shares in portfolio_manager.holdings.items():
+            if shares > 0 and stock_code in final_prices:
+                current_price = final_prices[stock_code]
+                current_value = shares * current_price
+                stock_value += current_value
+                
+                # 获取初始价格（从第一笔买入交易）
+                initial_price = self._get_initial_price_for_stock(stock_code)
+                return_pct = ((current_price - initial_price) / initial_price * 100) if initial_price > 0 else 0
+                
+                positions[stock_code] = {
+                    'shares': shares,
+                    'price': current_price,
+                    'value': current_value,
+                    'return': return_pct,
+                    'initial_price': initial_price
+                }
+        
+        return {
+            'total_value': total_value,
+            'cash': cash,
+            'stock_value': stock_value,
+            'end_date': final_date.strftime('%Y-%m-%d') if hasattr(final_date, 'strftime') else str(final_date),
+            'positions': positions
+        }
+    
+    def _get_initial_price_for_stock(self, stock_code: str) -> float:
+        """
+        获取股票的初始买入价格
+        
+        Args:
+            stock_code: 股票代码
+            
+        Returns:
+            float: 初始价格
+        """
+        # 从交易历史中找到第一笔买入交易
+        portfolio_manager = self.portfolio_service.portfolio_manager
+        for trade in portfolio_manager.transaction_history:
+            if trade.get('stock_code') == stock_code and trade.get('action') == 'buy':
+                return trade.get('price', 0)
+        
+        # 如果没有找到，返回0
+        return 0
     
     def get_results(self) -> Dict[str, Any]:
         """
