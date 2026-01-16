@@ -24,11 +24,37 @@ from .enhanced_report_generator_integrated_fixed import IntegratedReportGenerato
 from .detailed_csv_exporter import DetailedCSVExporter
 from indicators.price_value_ratio import calculate_pvr, get_pvr_status
 from config.csv_config_loader import load_portfolio_config
+from services.signal_service import SignalService
 
 logger = logging.getLogger(__name__)
 
 class BacktestEngine:
-    """回测引擎类"""
+    """
+    回测引擎类
+    
+    ⚠️ DEPRECATED: 此类已废弃，请使用 BacktestOrchestrator
+    
+    BacktestEngine 是一个大型单体类（2378行），职责过多，难以维护。
+    新的架构使用服务层模式，将功能拆分为：
+    - DataService: 数据获取和处理
+    - SignalService: 信号生成
+    - PortfolioService: 持仓和交易管理
+    - ReportService: 报告生成
+    - BacktestOrchestrator: 协调各服务
+    
+    为保持向后兼容，此类暂时保留，但建议迁移到新架构。
+    
+    示例:
+        # 旧方式（已废弃）
+        engine = BacktestEngine(config)
+        engine.run_backtest()
+        
+        # 新方式（推荐）
+        from services.backtest_orchestrator import BacktestOrchestrator
+        orchestrator = BacktestOrchestrator(config)
+        orchestrator.initialize()
+        orchestrator.run_backtest()
+    """
     
     def __init__(self, config: Dict[str, Any]):
         """
@@ -37,8 +63,20 @@ class BacktestEngine:
         Args:
             config: 回测配置字典
         """
+        # 发出废弃警告
+        warnings.warn(
+            "BacktestEngine已废弃，建议使用BacktestOrchestrator。"
+            "新架构提供更好的模块化和可维护性。"
+            "详见: services/backtest_orchestrator.py",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         self.config = config
         self.logger = logging.getLogger(__name__)
+        
+        # SignalService将在数据准备后初始化
+        self.signal_service = None
         
         # 基本配置
         self.start_date = config.get('start_date', '2022-01-01')
@@ -442,6 +480,23 @@ class BacktestEngine:
             self.logger.info(f"📊 数据准备完成后缓存统计: {final_cache_stats}")
             self.logger.info(f"🎉 所有股票数据准备完成，共处理 {len(self.stock_data)} 只股票")
             
+            # 初始化SignalService（在数据准备完成后）
+            if self.signal_service is None:
+                self.signal_service = SignalService(
+                    self.config,
+                    self.dcf_values,
+                    self.rsi_thresholds,
+                    self.stock_industry_map,
+                    self.stock_pool,  # 传入BacktestEngine的stock_pool
+                    self.signal_tracker
+                )
+                # 不调用initialize，因为signal_generator已经在prepare_data中创建
+                # 直接使用已创建的signal_generator
+                self.signal_service.signal_generator = self.signal_generator
+                self.signal_service._initialized = True
+                
+                self.logger.info("✅ SignalService 初始化完成")
+            
             return True
             
         except Exception as e:
@@ -690,7 +745,7 @@ class BacktestEngine:
     
     def _generate_signals(self, current_date: pd.Timestamp) -> Dict[str, str]:
         """
-        生成交易信号
+        生成交易信号（使用SignalService）
         
         Args:
             current_date: 当前日期
@@ -698,58 +753,15 @@ class BacktestEngine:
         Returns:
             Dict[str, str]: 股票代码到信号的映射
         """
-        signals = {}
+        # 使用SignalService生成信号
+        signals = self.signal_service.generate_signals(self.stock_data, current_date)
         
-        for stock_code in self.stock_pool:
-            if stock_code not in self.stock_data:
-                continue
-            
-            stock_weekly = self.stock_data[stock_code]['weekly']
-            if current_date not in stock_weekly.index:
-                continue
-            
-            # 获取当前数据点
-            current_idx = stock_weekly.index.get_loc(current_date)
-            if current_idx < 120:  # 需要足够的历史数据
-                continue
-            
-            # 获取历史数据用于信号生成 - 确保足够数据但避免过度限制
-            # 使用从当前时点往前足够的历史数据，确保技术指标计算准确
-            historical_data = stock_weekly.iloc[:current_idx+1]
-            
-            # 确保有足够的数据
-            if len(historical_data) < 120:
-                continue
-            
-            # 生成信号
-            try:
-                signal_result = self.signal_generator.generate_signal(stock_code, historical_data)
-                if signal_result and isinstance(signal_result, dict):
-                    signal = signal_result.get('signal', 'HOLD')
-                    
-                    # 🆕 新增：记录BUY/SELL信号（信号跟踪功能）
-                    if signal in ['BUY', 'SELL']:
-                        self.signal_tracker.record_signal({
-                            'date': current_date,
-                            'stock_code': stock_code,
-                            'signal_result': signal_result
-                        })
-                    
-                    if signal and signal != 'HOLD':
-                        signals[stock_code] = signal
-                        # 记录信号详情用于报告
-                        if not hasattr(self, 'signal_details'):
-                            self.signal_details = {}
-                        self.signal_details[f"{stock_code}_{current_date.strftime('%Y-%m-%d')}"] = signal_result
-                elif isinstance(signal_result, str):
-                    # 兼容旧版本返回字符串的情况
-                    if signal_result and signal_result != 'HOLD':
-                        signals[stock_code] = signal_result
-                else:
-                    self.logger.warning(f"{stock_code} 信号生成返回了无效结果: {signal_result}")
-            except Exception as e:
-                self.logger.warning(f"{stock_code} 信号生成失败: {e}")
-                continue
+        # 获取信号详情用于报告
+        if not hasattr(self, 'signal_details'):
+            self.signal_details = {}
+        
+        # 从SignalService获取信号详情
+        self.signal_details.update(self.signal_service.signal_details)
         
         return signals
     

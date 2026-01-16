@@ -1,8 +1,8 @@
 {
   "code": "600900",
   "period": "daily",
-  "records": 891,
-  "start_date": "2022-05-16",
+  "records": 1123,
+  "start_date": "2021-05-14",
   "end_date": "2026-01-13",
   "columns": [
     "open",
@@ -12,5 +12,5 @@
     "volume",
     "amount"
   ],
-  "save_time": "2026-01-13T18:56:54.405948"
+  "save_time": "2026-01-16T12:35:06.445135"
 }

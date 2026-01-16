@@ -1,8 +1,8 @@
 {
   "code": "600985",
   "period": "weekly",
-  "records": 192,
-  "start_date": "2022-05-20",
+  "records": 245,
+  "start_date": "2021-05-14",
   "end_date": "2026-01-16",
   "columns": [
     "open",
@@ -27,5 +27,5 @@
     "volume_ma",
     "volume_ratio"
   ],
-  "save_time": "2026-01-13T18:56:34.157479"
+  "save_time": "2026-01-16T12:34:49.242776"
 }
