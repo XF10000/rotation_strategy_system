@@ -2,15 +2,19 @@
 
 ## 文档概述
 
-**文档版本：** v1.2  
+**文档版本：** v1.3  
 **创建日期：** 2026-01-16  
-**更新日期：** 2026-01-17（阶段6：单一数据源原则）  
+**更新日期：** 2026-01-17（阶段2完成：BacktestOrchestrator完全独立运行）  
 **目标读者：** 开发工程师、系统维护人员  
 **阅读时间：** 约10-15分钟
 
 本文档详细说明系统中数据的流向、转换过程和关键节点。
 
-**v1.2 更新内容（2026-01-17）：**
+**v1.3 更新内容（2026-01-17）：**
+- ✅ 添加BacktestOrchestrator数据流说明
+- ✅ 更新信号详情传递流程（DCF估值、行业信息）
+- ✅ 更新K线数据准备流程
+- ✅ 更新基准计算数据流
 - ✅ 添加SignalResult模型的数据流说明
 - ✅ 更新信号生成流程，体现单一数据源原则
 - ✅ 更新报告生成流程，使用SignalResult避免重复计算
@@ -36,19 +40,28 @@
     ↓
 技术指标计算 (Indicators)
     ↓
-信号生成 (SignalGenerator)
+信号生成 (SignalService)
     ↓
-SignalResult创建 ✨ (阶段6新增 - 单一数据源)
+SignalResult创建 ✨ (单一数据源 - 包含DCF、行业信息)
     ↓
-交易执行 (BacktestEngine)
+交易执行 (PortfolioService)
+  ├── 提取signal_details（DCF估值、价值比、行业）
+  ├── 添加到technical_indicators字典
+  └── 传递给PortfolioManager
     ↓
 持仓管理 (PortfolioManager)
+  ├── 记录到transaction_history
+  └── 包含完整技术指标和信号详情
     ↓
-性能分析 (PerformanceAnalyzer)
+回测协调 (BacktestOrchestrator) ✨ (阶段2 - 完全独立)
+  ├── 准备K线数据（RSI、MACD、布林带、PVR）
+  ├── 计算买入持有基准（分红配股处理）
+  └── 整理回测结果
     ↓
-报告生成 (ReportGenerator)
-  ├── 使用SignalResult对象 ✨ (阶段6 - 避免重复计算)
+报告生成 (ReportService)
+  ├── 使用SignalResult对象 ✨ (避免重复计算)
   ├── 直接提取技术指标数据
+  ├── 从technical_indicators获取DCF和行业信息
   └── 确保与信号生成数据100%一致
     ↓
 输出文件 (HTML/CSV)
@@ -60,13 +73,14 @@ SignalResult创建 ✨ (阶段6新增 - 单一数据源)
 
 ### 1. 股票数据获取
 
-**入口：** `BacktestEngine.prepare_data()`  
-**执行者：** `AkshareDataFetcher`
+**入口：** `BacktestOrchestrator.run_backtest()` ✨ (推荐)  
+**备选：** `BacktestEngine.prepare_data()` (已废弃)  
+**执行者：** `DataService` → `AkshareDataFetcher`
 
 ```
 用户请求
   ↓
-BacktestEngine.prepare_data()
+BacktestOrchestrator.run_backtest()
   ├── 读取股票池配置 (portfolio_config.csv)
   ├── 扩展历史数据窗口 (向前20周)
   └── 对每只股票：

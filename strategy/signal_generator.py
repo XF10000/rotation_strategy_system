@@ -147,8 +147,20 @@ class SignalGenerator:
             # 4维度评分 - 传入股票代码以支持行业特定阈值
             scores, actual_rsi_thresholds = self._calculate_4d_scores(data, indicators, stock_code)
             
-            # 生成最终信号 - 传递实际使用的RSI阈值
-            signal_result = self._generate_final_signal(stock_code, scores, indicators, actual_rsi_thresholds)
+            # 获取当前价格和DCF估值
+            current_price = data['close'].iloc[-1]
+            dcf_value = self.dcf_values.get(stock_code) if stock_code else None
+            
+            # 获取行业信息
+            industry = None
+            if actual_rsi_thresholds and 'industry_name' in actual_rsi_thresholds:
+                industry = actual_rsi_thresholds['industry_name']
+            
+            # 生成最终信号
+            signal_result = self._generate_final_signal(
+                stock_code, scores, indicators, actual_rsi_thresholds,
+                dcf_value, current_price, industry
+            )
             
             # 将重新计算的技术指标添加到结果中
             extracted_indicators = self._extract_current_indicators(data, indicators)
@@ -764,7 +776,9 @@ class SignalGenerator:
         except Exception as e:
             raise SignalGenerationError(f"4维度评分计算失败: {str(e)}") from e
     
-    def _generate_final_signal(self, stock_code: str, scores: Dict, indicators: Dict, rsi_thresholds: Dict = None) -> Dict:
+    def _generate_final_signal(self, stock_code: str, scores: Dict, indicators: Dict, 
+                              rsi_thresholds: Dict = None, dcf_value: float = None, 
+                              current_price: float = None, industry: str = None) -> Dict:
         """
         根据4维度评分生成最终信号
         
@@ -781,7 +795,7 @@ class SignalGenerator:
             
             # 如果趋势过滤器都不满足，持有
             if not trend_filter_high and not trend_filter_low:
-                return {
+                result = {
                     'signal': 'HOLD',
                     'confidence': 0.0,
                     'reason': '趋势过滤器不支持任何交易信号',
@@ -789,6 +803,13 @@ class SignalGenerator:
                     'details': self._get_signal_details(indicators),
                     'rsi_thresholds': rsi_thresholds
                 }
+                # 添加DCF估值和行业信息
+                if dcf_value and dcf_value > 0:
+                    result['dcf_value'] = dcf_value
+                    result['value_price_ratio'] = current_price / dcf_value
+                if industry:
+                    result['industry'] = industry
+                return result
             
             # 检查卖出信号（卖出10%）
             if trend_filter_high:
@@ -804,7 +825,7 @@ class SignalGenerator:
                 if high_signal_count >= 2:
                     # 满足条件：趋势过滤器 + 至少2个其他卖出信号
                     # 置信度计算：趋势过滤器(1分) + 其他维度满足数量
-                    return {
+                    result = {
                         'signal': 'SELL',
                         'confidence': 1 + high_signal_count,  # 1-4分
                         'reason': f'卖出信号：价值比过滤器+{high_signal_count}个卖出维度',
@@ -813,6 +834,13 @@ class SignalGenerator:
                         'action': '卖出10%',
                         'rsi_thresholds': rsi_thresholds
                     }
+                    # 添加DCF估值和行业信息
+                    if dcf_value and dcf_value > 0:
+                        result['dcf_value'] = dcf_value
+                        result['value_price_ratio'] = current_price / dcf_value
+                    if industry:
+                        result['industry'] = industry
+                    return result
             
             # 检查买入信号（买入10%）
             if trend_filter_low:
@@ -828,7 +856,7 @@ class SignalGenerator:
                 if low_signal_count >= 2:
                     # 满足条件：趋势过滤器 + 至少2个其他买入信号
                     # 置信度计算：趋势过滤器(1分) + 其他维度满足数量
-                    return {
+                    result = {
                         'signal': 'BUY',
                         'confidence': 1 + low_signal_count,  # 1-4分
                         'reason': f'买入信号：价值比过滤器+{low_signal_count}个买入维度',
@@ -837,6 +865,13 @@ class SignalGenerator:
                         'action': '买入10%',
                         'rsi_thresholds': rsi_thresholds
                     }
+                    # 添加DCF估值和行业信息
+                    if dcf_value and dcf_value > 0:
+                        result['dcf_value'] = dcf_value
+                        result['value_price_ratio'] = current_price / dcf_value
+                    if industry:
+                        result['industry'] = industry
+                    return result
             
             # 信号不足，持有
             high_count = sum(1 for signal in [scores['overbought_oversold_high'], 
@@ -846,7 +881,7 @@ class SignalGenerator:
                                            scores['momentum_low'], 
                                            scores['extreme_price_volume_low']] if signal)
             
-            return {
+            result = {
                 'signal': 'HOLD',
                 'confidence': 0.0,
                 'reason': f'信号不足(卖出:{high_count},买入:{low_count})',
@@ -854,6 +889,13 @@ class SignalGenerator:
                 'details': self._get_signal_details(indicators),
                 'rsi_thresholds': rsi_thresholds
             }
+            # 添加DCF估值和行业信息
+            if dcf_value and dcf_value > 0:
+                result['dcf_value'] = dcf_value
+                result['value_price_ratio'] = current_price / dcf_value
+            if industry:
+                result['industry'] = industry
+            return result
             
         except Exception as e:
             raise SignalGenerationError(f"最终信号生成失败: {str(e)}") from e

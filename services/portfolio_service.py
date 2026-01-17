@@ -254,9 +254,30 @@ class PortfolioService(BaseService):
         total_value = self.portfolio_manager.get_total_value(current_prices)
         position_weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
         
-        # 执行卖出
+        # 提取技术指标和信号详情
+        technical_indicators = {}
+        stock_signal_details = {}
+        if signal_details and stock_code in signal_details:
+            stock_signal_details = signal_details[stock_code]
+            technical_indicators = stock_signal_details.get('technical_indicators', {})
+            if not technical_indicators and 'details' in stock_signal_details:
+                technical_indicators = stock_signal_details['details']
+            
+            # 添加DCF估值、价值比和行业信息
+            if 'dcf_value' in stock_signal_details:
+                technical_indicators['dcf_value'] = stock_signal_details['dcf_value']
+            if 'value_price_ratio' in stock_signal_details:
+                technical_indicators['value_price_ratio'] = stock_signal_details['value_price_ratio']
+            if 'industry' in stock_signal_details:
+                technical_indicators['industry'] = stock_signal_details['industry']
+            rsi_thresholds = stock_signal_details.get('rsi_thresholds', {})
+            if rsi_thresholds and 'industry_name' in rsi_thresholds:
+                technical_indicators['industry'] = rsi_thresholds['industry_name']
+        
+        # 执行卖出（传递技术指标和信号详情）
         success, trade_info = self.portfolio_manager.sell_stock(
-            stock_code, sell_shares, price, current_date, reason
+            stock_code, sell_shares, price, current_date, reason,
+            technical_indicators, stock_signal_details
         )
         
         if success:
@@ -321,9 +342,30 @@ class PortfolioService(BaseService):
         total_value = self.portfolio_manager.get_total_value(current_prices)
         position_weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
         
-        # 执行买入
+        # 提取技术指标和信号详情
+        technical_indicators = {}
+        stock_signal_details = {}
+        if signal_details and stock_code in signal_details:
+            stock_signal_details = signal_details[stock_code]
+            technical_indicators = stock_signal_details.get('technical_indicators', {})
+            if not technical_indicators and 'details' in stock_signal_details:
+                technical_indicators = stock_signal_details['details']
+            
+            # 添加DCF估值、价值比和行业信息
+            if 'dcf_value' in stock_signal_details:
+                technical_indicators['dcf_value'] = stock_signal_details['dcf_value']
+            if 'value_price_ratio' in stock_signal_details:
+                technical_indicators['value_price_ratio'] = stock_signal_details['value_price_ratio']
+            if 'industry' in stock_signal_details:
+                technical_indicators['industry'] = stock_signal_details['industry']
+            rsi_thresholds = stock_signal_details.get('rsi_thresholds', {})
+            if rsi_thresholds and 'industry_name' in rsi_thresholds:
+                technical_indicators['industry'] = rsi_thresholds['industry_name']
+        
+        # 执行买入（传递技术指标和信号详情）
         success, trade_info = self.portfolio_manager.buy_stock(
-            stock_code, buy_shares, price, current_date, reason
+            stock_code, buy_shares, price, current_date, reason,
+            technical_indicators, stock_signal_details
         )
         
         if success:

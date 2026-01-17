@@ -16,10 +16,15 @@ logger = logging.getLogger(__name__)
 class DetailedCSVExporter:
     """详细CSV交易记录导出器"""
     
-    def __init__(self):
-        """初始化CSV导出器"""
+    def __init__(self, dcf_values=None):
+        """初始化CSV导出器
+        
+        Args:
+            dcf_values: DCF估值字典 {股票代码: 估值}
+        """
         # 加载股票名称映射
         self.stock_mapping = get_cached_stock_mapping()
+        self.dcf_values = dcf_values or {}
         self.csv_headers = [
             '日期', '交易类型', '股票名称', '交易股票数量', '交易后持仓数量', 
             '交易价格', 'DCF估值', '价值比(%)', '估值状态', '价值比描述',
@@ -29,7 +34,7 @@ class DetailedCSVExporter:
             '价值比过滤器', '超买超卖信号', 'RSI 极端信号', '动能确认', '极端价格量能', '满足维度数', '触发原因',
             '行业', 'RSI超买阈值', 'RSI超卖阈值', 'RSI极端超买阈值', 'RSI极端超卖阈值'
         ]
-        logger.info("详细CSV导出器初始化完成")
+        logger.info(f"详细CSV导出器初始化完成，DCF估值数量: {len(self.dcf_values)}")
         
         # 分红配股事件CSV表头
         self.dividend_csv_headers = [
@@ -223,24 +228,47 @@ class DetailedCSVExporter:
             position_after = record.get('position_after_trade', 0)
             
             # 获取价值比相关数据
-            dcf_value = record.get('dcf_value', 0)
-            pvr = record.get('price_to_value_ratio')
-            pvr_status = record.get('pvr_status', '')
-            pvr_description = record.get('pvr_description', '')
+            # 优先从technical_indicators获取DCF估值（最准确）
+            dcf_value = indicators.get('dcf_value', 0)
+            if not dcf_value or dcf_value <= 0:
+                # 回退到self.dcf_values
+                dcf_value = self.dcf_values.get(symbol, 0)
+            if not dcf_value or dcf_value <= 0:
+                # 最后回退到record
+                dcf_value = record.get('dcf_value', 0)
             
-            # 格式化价值比显示
-            if pvr is not None:
+            # 计算价值比
+            if dcf_value > 0:
+                pvr = (close_price / dcf_value) * 100
                 pvr_display = f"{pvr:.1f}"
+                dcf_value_display = f"{dcf_value:.2f}"
+                
+                # 判断估值状态
+                pvr_ratio = close_price / dcf_value
+                if pvr_ratio <= 0.6:
+                    pvr_status = "极度低估"
+                elif pvr_ratio <= 0.7:
+                    pvr_status = "明显低估"
+                elif pvr_ratio <= 0.8:
+                    pvr_status = "轻度低估"
+                elif pvr_ratio <= 1.0:
+                    pvr_status = "合理区间"
+                elif pvr_ratio <= 1.2:
+                    pvr_status = "轻度高估"
+                else:
+                    pvr_status = "极度高估"
+                pvr_description = f"价值比{pvr_ratio:.2f}"
             else:
                 pvr_display = "无数据"
-            
-            if not dcf_value:
-                dcf_value = "无数据"
-            else:
-                dcf_value = f"{dcf_value:.2f}"
+                dcf_value_display = "无数据"
+                pvr_status = record.get('pvr_status', '')
+                pvr_description = record.get('pvr_description', '')
             
             # 获取行业信息和RSI阈值 - 使用动态RSI阈值系统
             try:
+                # 优先从technical_indicators获取行业信息
+                industry = indicators.get('industry', '')
+                
                 # 从交易记录中获取实际使用的RSI阈值（如果有的话）
                 actual_thresholds = record.get('rsi_thresholds', {})
                 if actual_thresholds:
@@ -249,11 +277,13 @@ class DetailedCSVExporter:
                     oversold_threshold = actual_thresholds.get('buy_threshold', 30)
                     extreme_overbought_threshold = actual_thresholds.get('extreme_sell_threshold', 80)
                     extreme_oversold_threshold = actual_thresholds.get('extreme_buy_threshold', 20)
-                    industry = actual_thresholds.get('industry_name', '未知')
+                    if not industry:
+                        industry = actual_thresholds.get('industry_name', '未知')
                     logger.info(f"✅ 使用交易记录中的动态RSI阈值: 买入≤{oversold_threshold}, 卖出≥{overbought_threshold}, 极端买入≤{extreme_oversold_threshold}, 极端卖出≥{extreme_overbought_threshold}, 行业={industry}")
                 else:
                     # 回退到旧方法
-                    industry = get_stock_industry_auto(symbol)
+                    if not industry:
+                        industry = get_stock_industry_auto(symbol)
                     if not industry:
                         industry = '未知'
                     

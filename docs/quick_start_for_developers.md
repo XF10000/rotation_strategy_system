@@ -2,9 +2,9 @@
 
 ## 文档概述
 
-**文档版本：** v1.1  
+**文档版本：** v1.2  
 **创建日期：** 2026-01-16  
-**更新日期：** 2026-01-17（阶段2：添加服务层架构说明）  
+**更新日期：** 2026-01-17（阶段2完成：BacktestOrchestrator完全独立运行）  
 **目标读者：** 新加入的开发工程师  
 **阅读时间：** 约20-30分钟
 
@@ -56,12 +56,13 @@
 | 文件 | 作用 | 重要性 | 代码量 | 状态 |
 |------|------|--------|--------|------|
 | `main.py` | 程序入口 | ⭐⭐⭐⭐⭐ | 145行 | ✅ 正常 |
-| **`services/backtest_orchestrator.py`** | **回测协调器（推荐）** | ⭐⭐⭐⭐⭐ | 328行 | ✅ **推荐** |
+| **`services/backtest_orchestrator.py`** | **回测协调器（完全独立）** | ⭐⭐⭐⭐⭐ | 1050行 | ✅ **推荐使用** |
 | `services/data_service.py` | 数据服务 | ⭐⭐⭐⭐ | ~200行 | ✅ 正常 |
 | `services/signal_service.py` | 信号服务 | ⭐⭐⭐⭐ | ~150行 | ✅ 正常 |
 | `services/portfolio_service.py` | 投资组合服务 | ⭐⭐⭐⭐ | ~250行 | ✅ 正常 |
-| `strategy/signal_generator.py` | 信号生成（核心） | ⭐⭐⭐⭐⭐ | 1264行 | ✅ 正常 |
-| ~~`backtest/backtest_engine.py`~~ | ~~回测引擎（旧）~~ | ⭐⭐⭐⭐⭐ | 2412行 | ⚠️ **Deprecated** |
+| `services/report_service.py` | 报告服务 | ⭐⭐⭐⭐ | ~150行 | ✅ 正常 |
+| `strategy/signal_generator.py` | 信号生成（核心） | ⭐⭐⭐⭐⭐ | 1425行 | ✅ 正常 |
+| ~~`backtest/backtest_engine.py`~~ | ~~回测引擎（旧）~~ | ⭐⭐⭐⭐⭐ | 2412行 | ❌ **已废弃** |
 | `data/data_fetcher.py` | 数据获取 | ⭐⭐⭐⭐ | 1303行 | ✅ 正常 |
 | `backtest/portfolio_manager.py` | 持仓管理 | ⭐⭐⭐ | 600行 | ✅ 正常 |
 

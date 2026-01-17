@@ -28,7 +28,7 @@ class RSIThresholdUpdater:
             threshold_file_path: RSI阈值文件路径
         """
         self.threshold_file_path = threshold_file_path
-        self.calculation_script = "sw_rsi_thresholds/run_sw_2021_rsi_calculation.py"
+        self.calculation_script = "run_sw_2021_rsi_calculation.py"  # 相对于sw_rsi_thresholds目录
         self.quarters = {
             1: (1, 2, 3),    # Q1: 1-3月
             2: (4, 5, 6),    # Q2: 4-6月
@@ -175,7 +175,7 @@ class RSIThresholdUpdater:
             cmd = [sys.executable, self.calculation_script, "--output", "output"]
             
             # 切换到sw_rsi_thresholds目录
-            script_dir = os.path.dirname(self.calculation_script)
+            script_dir = "sw_rsi_thresholds"
             
             logger.info(f"执行命令: {' '.join(cmd)}")
             logger.info(f"工作目录: {script_dir}")

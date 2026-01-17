@@ -1297,6 +1297,32 @@ class IntegratedReportGenerator:
             if not transactions:
                 return template
             
+            # 统计买入和卖出次数（使用英文字段名'type'）
+            buy_count = sum(1 for t in transactions if t.get('type') in ['BUY', '买入'])
+            sell_count = sum(1 for t in transactions if t.get('type') in ['SELL', '卖出'])
+            
+            # 替换模板中的硬编码统计信息
+            import re
+            # 替换卖出信号次数
+            template = re.sub(
+                r'🔴 <strong>卖出信号</strong>: \d+次',
+                f'🔴 <strong>卖出信号</strong>: {sell_count}次',
+                template
+            )
+            # 替换买入信号次数和描述
+            if buy_count > 0:
+                template = re.sub(
+                    r'🟢 <strong>买入信号</strong>: \d+次.*?</li>',
+                    f'🟢 <strong>买入信号</strong>: {buy_count}次 - 主要由价值比过滤器+超卖信号触发</li>',
+                    template
+                )
+            else:
+                template = re.sub(
+                    r'🟢 <strong>买入信号</strong>: \d+次.*?</li>',
+                    f'🟢 <strong>买入信号</strong>: {buy_count}次 - 当前回测期内无买入操作</li>',
+                    template
+                )
+            
             # 生成真实的交易记录
             transaction_rows = []
             for transaction in transactions:

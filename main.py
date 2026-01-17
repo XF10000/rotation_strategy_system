@@ -47,7 +47,7 @@ def main():
         logger.info("系统初始化完成")
         
         # 导入回测相关模块
-        from backtest.backtest_engine import BacktestEngine
+        from services.backtest_orchestrator import BacktestOrchestrator
         from backtest.performance_analyzer import PerformanceAnalyzer
         from config.csv_config_loader import create_csv_config
         from data.cache_validator import validate_cache_before_backtest
@@ -84,46 +84,65 @@ def main():
             logger.error("💡 建议手动删除 data_cache/ 目录后重新运行回测")
             return
         
-        # 创建并运行回测引擎
-        logger.info("初始化回测引擎...")
-        engine = BacktestEngine(config)
+        # ✅ 使用BacktestOrchestrator（新架构）
+        logger.info("🚀 初始化回测协调器...")
+        orchestrator = BacktestOrchestrator(config)
         
-        logger.info("开始运行回测...")
-        success = engine.run_backtest()
-        
-        if not success:
-            logger.error("回测运行失败")
+        logger.info("📊 初始化服务层...")
+        if not orchestrator.initialize():
+            logger.error("❌ 初始化失败")
             return
         
-        # 获取回测结果
-        backtest_results = engine.get_backtest_results()
-        logger.info("回测运行完成，开始生成报告...")
+        logger.info("▶️ 开始运行回测...")
+        success = orchestrator.run_backtest()
+        
+        if not success:
+            logger.error("❌ 回测运行失败")
+            return
+        
+        logger.info("✅ 回测运行完成，开始生成报告...")
         
         # 生成完整报告（包含HTML、CSV等）
-        report_files = engine.generate_reports()
+        report_files = orchestrator.generate_reports()
         
-        # 创建绩效分析器
+        # 获取回测结果用于性能分析
+        portfolio_manager = orchestrator.portfolio_service.portfolio_manager
+        
+        # 创建绩效分析器并转换数据格式
         analyzer = PerformanceAnalyzer()
+        
+        # 将portfolio_history和transaction_history转换为DataFrame
+        import pandas as pd
+        if isinstance(portfolio_manager.portfolio_history, list):
+            portfolio_df = pd.DataFrame(portfolio_manager.portfolio_history)
+        else:
+            portfolio_df = portfolio_manager.portfolio_history
+        
+        if isinstance(portfolio_manager.transaction_history, list):
+            transaction_df = pd.DataFrame(portfolio_manager.transaction_history)
+        else:
+            transaction_df = portfolio_manager.transaction_history
+        
         performance_report = analyzer.generate_performance_report(
-            backtest_results['portfolio_history'],
-            backtest_results['transaction_history']
+            portfolio_df,
+            transaction_df
         )
         
         # 打印绩效摘要
-        logger.info("回测结果摘要:")
+        logger.info("📈 回测结果摘要:")
         analyzer.print_performance_summary(performance_report)
         
         if report_files:
-            logger.info("报告生成完成:")
+            logger.info("📄 报告生成完成:")
             for file_type, path in report_files.items():
                 if file_type == 'html_report':
-                    logger.info(f"  HTML报告: {path}")
+                    logger.info(f"  📊 HTML报告: {path}")
                 elif file_type == 'csv_report':
-                    logger.info(f"  详细CSV报告: {path}")
+                    logger.info(f"  📋 详细CSV报告: {path}")
                 else:
-                    logger.info(f"  {file_type}: {path}")
+                    logger.info(f"  📁 {file_type}: {path}")
         else:
-            logger.warning("报告生成失败")
+            logger.warning("⚠️ 报告生成失败")
         
         logger.info("程序执行完成")
         logger.info("=" * 50)

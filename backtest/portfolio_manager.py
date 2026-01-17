@@ -634,7 +634,8 @@ class PortfolioManager:
         """
         return self.holdings.copy()
     
-    def sell_stock(self, stock_code: str, shares: int, price: float, date, reason: str) -> Tuple[bool, Dict]:
+    def sell_stock(self, stock_code: str, shares: int, price: float, date, reason: str,
+                   technical_indicators: dict = None, signal_details: dict = None) -> Tuple[bool, Dict]:
         """
         卖出股票的简化接口
         
@@ -644,6 +645,8 @@ class PortfolioManager:
             price: 卖出价格
             date: 交易日期
             reason: 交易原因
+            technical_indicators: 技术指标数值（可选）
+            signal_details: 信号判断详情（可选）
             
         Returns:
             (是否成功, 交易信息)
@@ -654,7 +657,8 @@ class PortfolioManager:
             cost_detail = self.cost_calculator.calculate_sell_cost(stock_code, shares, price)
             transaction_cost = cost_detail.get('total_cost', 0)
         
-        success = self.execute_sell(stock_code, shares, price, transaction_cost, date, reason)
+        success = self.execute_sell(stock_code, shares, price, transaction_cost, date, reason,
+                                    technical_indicators, signal_details)
         
         trade_info = {
             'type': 'SELL',
@@ -669,7 +673,8 @@ class PortfolioManager:
         
         return success, trade_info
     
-    def buy_stock(self, stock_code: str, shares: int, price: float, date, reason: str) -> Tuple[bool, Dict]:
+    def buy_stock(self, stock_code: str, shares: int, price: float, date, reason: str,
+                  technical_indicators: dict = None, signal_details: dict = None) -> Tuple[bool, Dict]:
         """
         买入股票的简化接口
         
@@ -679,6 +684,8 @@ class PortfolioManager:
             price: 买入价格
             date: 交易日期
             reason: 交易原因
+            technical_indicators: 技术指标数值（可选）
+            signal_details: 信号判断详情（可选）
             
         Returns:
             (是否成功, 交易信息)
@@ -689,7 +696,8 @@ class PortfolioManager:
             cost_detail = self.cost_calculator.calculate_buy_cost(stock_code, shares, price)
             transaction_cost = cost_detail.get('total_cost', 0)
         
-        success = self.execute_buy(stock_code, shares, price, transaction_cost, date, reason)
+        success = self.execute_buy(stock_code, shares, price, transaction_cost, date, reason,
+                                   technical_indicators, signal_details)
         
         trade_info = {
             'type': 'BUY',

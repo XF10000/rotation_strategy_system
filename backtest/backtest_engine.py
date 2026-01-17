@@ -127,6 +127,7 @@ class BacktestEngine:
         
         # 报告生成器
         self.report_generator = IntegratedReportGenerator()
+        # CSV导出器将在需要时接收DCF估值
         self.csv_exporter = DetailedCSVExporter()
         
         # 🆕 新增：初始化信号跟踪器
@@ -756,10 +757,10 @@ class BacktestEngine:
             if current_date not in stock_weekly.index:
                 continue
             
-            # 使用SignalGenerator生成信号（只传递stock_code和data）
+            # 使用SignalGenerator生成信号（只传递stock_code和weekly数据）
             result = self.signal_generator.generate_signal(
                 stock_code,
-                self.stock_data[stock_code]
+                self.stock_data[stock_code]['weekly']
             )
             
             # SignalGenerator返回的是字典，不是对象

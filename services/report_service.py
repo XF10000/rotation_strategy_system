@@ -26,18 +26,20 @@ class ReportService(BaseService):
     4. 分红配股报告
     """
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], dcf_values: Dict[str, float] = None):
         """
         初始化报告服务
         
         Args:
             config: 配置字典
+            dcf_values: DCF估值字典
         """
         super().__init__(config)
         
         # 报告生成器
         self.html_generator = None
         self.csv_exporter = None
+        self.dcf_values = dcf_values or {}
         
         # 报告输出目录
         self.report_dir = config.get('report_dir', 'reports')
@@ -56,11 +58,11 @@ class ReportService(BaseService):
             # 初始化HTML报告生成器
             self.html_generator = IntegratedReportGenerator()
             
-            # 初始化CSV导出器
-            self.csv_exporter = DetailedCSVExporter()
+            # 初始化CSV导出器，传递DCF估值数据
+            self.csv_exporter = DetailedCSVExporter(dcf_values=self.dcf_values)
             
             self._initialized = True
-            self.logger.info("ReportService 初始化成功")
+            self.logger.info(f"ReportService 初始化成功，DCF估值数量: {len(self.dcf_values)}")
             return True
         except Exception as e:
             self.logger.error(f"ReportService 初始化失败: {e}")

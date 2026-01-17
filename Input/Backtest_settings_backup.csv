@@ -1,9 +1,18 @@
-﻿﻿Parameter,Value,Description
-data_source,tushare,数据源配置 (akshare/tushare)
+Parameter,Value,Description
+# ========== 回归测试固定配置 ==========,,
+# 此配置用于验证优化前后功能一致性,,
+# 请勿修改此文件！,,
+# ========== 数据源配置 ==========,,
+data_source,tushare,主数据源 (akshare/tushare)
+backup_data_source,akshare,备用数据源 (akshare/tushare/none) - 可选
+tushare_token,883a1e85d3c15b9cd25cf53853b093a1af5a4e143562d9e9e47e5f4e,Tushare API Token - 使用tushare时必填
+data_fetch_strategy,smart,数据获取策略 (smart:智能切换/simple:单一数据源)
+# ========== 回测基础配置 ==========,,
 total_capital,100000000,回测总资本
-start_date,2021-04-08,回测开始日期
-end_date,2025-07-25,回测结束日期
-min_data_length,40,信号生成器最小数据长度要求(周)
+start_date,2024-01-12,回测开始日期（固定用于回归测试）
+end_date,2026-01-17,回测结束日期（固定用于回归测试）
+min_data_length,120,信号生成器最小数据长度要求(周) - RSI稳定计算需求
+historical_data_weeks,125,回测历史数据获取周期(周) - 满足120周RSI稳定要求+安全边际
 # 估值区间阈值配置,价值比(当前价/DCF估值)的区间划分,
 value_ratio_extreme_undervalue,0.6,价值比 <= 此值为极度低估
 value_ratio_obvious_undervalue,0.7,"价值比 (0.6, 0.7] 为明显低估"
