@@ -138,6 +138,11 @@ class ReportService(BaseService):
                 self.logger.warning("⚠️ K线数据为空，报告中将不显示K线图")
             else:
                 self.logger.info(f"✅ 使用已准备的K线数据，包含 {len(kline_data)} 只股票")
+                # 🔍 调试：检查600900的trades字段
+                if '600900' in kline_data:
+                    data_600900 = kline_data['600900']
+                    self.logger.info(f"🔍 600900数据keys: {list(data_600900.keys())}")
+                    self.logger.info(f"🔍 600900 trades数量: {len(data_600900.get('trades', []))}")
             
             # 确保K线数据在回测结果中
             backtest_results['kline_data'] = kline_data
@@ -193,14 +198,17 @@ class ReportService(BaseService):
             )
             
             # 导出CSV
-            self.csv_exporter.export_to_csv(
+            csv_path = self.csv_exporter.export_trading_records(
                 transaction_history,
-                signal_details or {},
-                output_path
+                output_dir=self.report_dir
             )
             
-            self.logger.info(f"✅ CSV报告已生成: {output_path}")
-            return output_path
+            if not csv_path:
+                self.logger.error("CSV报告生成失败")
+                return None
+            
+            self.logger.info(f"✅ CSV报告已生成: {csv_path}")
+            return csv_path
             
         except Exception as e:
             self.logger.error(f"CSV报告生成失败: {e}")

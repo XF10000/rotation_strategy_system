@@ -102,6 +102,7 @@ class IntegratedReportGenerator:
             # 确保输出目录存在
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
+            
             # 写入文件
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
@@ -182,6 +183,7 @@ class IntegratedReportGenerator:
             
             # 7.1. 未执行信号数据替换
             print(f"🔍 检查signal_tracker_data: {type(signal_tracker_data)}, 是否为None: {signal_tracker_data is None}")
+            
             if signal_tracker_data:
                 print(f"✅ signal_tracker_data存在，开始提取未执行信号")
                 unexecuted_signals = self._extract_unexecuted_signals(signal_tracker_data)
@@ -358,9 +360,10 @@ class IntegratedReportGenerator:
                 ('12.0%', f'{benchmark_annual:.2f}%'),
                 ('+6.47%', f'{excess_annual:+.2f}%'),
                 
-                # 最大回撤行
-                ('-15.0%', f'{benchmark_max_drawdown:.2f}%'),
-                ('-6.56%', f'{excess_drawdown:.2f}%'),
+                # 最大回撤行（注意：需要替换策略、基准和差值三个值）
+                ('-21.56%', f'{strategy_max_drawdown:.2f}%'),  # 策略最大回撤
+                ('-15.0%', f'{benchmark_max_drawdown:.2f}%'),   # 基准最大回撤
+                ('-6.56%', f'{excess_drawdown:.2f}%'),          # 差值
             ]
             
             print(f"🔄 开始表格数据替换...")
@@ -1982,9 +1985,13 @@ class IntegratedReportGenerator:
             # 查找并替换K线数据
             data_start = template.find('const klineData = {};')
             if data_start != -1:
-                data_end = template.find(';', data_start) + 1
+                # 查找占位符的结束位置
+                placeholder_start = data_start + len('const klineData = ')
+                placeholder_end = template.find(';', placeholder_start) + 1
+                
                 new_js_data = f'const klineData = {js_kline_data};'
-                template = template[:data_start] + new_js_data + template[data_end:]
+                template = template[:data_start] + new_js_data + template[placeholder_end:]
+                
                 print("✅ K线数据已成功替换到模板中")
             else:
                 print("❌ 未找到K线数据占位符")

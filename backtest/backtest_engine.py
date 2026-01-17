@@ -762,14 +762,13 @@ class BacktestEngine:
                 self.stock_data[stock_code]
             )
             
-            if result and result.signal_type != 'HOLD':
-                signals[stock_code] = result.signal_type
-                # 记录信号详情
-                self.signal_details[f"{stock_code}_{current_date.strftime('%Y-%m-%d')}"] = {
-                    'signal_type': result.signal_type,
-                    'reasons': result.reasons,
-                    'scores': result.scores
-                }
+            # SignalGenerator返回的是字典，不是对象
+            if result and isinstance(result, dict):
+                signal = result.get('signal', 'HOLD')
+                if signal != 'HOLD':
+                    signals[stock_code] = signal
+                    # 记录信号详情
+                    self.signal_details[f"{stock_code}_{current_date.strftime('%Y-%m-%d')}"] = result
         
         return signals
     
@@ -2015,7 +2014,15 @@ class BacktestEngine:
                 # 🆕 添加分红数据
                 'dividends': dividend_points
             }
+            
+            # 🔍 调试：确认数据结构
+            if stock_code == '600900':
+                self.logger.info(f"🔍 _prepare_kline_data返回前检查600900:")
+                self.logger.info(f"  keys: {list(kline_data[stock_code].keys())}")
+                self.logger.info(f"  trades字段存在: {'trades' in kline_data[stock_code]}")
+                self.logger.info(f"  trades数量: {len(kline_data[stock_code]['trades'])}")
         
+        self.logger.info(f"🔍 _prepare_kline_data返回，总共{len(kline_data)}只股票")
         return kline_data
 
     def _calculate_buy_and_hold_benchmark(self) -> Tuple[float, float, float]:
@@ -2179,13 +2186,15 @@ class BacktestEngine:
             else:
                 annual_return = 0
             
-            # 估算最大回撤（简化计算）
-            estimated_max_drawdown = -abs(total_return * 0.6)  # 假设最大回撤为总收益率的60%
+            # 🔧 修复：计算真实的最大回撤（基于净值曲线）
+            max_drawdown = self._calculate_benchmark_max_drawdown(
+                initial_weights, cash_weight, initial_capital, start_date, end_date
+            )
             
             # 转换为百分比
             total_return_pct = total_return * 100
             annual_return_pct = annual_return * 100
-            max_drawdown_pct = estimated_max_drawdown * 100
+            max_drawdown_pct = max_drawdown * 100
             
             self.logger.info(f"🎯 基准计算完成 (包含分红收入):")
             self.logger.info(f"  开始市值: {start_total_value:,.0f} 元")
@@ -2265,6 +2274,106 @@ class BacktestEngine:
             # 返回默认值
             return 45.0, 12.0, -18.0
 
+    def _calculate_benchmark_max_drawdown(self, initial_weights: dict, cash_weight: float, 
+                                          initial_capital: float, start_date, end_date) -> float:
+        """
+        计算买入持有基准的最大回撤
+        
+        Args:
+            initial_weights: 各股票的初始权重
+            cash_weight: 现金权重
+            initial_capital: 初始资金
+            start_date: 开始日期
+            end_date: 结束日期
+            
+        Returns:
+            float: 最大回撤（负数，如-0.15表示-15%）
+        """
+        try:
+            import pandas as pd
+            
+            # 收集所有交易日期
+            all_dates = set()
+            stock_data_dict = {}
+            
+            for stock_code, weight in initial_weights.items():
+                if stock_code not in self.stock_data:
+                    continue
+                    
+                weekly_data = self.stock_data[stock_code]['weekly']
+                filtered_data = weekly_data[
+                    (weekly_data.index >= start_date) & (weekly_data.index <= end_date)
+                ]
+                
+                if len(filtered_data) < 2:
+                    continue
+                
+                all_dates.update(filtered_data.index)
+                stock_data_dict[stock_code] = {
+                    'data': filtered_data,
+                    'weight': weight,
+                    'initial_price': filtered_data.iloc[0]['close'],
+                    'initial_shares': int((initial_capital * weight / filtered_data.iloc[0]['close']) / 100) * 100
+                }
+            
+            if not all_dates:
+                return -0.15  # 默认值
+            
+            # 按日期排序
+            sorted_dates = sorted(all_dates)
+            
+            # 计算每个日期的投资组合净值
+            portfolio_values = []
+            
+            for date in sorted_dates:
+                total_value = 0
+                
+                # 计算股票市值
+                for stock_code, stock_info in stock_data_dict.items():
+                    data = stock_info['data']
+                    if date in data.index:
+                        current_price = data.loc[date, 'close']
+                        shares = stock_info['initial_shares']
+                        
+                        # 考虑分红送股转增（简化处理：累计到当前日期）
+                        for idx in data.index:
+                            if idx > date:
+                                break
+                            if data.loc[idx, 'bonus_ratio'] > 0:
+                                shares += shares * data.loc[idx, 'bonus_ratio']
+                            if data.loc[idx, 'transfer_ratio'] > 0:
+                                shares += shares * data.loc[idx, 'transfer_ratio']
+                        
+                        total_value += shares * current_price
+                
+                # 加上现金
+                total_value += initial_capital * cash_weight
+                
+                portfolio_values.append(total_value)
+            
+            if not portfolio_values:
+                return -0.15  # 默认值
+            
+            # 计算最大回撤
+            peak = portfolio_values[0]
+            max_drawdown = 0
+            
+            for value in portfolio_values:
+                if value > peak:
+                    peak = value
+                drawdown = (value - peak) / peak
+                if drawdown < max_drawdown:
+                    max_drawdown = drawdown
+            
+            self.logger.info(f"📉 基准最大回撤计算完成: {max_drawdown*100:.2f}%")
+            return max_drawdown
+            
+        except Exception as e:
+            self.logger.error(f"计算基准最大回撤失败: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return -0.15  # 默认值
+    
     def _get_cached_or_fetch_data(self, stock_code: str, start_date: str, end_date: str, period: str = 'daily') -> Optional[pd.DataFrame]:
         """
         智能获取数据：优先使用缓存，按需从网络获取缺失部分

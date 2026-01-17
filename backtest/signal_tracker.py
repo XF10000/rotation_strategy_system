@@ -538,14 +538,21 @@ class SignalTracker:
         except Exception:
             return stock_code
     
-    def export_to_csv(self) -> str:
+    def export_to_csv(self, output_path: str = None) -> str:
         """
         导出CSV报告
+        
+        Args:
+            output_path: 输出文件路径（可选，如果不提供则使用初始化时的路径）
         
         Returns:
             str: CSV文件路径
         """
         try:
+            # 使用传入的路径或默认路径
+            if output_path:
+                self.output_path = output_path
+            
             # 确保输出目录存在
             output_dir = os.path.dirname(self.output_path)
             if output_dir:  # 只有当有目录路径时才创建

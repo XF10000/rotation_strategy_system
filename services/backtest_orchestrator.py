@@ -86,9 +86,9 @@ class BacktestOrchestrator(BaseService):
             
             # 4. 初始化SignalService
             self.logger.info("🎯 初始化SignalService...")
-            signal_config = self.config.get('strategy_params', {})
+            # 传递完整config，让SignalService自己处理strategy_params合并
             self.signal_service = SignalService(
-                signal_config,
+                self.config,
                 dcf_values,
                 rsi_thresholds,
                 stock_industry_map,
@@ -160,6 +160,14 @@ class BacktestOrchestrator(BaseService):
                 
                 # 2. 更新投资组合价格（关键！BacktestEngine有这一步）
                 self.portfolio_service.portfolio_manager.update_prices(current_prices)
+                
+                # 🔧 修复：记录投资组合价值历史（用于计算最大回撤）
+                total_value = self.portfolio_service.portfolio_manager.get_total_value(current_prices)
+                self.portfolio_service.portfolio_manager.portfolio_history.append({
+                    'date': current_date,
+                    'total_value': total_value,
+                    'cash': self.portfolio_service.portfolio_manager.cash
+                })
                 
                 # 3. 处理分红配股事件
                 self.portfolio_service.process_dividend_events(self.stock_data, current_date)
@@ -325,10 +333,34 @@ class BacktestOrchestrator(BaseService):
         years = (end_date - start_date).days / 365.25
         annual_return = (1 + total_return) ** (1 / years) - 1 if years > 0 else 0
         
-        # 🔧 修复：准备基准持仓数据
-        benchmark_portfolio = None
-        if hasattr(self, 'benchmark_service') and self.benchmark_service:
-            benchmark_portfolio = self.benchmark_service.get_benchmark_portfolio()
+        # 🔧 修复：计算策略最大回撤
+        max_drawdown = self._calculate_strategy_max_drawdown(portfolio_manager)
+        
+        # 🔧 修复：从backtest_engine获取基准持仓数据
+        benchmark_portfolio_data = None
+        benchmark_return = 0.0
+        benchmark_annual_return = 0.0
+        benchmark_max_drawdown = 0.0
+        
+        if hasattr(self, 'backtest_engine') and self.backtest_engine:
+            # 确保backtest_engine有必要的数据
+            self.backtest_engine.stock_data = self.stock_data
+            self.backtest_engine.start_date = self.start_date
+            self.backtest_engine.end_date = self.end_date
+            self.backtest_engine.total_capital = initial_value
+            
+            # 计算买入持有基准
+            try:
+                benchmark_return, benchmark_annual_return, benchmark_max_drawdown = self.backtest_engine._calculate_buy_and_hold_benchmark()
+                self.logger.info(f"📊 基准收益率: {benchmark_return:.2f}%, 年化: {benchmark_annual_return:.2f}%")
+                
+                # 获取基准持仓数据
+                benchmark_portfolio_data = getattr(self.backtest_engine, 'benchmark_portfolio_data', {})
+                self.logger.info(f"🔍 基准持仓数据: {list(benchmark_portfolio_data.keys()) if benchmark_portfolio_data else 'None'}")
+            except Exception as e:
+                self.logger.error(f"计算基准数据失败: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
         
         # 🔧 修复：从交易记录中提取信号统计
         signal_analysis = self._extract_signal_analysis(transaction_history)
@@ -347,6 +379,11 @@ class BacktestOrchestrator(BaseService):
                 self.backtest_engine.transaction_history = transaction_history
                 kline_data = self.backtest_engine._prepare_kline_data()
                 self.logger.info(f"✅ 从backtest_engine获取K线数据，包含 {len(kline_data)} 只股票")
+                
+                # 🔍 调试：检查600900的数据完整性
+                if '600900' in kline_data:
+                    self.logger.info(f"🔍 _prepare_backtest_results中600900的keys: {list(kline_data['600900'].keys())}")
+                    self.logger.info(f"🔍 _prepare_backtest_results中600900的trades数量: {len(kline_data['600900'].get('trades', []))}")
             except Exception as e:
                 self.logger.error(f"从backtest_engine获取K线数据失败: {e}")
                 import traceback
@@ -364,9 +401,12 @@ class BacktestOrchestrator(BaseService):
                 'final_value': final_value,
                 'total_return': total_return * 100,
                 'annual_return': annual_return * 100,
-                'max_drawdown': 0,  # TODO: 计算最大回撤
+                'max_drawdown': max_drawdown,  # 策略最大回撤
+                'benchmark_return': benchmark_return,  # 基准总收益率
+                'benchmark_annual_return': benchmark_annual_return,  # 基准年化收益率
+                'benchmark_max_drawdown': benchmark_max_drawdown,  # 基准最大回撤
             },
-            'benchmark_portfolio': benchmark_portfolio,  # 🔧 修复：添加基准持仓
+            'benchmark_portfolio_data': benchmark_portfolio_data,  # 🔧 修复：添加基准持仓数据
             'signal_analysis': signal_analysis,  # 🔧 修复：添加信号分析
             'final_portfolio': final_portfolio,  # 🔧 修复：添加最终持仓状态
             'start_date': self.start_date,
@@ -438,13 +478,16 @@ class BacktestOrchestrator(BaseService):
                 current_value = shares * current_price
                 stock_value += current_value
                 
-                # 获取初始价格（从第一笔买入交易）
-                initial_price = self._get_initial_price_for_stock(stock_code)
+                # 获取初始持仓价格（回测开始时的价格）
+                initial_price = self._get_initial_holding_price(stock_code)
+                
+                # 计算收益率：(当前价格 - 初始价格) / 初始价格
                 return_pct = ((current_price - initial_price) / initial_price * 100) if initial_price > 0 else 0
                 
                 positions[stock_code] = {
                     'shares': shares,
                     'price': current_price,
+                    'current_price': current_price,  # 添加current_price字段供报告生成器使用
                     'value': current_value,
                     'return': return_pct,
                     'initial_price': initial_price
@@ -458,9 +501,9 @@ class BacktestOrchestrator(BaseService):
             'positions': positions
         }
     
-    def _get_initial_price_for_stock(self, stock_code: str) -> float:
+    def _get_initial_holding_price(self, stock_code: str) -> float:
         """
-        获取股票的初始买入价格
+        获取股票的初始持仓价格（回测开始时的价格）
         
         Args:
             stock_code: 股票代码
@@ -468,14 +511,71 @@ class BacktestOrchestrator(BaseService):
         Returns:
             float: 初始价格
         """
-        # 从交易历史中找到第一笔买入交易
+        # 从股票数据中获取回测开始日期的价格
+        if stock_code in self.stock_data:
+            weekly_data = self.stock_data[stock_code]['weekly']
+            start_date = pd.to_datetime(self.start_date)
+            
+            # 找到回测开始日期或之后的第一个交易日
+            valid_dates = weekly_data.index[weekly_data.index >= start_date]
+            if len(valid_dates) > 0:
+                first_date = valid_dates[0]
+                return weekly_data.loc[first_date, 'close']
+        
+        # 如果没有找到，尝试从第一笔买入交易获取
         portfolio_manager = self.portfolio_service.portfolio_manager
         for trade in portfolio_manager.transaction_history:
             if trade.get('stock_code') == stock_code and trade.get('action') == 'buy':
                 return trade.get('price', 0)
         
-        # 如果没有找到，返回0
+        # 如果都没有找到，返回0
         return 0
+    
+    def _calculate_strategy_max_drawdown(self, portfolio_manager) -> float:
+        """
+        计算策略的最大回撤
+        
+        Args:
+            portfolio_manager: 投资组合管理器
+            
+        Returns:
+            float: 最大回撤（百分比，如-15.24表示-15.24%）
+        """
+        try:
+            # 从portfolio_history中提取总价值序列
+            if not hasattr(portfolio_manager, 'portfolio_history') or not portfolio_manager.portfolio_history:
+                self.logger.warning("没有投资组合历史记录，无法计算最大回撤")
+                return 0.0
+            
+            # 提取每个时间点的总价值
+            values = []
+            for record in portfolio_manager.portfolio_history:
+                if isinstance(record, dict) and 'total_value' in record:
+                    values.append(record['total_value'])
+            
+            if len(values) < 2:
+                self.logger.warning(f"投资组合历史记录不足（{len(values)}条），无法计算最大回撤")
+                return 0.0
+            
+            # 计算最大回撤
+            peak = values[0]
+            max_drawdown = 0
+            
+            for value in values:
+                if value > peak:
+                    peak = value
+                drawdown = (value - peak) / peak * 100  # 转换为百分比
+                if drawdown < max_drawdown:
+                    max_drawdown = drawdown
+            
+            self.logger.info(f"📉 策略最大回撤计算完成: {max_drawdown:.2f}% (基于{len(values)}个数据点)")
+            return max_drawdown
+            
+        except Exception as e:
+            self.logger.error(f"计算策略最大回撤失败: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return 0.0
     
     def get_results(self) -> Dict[str, Any]:
         """
