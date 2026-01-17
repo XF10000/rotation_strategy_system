@@ -1,10 +1,10 @@
 # 中线轮动策略系统 - 开发者快速上手指南
 
-## 📋 文档概述
+## 文档概述
 
 **文档版本：** v1.1  
 **创建日期：** 2026-01-16  
-**更新日期：** 2026-01-16（阶段3更新）  
+**更新日期：** 2026-01-17（阶段2：添加服务层架构说明）  
 **目标读者：** 新加入的开发工程师  
 **阅读时间：** 约20-30分钟
 
@@ -527,6 +527,44 @@ def _calculate_custom_metrics(self, results):
         'metric_2': self._calculate_sortino_ratio(results),
     }
 ```
+
+---
+
+## 🏗️ 系统架构（阶段2更新）
+
+### 服务层架构
+
+系统采用**服务层架构**，通过`BacktestOrchestrator`协调各个服务完成回测：
+
+```
+BacktestOrchestrator (协调器)
+    ├── DataService (数据服务)
+    ├── SignalService (信号服务)
+    ├── PortfolioService (投资组合服务)
+    └── ReportService (报告服务)
+```
+
+**核心服务：**
+
+1. **DataService** - 数据获取和处理
+   - 从数据源获取股票数据
+   - 计算技术指标
+   - 管理数据缓存
+
+2. **SignalService** - 信号生成
+   - 4维信号分析
+   - 信号评分和过滤
+   - 信号跟踪记录
+
+3. **PortfolioService** - 投资组合管理
+   - 持仓管理
+   - 交易执行
+   - 资金管理
+
+4. **ReportService** - 报告生成
+   - HTML报告
+   - CSV报告
+   - 信号跟踪报告
 
 ---
 

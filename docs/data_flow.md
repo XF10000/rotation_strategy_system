@@ -2,13 +2,18 @@
 
 ## 文档概述
 
-**文档版本：** v1.1  
+**文档版本：** v1.2  
 **创建日期：** 2026-01-16  
-**更新日期：** 2026-01-16（阶段4：数据管道集成）  
+**更新日期：** 2026-01-17（阶段6：单一数据源原则）  
 **目标读者：** 开发工程师、系统维护人员  
 **阅读时间：** 约10-15分钟
 
 本文档详细说明系统中数据的流向、转换过程和关键节点。
+
+**v1.2 更新内容（2026-01-17）：**
+- ✅ 添加SignalResult模型的数据流说明
+- ✅ 更新信号生成流程，体现单一数据源原则
+- ✅ 更新报告生成流程，使用SignalResult避免重复计算
 
 ---
 
@@ -33,6 +38,8 @@
     ↓
 信号生成 (SignalGenerator)
     ↓
+SignalResult创建 ✨ (阶段6新增 - 单一数据源)
+    ↓
 交易执行 (BacktestEngine)
     ↓
 持仓管理 (PortfolioManager)
@@ -40,6 +47,9 @@
 性能分析 (PerformanceAnalyzer)
     ↓
 报告生成 (ReportGenerator)
+  ├── 使用SignalResult对象 ✨ (阶段6 - 避免重复计算)
+  ├── 直接提取技术指标数据
+  └── 确保与信号生成数据100%一致
     ↓
 输出文件 (HTML/CSV)
 ```
@@ -282,10 +292,71 @@ SignalGenerator.generate_signal()
 输出：SignalResult对象
 ```
 
-### 信号数据结构
+### 信号数据结构（阶段6更新）
+
+**✨ 单一数据源原则（阶段6实现）：**
+
+信号生成时创建完整的`SignalResult`对象，包含所有计算结果。后续所有模块（交易执行、报告生成）直接使用此对象，避免重复计算，确保数据一致性。
 
 ```python
-SignalResult = {
+# SignalResult对象（models/signal_result.py）
+from dataclasses import dataclass
+
+@dataclass
+class SignalResult:
+    """信号结果 - 单一数据源"""
+    stock_code: str
+    date: datetime
+    signal_type: str  # buy / sell / hold
+    
+    # 价格信息
+    close_price: float
+    open_price: float
+    high_price: float
+    low_price: float
+    volume: float
+    
+    # 4维度评分
+    trend_score: float
+    rsi_score: float
+    macd_score: float
+    volume_score: float
+    total_score: float
+    
+    # RSI详情
+    rsi_value: float
+    rsi_threshold_overbought: float
+    rsi_threshold_oversold: float
+    rsi_extreme_overbought: float
+    rsi_extreme_oversold: float
+    rsi_divergence: Optional[str]
+    
+    # MACD详情
+    macd_value: float
+    macd_signal: float
+    macd_histogram: float
+    macd_histogram_prev: float
+    macd_cross: Optional[str]
+    
+    # 布林带详情
+    bb_upper: float
+    bb_middle: float
+    bb_lower: float
+    bb_position: float
+    
+    # 成交量详情
+    volume_ma_4: float
+    volume_ratio: float
+    
+    # 价值比详情
+    dcf_value: Optional[float]
+    price_value_ratio: Optional[float]
+    
+    # 触发原因
+    trigger_reasons: List[str]
+
+# 旧格式（向后兼容）
+SignalDict = {
     'stock_code': '601225',
     'date': '2024-01-05',
     'signal_type': 'buy',  # buy / sell / hold
