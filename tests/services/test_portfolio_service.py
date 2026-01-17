@@ -49,28 +49,32 @@ class TestPortfolioServiceInitialization:
 class TestPortfolioServiceInitialize:
     """测试initialize方法"""
     
-    @patch('services.portfolio_service.PortfolioDataManager')
-    @patch('services.portfolio_service.DynamicPositionManager')
-    def test_initialize_success(self, mock_dpm_class, mock_pdm_class):
+    def test_initialize_success(self):
         """测试成功初始化"""
         config = {
             'total_capital': 1000000,
-            'initial_holdings': {'600000': 100}
+            'initial_holdings': {'600000': 100, 'cash': 900000}
         }
         dcf_values = {'600000': 10.5}
+        
         service = PortfolioService(config, dcf_values)
         
-        mock_pdm = Mock()
-        mock_dpm = Mock()
-        mock_pdm_class.return_value = mock_pdm
-        mock_dpm_class.return_value = mock_dpm
+        # 准备initialize所需的参数
+        stock_data = {
+            '600000': {
+                'weekly': pd.DataFrame({
+                    'close': [10.0, 10.5],
+                    'volume': [1000000, 1100000]
+                }, index=pd.date_range('2024-01-01', periods=2, freq='W'))
+            }
+        }
+        start_date = pd.Timestamp('2024-01-01')
         
-        result = service.initialize()
+        result = service.initialize(stock_data, start_date, dcf_values)
         
         assert result is True
         assert service._initialized is True
-        assert service.portfolio_data_manager == mock_pdm
-        assert service.dynamic_position_manager == mock_dpm
+        assert service.portfolio_manager is not None
 
 
 class TestPortfolioServiceExecuteTrade:
@@ -218,9 +222,7 @@ class TestPortfolioServiceDividend:
 class TestPortfolioServiceIntegration:
     """集成测试"""
     
-    @patch('services.portfolio_service.PortfolioDataManager')
-    @patch('services.portfolio_service.DynamicPositionManager')
-    def test_full_workflow(self, mock_dpm_class, mock_pdm_class):
+    def test_full_workflow(self):
         """测试完整工作流程"""
         # 准备配置
         config = {
@@ -232,22 +234,21 @@ class TestPortfolioServiceIntegration:
         # 创建service
         service = PortfolioService(config, dcf_values)
         
-        # Mock managers
-        mock_pdm = Mock()
-        mock_dpm = Mock()
-        mock_pdm_class.return_value = mock_pdm
-        mock_dpm_class.return_value = mock_dpm
-        
-        # Mock portfolio manager for trading
-        service.portfolio_manager = Mock()
-        service.portfolio_manager.get_holdings.return_value = {'600000': 100}
-        service.portfolio_manager.get_cash.return_value = 900000
-        service.portfolio_manager.get_total_value.return_value = 1000000
-        service.portfolio_manager.buy_stock.return_value = True
+        # 准备股票数据
+        stock_data = {
+            '600000': {
+                'weekly': pd.DataFrame({
+                    'close': [10.0, 10.5],
+                    'volume': [1000000, 1100000]
+                }, index=pd.date_range('2024-01-01', periods=2, freq='W'))
+            }
+        }
+        start_date = pd.Timestamp('2024-01-01')
         
         # 初始化
-        result = service.initialize()
+        result = service.initialize(stock_data, start_date, dcf_values)
         assert result is True
+        assert service._initialized is True
         
         # 执行交易
         signals = {'600001': 'BUY'}

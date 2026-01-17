@@ -211,9 +211,16 @@ class TestDataServiceLoadMethods:
         
         with patch('builtins.open', create=True) as mock_open:
             import json
+            # 修复：使用正确的JSON格式，包含mapping字段
             mock_data = {
-                '600000': {'industry_code': '801010', 'industry_name': '银行'},
-                '600001': {'industry_code': '801020', 'industry_name': '证券'}
+                'mapping': {
+                    '600000': {'industry_code': '801010', 'industry_name': '银行'},
+                    '600001': {'industry_code': '801020', 'industry_name': '证券'}
+                },
+                'metadata': {
+                    'version': '1.0',
+                    'generated_at': '2024-01-01'
+                }
             }
             mock_open.return_value.__enter__.return_value.read.return_value = json.dumps(mock_data)
             

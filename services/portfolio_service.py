@@ -166,6 +166,7 @@ class PortfolioService(BaseService):
             self.logger.info(f"🔍 计算总价值: {calculated_total_value:,.2f}")
             self.logger.info(f"📊 初始持仓: {len(self.portfolio_manager.holdings)} 只股票")
             
+            self._initialized = True
             return True
             
         except Exception as e:
