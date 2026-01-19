@@ -181,25 +181,18 @@ class RSIThresholdUpdater:
             logger.info(f"执行命令: {' '.join(cmd)}")
             logger.info(f"工作目录: {script_dir}")
             
+            # 不捕获输出，让进度条实时显示到终端
             result = subprocess.run(
                 cmd,
                 cwd=script_dir,
-                capture_output=True,
-                text=True,
                 timeout=600  # 10分钟超时
             )
             
             if result.returncode == 0:
                 logger.info("✅ RSI阈值计算完成")
-                if result.stdout:
-                    logger.info(f"计算输出:\n{result.stdout}")
                 return True
             else:
                 logger.error(f"❌ RSI阈值计算失败，返回码: {result.returncode}")
-                if result.stderr:
-                    logger.error(f"错误输出:\n{result.stderr}")
-                if result.stdout:
-                    logger.error(f"标准输出:\n{result.stdout}")
                 return False
                 
         except subprocess.TimeoutExpired:
