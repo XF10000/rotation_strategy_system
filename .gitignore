@@ -42,6 +42,9 @@ data_cache/
 *.pkl
 *.pickle
 
+# RSI计算输出备份
+sw_rsi_thresholds/output_backup/
+
 # Reports (optional - 如果不想提交生成的报告)
 reports/*.html
 reports/*.csv
