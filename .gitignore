@@ -46,6 +46,10 @@ data_cache/
 reports/*.html
 reports/*.csv
 
+# 临时文件和目录
+test_reports/
+output/
+
 # OS
 .DS_Store
 Thumbs.db
