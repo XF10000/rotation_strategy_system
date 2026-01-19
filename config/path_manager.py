@@ -76,12 +76,12 @@ class PathManager:
         # 配置文件
         self._paths['backtest_settings'] = self._paths['input_dir'] / 'Backtest_settings.csv'
         self._paths['portfolio_config'] = self._paths['input_dir'] / 'portfolio_config.csv'
-        self._paths['rsi_threshold'] = self._paths['input_dir'] / 'sw2_rsi_threshold.csv'
         self._paths['report_template'] = self._paths['config_dir'] / 'backtest_report_template.html'
         
-        # 其他配置文件（兼容旧路径）
-        self._paths['sw_rsi_threshold_dir'] = root / 'sw_rsi_thresholds'
+        # RSI阈值文件（统一使用sw_rsi_thresholds/output/目录）
+        self._paths['sw_rsi_threshold_dir'] = root / 'sw_rsi_thresholds' / 'output'
         self._paths['sw_rsi_threshold_file'] = self._paths['sw_rsi_threshold_dir'] / 'sw2_rsi_threshold.csv'
+        self._paths['rsi_threshold'] = self._paths['sw_rsi_threshold_file']  # 别名，保持兼容性
     
     def ensure_directories(self) -> None:
         """确保所有必要的目录存在"""

@@ -89,8 +89,8 @@ class ConfigManager:
         else:
             logger.warning(f"股票池配置文件不存在: {portfolio_config_path}")
         
-        # 3. 加载RSI阈值配置
-        rsi_threshold_path = input_dir / 'sw2_rsi_threshold.csv'
+        # 3. 加载RSI阈值配置（使用sw_rsi_thresholds/output/目录）
+        rsi_threshold_path = Path('sw_rsi_thresholds/output/sw2_rsi_threshold.csv')
         if rsi_threshold_path.exists():
             self._load_rsi_thresholds(rsi_threshold_path)
         else:
