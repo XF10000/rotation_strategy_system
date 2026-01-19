@@ -175,8 +175,8 @@ class RSIThresholdUpdater:
                 logger.error(f"RSI计算脚本不存在: {script_path}")
                 return False
         
-            # 运行计算脚本
-            cmd = [sys.executable, self.calculation_script, "--output", "output"]
+            # 运行计算脚本（不传递--output参数，使用脚本默认的output目录）
+            cmd = [sys.executable, self.calculation_script]
             
             logger.info(f"执行命令: {' '.join(cmd)}")
             logger.info(f"工作目录: {script_dir}")
@@ -191,11 +191,15 @@ class RSIThresholdUpdater:
             
             if result.returncode == 0:
                 logger.info("✅ RSI阈值计算完成")
-                logger.debug(f"输出: {result.stdout}")
+                if result.stdout:
+                    logger.info(f"计算输出:\n{result.stdout}")
                 return True
             else:
                 logger.error(f"❌ RSI阈值计算失败，返回码: {result.returncode}")
-                logger.error(f"错误输出: {result.stderr}")
+                if result.stderr:
+                    logger.error(f"错误输出:\n{result.stderr}")
+                if result.stdout:
+                    logger.error(f"标准输出:\n{result.stdout}")
                 return False
                 
         except subprocess.TimeoutExpired:
