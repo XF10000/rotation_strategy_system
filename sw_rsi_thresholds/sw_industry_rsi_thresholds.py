@@ -405,12 +405,35 @@ class SWIndustryRSIThresholds:
         sigma_list = []
         
         # 第一轮：获取所有行业数据并计算波动率
-        logger.info("第一轮：获取行业数据并计算波动率...")
+        total_industries = len(industry_df)
+        logger.info(f"第一轮：获取行业数据并计算波动率...（共{total_industries}个行业）")
+        print(f"\n{'='*60}")
+        print(f"📊 第一轮：获取行业数据并计算波动率")
+        print(f"总行业数：{total_industries}")
+        print(f"{'='*60}\n")
+        
+        start_time = time.time()
         for idx, row in industry_df.iterrows():
             code = row['指数代码']
             name = row['指数名称']
             
-            logger.info(f"处理行业: {code} - {name}")
+            # 计算进度
+            current = idx + 1
+            progress = (current / total_industries) * 100
+            elapsed = time.time() - start_time
+            avg_time = elapsed / current if current > 0 else 0
+            remaining = avg_time * (total_industries - current)
+            
+            # 显示进度条
+            bar_length = 40
+            filled = int(bar_length * current / total_industries)
+            bar = '█' * filled + '░' * (bar_length - filled)
+            
+            print(f"\r[{bar}] {progress:5.1f}% | {current}/{total_industries} | "
+                  f"当前: {code[:10]} {name[:12]} | "
+                  f"剩余: {remaining/60:.1f}分钟", end='', flush=True)
+            
+            logger.debug(f"处理行业: {code} - {name}")
             
             # 获取周线数据（带重试）
             df = self.get_industry_weekly_data_with_retry(code)
@@ -437,19 +460,40 @@ class SWIndustryRSIThresholds:
         if not sigma_list:
             raise ValueError("没有获取到有效的行业数据")
         
+        print(f"\n\n✅ 第一轮完成：成功获取 {len(sigma_list)} 个行业的数据")
+        print(f"⏱️  耗时: {(time.time() - start_time)/60:.1f} 分钟\n")
         logger.info(f"成功获取 {len(sigma_list)} 个行业的数据")
         
         # 计算波动率分层
         q1, q3 = self.calculate_volatility_layers(sigma_list)
         
         # 第二轮：计算各行业阈值
-        logger.info("第二轮：计算各行业RSI阈值...")
-        results = {}
+        total_calc = len(all_data)
+        logger.info(f"第二轮：计算各行业RSI阈值...（共{total_calc}个行业）")
+        print(f"\n{'='*60}")
+        print(f"📈 第二轮：计算各行业RSI阈值")
+        print(f"待计算行业数：{total_calc}")
+        print(f"{'='*60}\n")
         
-        for code, data in all_data.items():
+        results = {}
+        calc_start = time.time()
+        
+        for idx, (code, data) in enumerate(all_data.items()):
             name = data['name']
             rsi_series = data['rsi_series']
             sigma = data['sigma']
+            
+            # 计算进度
+            current = idx + 1
+            progress = (current / total_calc) * 100
+            
+            # 显示进度条
+            bar_length = 40
+            filled = int(bar_length * current / total_calc)
+            bar = '█' * filled + '░' * (bar_length - filled)
+            
+            print(f"\r[{bar}] {progress:5.1f}% | {current}/{total_calc} | "
+                  f"计算: {code[:10]} {name[:12]}", end='', flush=True)
             
             logger.debug(f"计算 {code} - {name} 的阈值")
             
@@ -472,6 +516,12 @@ class SWIndustryRSIThresholds:
         ]
         result_df = result_df[columns_order]
         
+        print(f"\n\n✅ 第二轮完成：成功计算 {len(result_df)} 个行业的RSI阈值")
+        print(f"⏱️  耗时: {(time.time() - calc_start):.1f} 秒")
+        print(f"\n{'='*60}")
+        print(f"🎉 全部计算完成！")
+        print(f"总耗时: {(time.time() - start_time)/60:.1f} 分钟")
+        print(f"{'='*60}\n")
         logger.info(f"成功计算 {len(result_df)} 个行业的RSI阈值")
         return result_df
     
