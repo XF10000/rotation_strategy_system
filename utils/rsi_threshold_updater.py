@@ -165,17 +165,18 @@ class RSIThresholdUpdater:
         """
         try:
             logger.info("🔄 开始计算RSI动态阈值...")
-            
-            # 检查计算脚本是否存在
-            if not os.path.exists(self.calculation_script):
-                logger.error(f"RSI计算脚本不存在: {self.calculation_script}")
-                return False
-            
-            # 运行计算脚本
-            cmd = [sys.executable, self.calculation_script, "--output", "output"]
-            
+        
             # 切换到sw_rsi_thresholds目录
             script_dir = "sw_rsi_thresholds"
+            script_path = os.path.join(script_dir, self.calculation_script)
+        
+            # 检查计算脚本是否存在
+            if not os.path.exists(script_path):
+                logger.error(f"RSI计算脚本不存在: {script_path}")
+                return False
+        
+            # 运行计算脚本
+            cmd = [sys.executable, self.calculation_script, "--output", "output"]
             
             logger.info(f"执行命令: {' '.join(cmd)}")
             logger.info(f"工作目录: {script_dir}")
