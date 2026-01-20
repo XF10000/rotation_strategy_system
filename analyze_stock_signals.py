@@ -192,6 +192,17 @@ class StockSignalAnalyzer:
                 rsi_thresholds = signal_result.get('rsi_thresholds', {})
                 divergence_info = signal_details.get('divergence_info', {})
                 
+                # 提取MACD历史数据用于详细分析
+                macd_data = signal_details.get('macd', {})
+                if isinstance(macd_data, dict) and 'HIST' in macd_data:
+                    hist_series = macd_data['HIST']
+                    if len(hist_series) >= 3:
+                        indicators['macd_hist_prev1'] = hist_series.iloc[-2]
+                        indicators['macd_hist_prev2'] = hist_series.iloc[-3]
+                    if len(macd_data.get('DIF', [])) >= 2:
+                        indicators['macd_dif_prev'] = macd_data['DIF'].iloc[-2]
+                        indicators['macd_dea_prev'] = macd_data['DEA'].iloc[-2]
+                
                 # 构建结果
                 result = {
                     'analysis_date': analysis_date.strftime('%Y-%m-%d'),
@@ -220,12 +231,135 @@ class StockSignalAnalyzer:
             traceback.print_exc()
             return []
     
+    def _get_dimension_reason(self, dimension: str, is_signal: bool, result: Dict) -> str:
+        """获取维度信号的详细原因说明"""
+        if not is_signal:
+            return "无信号"
+        
+        scores = result['scores']
+        indicators = result['indicators']
+        rsi_thresholds = result['rsi_thresholds']
+        divergence_info = result['divergence_info']
+        price = result['current_price']
+        dcf = result['dcf_value']
+        volume = result['volume']
+        
+        # 获取技术指标值
+        rsi = indicators.get('rsi_14w', 0)
+        macd_hist = indicators.get('macd_hist', 0)
+        bb_upper = indicators.get('bb_upper', 0)
+        bb_lower = indicators.get('bb_lower', 0)
+        volume_ratio = indicators.get('volume_ratio', 0)
+        
+        # 获取MACD历史柱体（用于判断缩短趋势）
+        macd_hist_prev1 = indicators.get('macd_hist_prev1', 0)
+        macd_hist_prev2 = indicators.get('macd_hist_prev2', 0)
+        
+        if dimension == 'value_sell':
+            ratio = (price / dcf * 100) if dcf > 0 else 0
+            return f"价值比 {ratio:.1f}% > 卖出阈值 {rsi_thresholds.get('value_sell_threshold', 120):.0f}%"
+        
+        elif dimension == 'value_buy':
+            ratio = (price / dcf * 100) if dcf > 0 else 0
+            return f"价值比 {ratio:.1f}% < 买入阈值 {rsi_thresholds.get('value_buy_threshold', 80):.0f}%"
+        
+        elif dimension == 'rsi_sell':
+            reasons = []
+            extreme_threshold = rsi_thresholds.get('extreme_sell_threshold', 80)
+            normal_threshold = rsi_thresholds.get('sell_threshold', 70)
+            
+            if rsi >= extreme_threshold:
+                reasons.append(f"RSI {rsi:.2f} ≥ 极端超买阈值 {extreme_threshold:.2f}（强制信号）")
+            elif rsi >= normal_threshold:
+                reasons.append(f"RSI {rsi:.2f} ≥ 超买阈值 {normal_threshold:.2f}")
+                if divergence_info.get('top_divergence', False):
+                    reasons.append("且出现RSI顶背离")
+                else:
+                    reasons.append("但未出现RSI顶背离")
+            return "，".join(reasons)
+        
+        elif dimension == 'rsi_buy':
+            reasons = []
+            extreme_threshold = rsi_thresholds.get('extreme_buy_threshold', 20)
+            normal_threshold = rsi_thresholds.get('buy_threshold', 30)
+            
+            if rsi <= extreme_threshold:
+                reasons.append(f"RSI {rsi:.2f} ≤ 极端超卖阈值 {extreme_threshold:.2f}（强制信号）")
+            elif rsi <= normal_threshold:
+                reasons.append(f"RSI {rsi:.2f} ≤ 超卖阈值 {normal_threshold:.2f}")
+                if divergence_info.get('bottom_divergence', False):
+                    reasons.append("且出现RSI底背离")
+                else:
+                    reasons.append("但未出现RSI底背离")
+            return "，".join(reasons)
+        
+        elif dimension == 'momentum_sell':
+            reasons = []
+            # 判断MACD柱体状态
+            if macd_hist > 0 and macd_hist_prev1 > 0 and macd_hist_prev2 > 0:
+                if macd_hist < macd_hist_prev1 < macd_hist_prev2:
+                    reasons.append(f"MACD红色柱体连续2根缩短 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            elif macd_hist_prev1 > 0 and macd_hist_prev2 > 0 and macd_hist < 0:
+                if macd_hist_prev1 < macd_hist_prev2:
+                    reasons.append(f"MACD红柱缩短后转绿 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            
+            # 检查DIF死叉DEA
+            dif = indicators.get('macd_dif', 0)
+            dea = indicators.get('macd_dea', 0)
+            dif_prev = indicators.get('macd_dif_prev', 0)
+            dea_prev = indicators.get('macd_dea_prev', 0)
+            if dif < dea and dif_prev >= dea_prev:
+                reasons.append(f"DIF死叉DEA (DIF:{dif:.4f} < DEA:{dea:.4f})")
+            
+            return " 或 ".join(reasons) if reasons else "MACD动能转弱"
+        
+        elif dimension == 'momentum_buy':
+            reasons = []
+            # 判断MACD柱体状态
+            if macd_hist < 0 and macd_hist_prev1 < 0 and macd_hist_prev2 < 0:
+                if abs(macd_hist) < abs(macd_hist_prev1) < abs(macd_hist_prev2):
+                    reasons.append(f"MACD绿色柱体连续2根缩短 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            elif macd_hist_prev1 < 0 and macd_hist_prev2 < 0 and macd_hist > 0:
+                if abs(macd_hist_prev1) < abs(macd_hist_prev2):
+                    reasons.append(f"MACD绿柱缩短后转红 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            elif macd_hist > 0:
+                reasons.append(f"MACD柱体已为红色 ({macd_hist:.4f})")
+            
+            # 检查DIF金叉DEA
+            dif = indicators.get('macd_dif', 0)
+            dea = indicators.get('macd_dea', 0)
+            dif_prev = indicators.get('macd_dif_prev', 0)
+            dea_prev = indicators.get('macd_dea_prev', 0)
+            if dif > dea and dif_prev <= dea_prev:
+                reasons.append(f"DIF金叉DEA (DIF:{dif:.4f} > DEA:{dea:.4f})")
+            
+            # 如果没有明确原因，显示当前MACD状态
+            if not reasons:
+                if macd_hist > 0:
+                    reasons.append(f"MACD柱体为红色 ({macd_hist:.4f})")
+                elif macd_hist < 0:
+                    # 绿柱但在缩短
+                    if macd_hist_prev1 and abs(macd_hist) < abs(macd_hist_prev1):
+                        reasons.append(f"MACD绿柱缩短 ({macd_hist_prev1:.4f}→{macd_hist:.4f})")
+                    else:
+                        reasons.append(f"MACD动能转强迹象 (当前柱体:{macd_hist:.4f})")
+            
+            return " 或 ".join(reasons) if reasons else "MACD动能转强"
+        
+        elif dimension == 'extreme_sell':
+            return f"价格 {price:.2f} ≥ 布林上轨 {bb_upper:.2f}，且成交量放大 {volume_ratio:.2f}倍"
+        
+        elif dimension == 'extreme_buy':
+            return f"价格 {price:.2f} ≤ 布林下轨 {bb_lower:.2f}，且成交量放大 {volume_ratio:.2f}倍"
+        
+        return "触发"
+    
     def format_terminal_output(self, results: List[Dict]) -> str:
-        """格式化终端输出 - 参考HTML报告格式"""
+        """格式化终端输出"""
         output = []
-        output.append("\n" + "="*100)
+        output.append("\n" + "="*80)
         output.append("📊 股票信号分析结果")
-        output.append("="*100)
+        output.append("="*80)
         
         for i, result in enumerate(results, 1):
             signal_result = result['signal_result']
@@ -233,185 +367,87 @@ class StockSignalAnalyzer:
             rsi_thresholds = result['rsi_thresholds']
             indicators = result['indicators']
             
-            # 基本信息
             output.append(f"\n【分析 {i}】")
             output.append(f"📅 日期: {result['analysis_date']} (目标: {result['target_date']})")
             output.append(f"📈 股票: {result['stock_code']} - {result['stock_industry']}")
-            output.append(f"💰 价格: {result['current_price']:.2f} 元 | DCF估值: {result['dcf_value']:.2f} 元 | 价值比: {result['price_value_ratio']:.1f}%")
+            output.append(f"💰 价格: {result['current_price']:.2f} 元")
+            output.append(f"💎 DCF估值: {result['dcf_value']:.2f} 元")
+            output.append(f"📊 价值比: {result['price_value_ratio']:.1f}%")
+            output.append(f"📦 成交量: {result['volume']:,}")
             
-            # 信号结论
-            signal_type = signal_result.get('signal', 'UNKNOWN')
-            confidence = signal_result.get('confidence', 0)
-            if signal_type == 'BUY':
-                signal_icon = "🟢 买入"
-                signal_color = "BUY"
-            elif signal_type == 'SELL':
-                signal_icon = "🔴 卖出"
-                signal_color = "SELL"
-            else:
-                signal_icon = "⚪ 持有"
-                signal_color = "HOLD"
+            # 信号信息
+            output.append(f"\n🎯 信号分析:")
+            output.append(f"   信号类型: {signal_result.get('signal', 'UNKNOWN')}")
+            output.append(f"   置信度: {signal_result.get('confidence', 0):.2f}")
+            output.append(f"   触发原因: {signal_result.get('reason', '无')}")
             
-            output.append(f"\n{'='*100}")
-            output.append(f"🎯 信号: {signal_icon} | 置信度: {confidence:.0f}/4 | {signal_result.get('reason', '无')}")
-            output.append(f"{'='*100}")
+            # 4维度得分 - 增强版，带详细原因
+            output.append(f"\n📊 4维度信号得分:")
             
-            # 4维度详情表格
-            output.append(f"\n📊 4维度详情:")
-            output.append("")
-            output.append(f"{'维度':<20} {'状态':<6} {'详细说明':<60}")
-            output.append("-" * 100)
+            # 价值比过滤器
+            sell_score = scores.get('trend_filter_high', 0)
+            buy_score = scores.get('trend_filter_low', 0)
+            output.append(f"   价值比过滤器 - 卖出: {sell_score:.2f}")
+            if sell_score > 0:
+                output.append(f"      └─ {self._get_dimension_reason('value_sell', True, result)}")
+            output.append(f"   价值比过滤器 - 买入: {buy_score:.2f}")
+            if buy_score > 0:
+                output.append(f"      └─ {self._get_dimension_reason('value_buy', True, result)}")
             
-            # 获取各维度数值
-            pvr = result['price_value_ratio']
-            rsi = indicators.get('rsi_14w', 0)
-            rsi_buy_th = rsi_thresholds.get('buy_threshold', 30)
-            rsi_sell_th = rsi_thresholds.get('sell_threshold', 70)
-            rsi_extreme_buy = rsi_thresholds.get('extreme_buy_threshold', 20)
-            rsi_extreme_sell = rsi_thresholds.get('extreme_sell_threshold', 80)
-            macd_hist = indicators.get('macd_hist', 0)
-            macd_dif = indicators.get('macd_dif', 0)
-            macd_dea = indicators.get('macd_dea', 0)
-            price = result['current_price']
-            bb_upper = indicators.get('bb_upper', 0)
-            bb_lower = indicators.get('bb_lower', 0)
-            volume_ratio = indicators.get('volume_ratio', 0)
-            
-            # 1. 价值比过滤器
-            pvr_buy = scores.get('trend_filter_low', 0)
-            pvr_sell = scores.get('trend_filter_high', 0)
-            if signal_color == 'BUY':
-                if pvr_buy > 0:
-                    pvr_status = "✓"
-                    pvr_detail = f"💰 价值比{pvr:.1f}% 支持买入 (< 80%)"
-                else:
-                    pvr_status = "✗"
-                    pvr_detail = f"💰 价值比{pvr:.1f}% 不满足买入条件"
-            elif signal_color == 'SELL':
-                if pvr_sell > 0:
-                    pvr_status = "✓"
-                    pvr_detail = f"💰 价值比{pvr:.1f}% 支持卖出 (> 100%)"
-                else:
-                    pvr_status = "✗"
-                    pvr_detail = f"💰 价值比{pvr:.1f}% 不满足卖出条件"
-            else:
-                pvr_status = "-"
-                pvr_detail = f"💰 价值比{pvr:.1f}% 在合理范围"
-            output.append(f"{'价值比过滤器':<20} {pvr_status:<6} {pvr_detail:<60}")
-            
-            # 2. 超买超卖
-            rsi_buy = scores.get('overbought_oversold_low', 0)
+            # 超买超卖
             rsi_sell = scores.get('overbought_oversold_high', 0)
-            if signal_color == 'BUY':
-                if rsi_buy > 0:
-                    if rsi <= rsi_extreme_buy:
-                        rsi_status = "✓"
-                        rsi_detail = f"📊 RSI{rsi:.1f} 极端超卖 (≤{rsi_extreme_buy:.1f}) 支持买入"
-                    else:
-                        rsi_status = "✓"
-                        rsi_detail = f"📊 RSI{rsi:.1f} 超卖 (≤{rsi_buy_th:.1f}) 支持买入"
-                else:
-                    rsi_status = "✗"
-                    rsi_detail = f"📊 RSI{rsi:.1f} 无买入信号 (阈值:{rsi_buy_th:.1f})"
-            elif signal_color == 'SELL':
-                if rsi_sell > 0:
-                    if rsi >= rsi_extreme_sell:
-                        rsi_status = "✓"
-                        rsi_detail = f"📊 RSI{rsi:.1f} 极端超买 (≥{rsi_extreme_sell:.1f}) 支持卖出"
-                    else:
-                        rsi_status = "✓"
-                        rsi_detail = f"📊 RSI{rsi:.1f} 超买 (≥{rsi_sell_th:.1f}) 支持卖出"
-                else:
-                    rsi_status = "✗"
-                    rsi_detail = f"📊 RSI{rsi:.1f} 无卖出信号 (阈值:{rsi_sell_th:.1f})"
-            else:
-                rsi_status = "-"
-                rsi_detail = f"📊 RSI{rsi:.1f} 在正常范围 ({rsi_buy_th:.1f}-{rsi_sell_th:.1f})"
-            output.append(f"{'超买超卖':<20} {rsi_status:<6} {rsi_detail:<60}")
+            rsi_buy = scores.get('overbought_oversold_low', 0)
+            output.append(f"   超买超卖 - 卖出: {rsi_sell:.2f}")
+            if rsi_sell > 0:
+                output.append(f"      └─ {self._get_dimension_reason('rsi_sell', True, result)}")
+            output.append(f"   超买超卖 - 买入: {rsi_buy:.2f}")
+            if rsi_buy > 0:
+                output.append(f"      └─ {self._get_dimension_reason('rsi_buy', True, result)}")
             
-            # RSI背离
-            top_div = result['divergence_info'].get('top_divergence', False)
-            bottom_div = result['divergence_info'].get('bottom_divergence', False)
-            if top_div:
-                output.append(f"{'  └ RSI顶背离':<20} {'⚠':<6} {'卖出信号加强':<60}")
-            if bottom_div:
-                output.append(f"{'  └ RSI底背离':<20} {'⚠':<6} {'买入信号加强':<60}")
-            
-            # 3. 动能确认
-            momentum_buy = scores.get('momentum_low', 0)
+            # 动能确认
             momentum_sell = scores.get('momentum_high', 0)
-            macd_cross = "金叉" if macd_hist > 0 else "死叉"
+            momentum_buy = scores.get('momentum_low', 0)
+            output.append(f"   动能确认 - 卖出: {momentum_sell:.2f}")
+            if momentum_sell > 0:
+                output.append(f"      └─ {self._get_dimension_reason('momentum_sell', True, result)}")
+            output.append(f"   动能确认 - 买入: {momentum_buy:.2f}")
+            if momentum_buy > 0:
+                output.append(f"      └─ {self._get_dimension_reason('momentum_buy', True, result)}")
             
-            if signal_color == 'BUY':
-                if momentum_buy > 0:
-                    macd_status = "✓"
-                    macd_detail = f"⚡ MACD{macd_cross} (柱:{macd_hist:.4f}) 支持买入"
-                else:
-                    macd_status = "✗"
-                    macd_detail = f"⚡ MACD{macd_cross} (柱:{macd_hist:.4f}) 无买入信号"
-            elif signal_color == 'SELL':
-                if momentum_sell > 0:
-                    macd_status = "✓"
-                    macd_detail = f"⚡ MACD{macd_cross} (柱:{macd_hist:.4f}) 支持卖出"
-                else:
-                    macd_status = "✗"
-                    macd_detail = f"⚡ MACD{macd_cross} (柱:{macd_hist:.4f}) 无卖出信号"
-            else:
-                macd_status = "-"
-                macd_detail = f"⚡ MACD{macd_cross} (柱:{macd_hist:.4f}) 动能不足"
-            output.append(f"{'动能确认':<20} {macd_status:<6} {macd_detail:<60}")
-            
-            # 4. 极端价格量能
-            extreme_buy = scores.get('extreme_price_volume_low', 0)
+            # 极端价格量能
             extreme_sell = scores.get('extreme_price_volume_high', 0)
+            extreme_buy = scores.get('extreme_price_volume_low', 0)
+            output.append(f"   极端价格量能 - 卖出: {extreme_sell:.2f}")
+            if extreme_sell > 0:
+                output.append(f"      └─ {self._get_dimension_reason('extreme_sell', True, result)}")
+            output.append(f"   极端价格量能 - 买入: {extreme_buy:.2f}")
+            if extreme_buy > 0:
+                output.append(f"      └─ {self._get_dimension_reason('extreme_buy', True, result)}")
             
-            if signal_color == 'BUY':
-                if extreme_buy > 0:
-                    extreme_status = "✓"
-                    price_pos = "低于下轨" if price < bb_lower else "接近下轨"
-                    extreme_detail = f"🎯 价格{price:.2f}{price_pos}({bb_lower:.2f}), 量能{volume_ratio:.2f}x 支持买入"
-                else:
-                    extreme_status = "✗"
-                    extreme_detail = f"🎯 无极端买入信号 (价格:{price:.2f}, 布林带:[{bb_lower:.2f}, {bb_upper:.2f}])"
-            elif signal_color == 'SELL':
-                if extreme_sell > 0:
-                    extreme_status = "✓"
-                    price_pos = "高于上轨" if price > bb_upper else "接近上轨"
-                    extreme_detail = f"🎯 价格{price:.2f}{price_pos}({bb_upper:.2f}), 量能{volume_ratio:.2f}x 支持卖出"
-                else:
-                    extreme_status = "✗"
-                    extreme_detail = f"🎯 无极端卖出信号 (价格:{price:.2f}, 布林带:[{bb_lower:.2f}, {bb_upper:.2f}])"
-            else:
-                extreme_status = "-"
-                extreme_detail = f"🎯 无极端情况 (价格:{price:.2f}, 布林带:[{bb_lower:.2f}, {bb_upper:.2f}])"
-            output.append(f"{'极端价格量能':<20} {extreme_status:<6} {extreme_detail:<60}")
+            # RSI详细信息
+            output.append(f"\n📈 RSI详情:")
+            output.append(f"   当前RSI: {indicators.get('rsi_14w', 0):.2f}")
+            output.append(f"   超买阈值: {rsi_thresholds.get('sell_threshold', 70):.2f}")
+            output.append(f"   超卖阈值: {rsi_thresholds.get('buy_threshold', 30):.2f}")
+            output.append(f"   极端超买: {rsi_thresholds.get('extreme_sell_threshold', 80):.2f}")
+            output.append(f"   极端超卖: {rsi_thresholds.get('extreme_buy_threshold', 20):.2f}")
+            output.append(f"   RSI顶背离: {'是' if result['divergence_info'].get('top_divergence', False) else '否'}")
+            output.append(f"   RSI底背离: {'是' if result['divergence_info'].get('bottom_divergence', False) else '否'}")
             
-            # 信号规则说明
-            output.append(f"\n� 信号规则说明:")
-            output.append("")
-            output.append("💰 价值比过滤器（硬性条件）:")
-            output.append("   • 买入条件: 价值比 < 80% (当前价格/DCF估值 < 0.8, 低估)")
-            output.append("   • 卖出条件: 价值比 > 100% (当前价格/DCF估值 > 1.0, 高估)")
-            output.append("")
-            output.append("📊 超买/超卖:")
-            output.append(f"   • 买入条件: 14周RSI ≤ 行业超卖阈值({rsi_buy_th:.1f}) 且出现底背离, 或 RSI ≤ 极端超卖阈值({rsi_extreme_buy:.1f})")
-            output.append(f"   • 卖出条件: 14周RSI ≥ 行业超买阈值({rsi_sell_th:.1f}) 且出现顶背离, 或 RSI ≥ 极端超买阈值({rsi_extreme_sell:.1f})")
-            output.append("")
-            output.append("⚡ 动能确认:")
-            output.append("   • 买入条件: MACD绿色柱体连续2根缩短 或 MACD柱体已为红色 或 DIF金叉DEA")
-            output.append("   • 卖出条件: MACD红色柱体连续2根缩短 或 MACD柱体已为绿色 或 DIF死叉DEA")
-            output.append("")
-            output.append("🎯 极端价格+量能:")
-            output.append("   • 买入条件: 收盘价 ≤ 布林下轨, 且 本周成交量 ≥ 4周均量×0.8")
-            output.append("   • 卖出条件: 收盘价 ≥ 布林上轨, 且 本周成交量 ≥ 4周均量×1.3")
-            output.append("")
-            output.append("✅ 交易条件: 价值比过滤器(硬性) + 其他3个维度中至少2个满足")
-            output.append(f"💡 系统使用124个申万二级行业的动态RSI阈值, 支持极端阈值强制信号触发")
+            # 技术指标
+            output.append(f"\n� 技术指标:")
+            output.append(f"   EMA20: {indicators.get('ema_20w', 0):.2f}")
+            output.append(f"   MACD_DIF: {indicators.get('macd_dif', 0):.4f}")
+            output.append(f"   MACD_DEA: {indicators.get('macd_dea', 0):.4f}")
+            output.append(f"   MACD_HIST: {indicators.get('macd_hist', 0):.4f}")
+            output.append(f"   布林上轨: {indicators.get('bb_upper', 0):.2f}")
+            output.append(f"   布林下轨: {indicators.get('bb_lower', 0):.2f}")
+            output.append(f"   成交量比率: {indicators.get('volume_ratio', 0):.2f}")
             
             if i < len(results):
-                output.append("\n" + "-"*100)
+                output.append("\n" + "-"*60)
         
-        output.append("\n" + "="*100)
+        output.append("\n" + "="*80)
         return "\n".join(output)
     
     def save_csv_report(self, results: List[Dict], output_file: str):
