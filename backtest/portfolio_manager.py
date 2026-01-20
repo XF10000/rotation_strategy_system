@@ -353,6 +353,22 @@ class PortfolioManager:
         
         self.cash += net_proceeds
         
+        # 提取DCF估值和价值比（从technical_indicators或signal_details）
+        dcf_value = None
+        price_to_value_ratio = None
+        
+        if technical_indicators:
+            dcf_value = technical_indicators.get('dcf_value')
+            price_to_value_ratio = technical_indicators.get('value_price_ratio')
+        
+        if not dcf_value and signal_details:
+            dcf_value = signal_details.get('dcf_value')
+            price_to_value_ratio = signal_details.get('value_price_ratio')
+        
+        # 如果有DCF估值但没有价值比，则计算
+        if dcf_value and not price_to_value_ratio and dcf_value > 0:
+            price_to_value_ratio = (price / dcf_value) * 100
+        
         # 记录交易（包含技术指标和信号详情）
         transaction = {
             'date': date,
@@ -360,6 +376,8 @@ class PortfolioManager:
             'stock_code': stock_code,
             'shares': shares,
             'price': price,
+            'dcf_value': dcf_value,  # 添加DCF估值
+            'price_to_value_ratio': price_to_value_ratio,  # 添加价值比
             'gross_amount': gross_proceeds,
             'transaction_cost': transaction_cost,
             'net_amount': net_proceeds,
@@ -404,6 +422,22 @@ class PortfolioManager:
         self.holdings[stock_code] += shares
         self.cash -= total_cost
         
+        # 提取DCF估值和价值比（从technical_indicators或signal_details）
+        dcf_value = None
+        price_to_value_ratio = None
+        
+        if technical_indicators:
+            dcf_value = technical_indicators.get('dcf_value')
+            price_to_value_ratio = technical_indicators.get('value_price_ratio')
+        
+        if not dcf_value and signal_details:
+            dcf_value = signal_details.get('dcf_value')
+            price_to_value_ratio = signal_details.get('value_price_ratio')
+        
+        # 如果有DCF估值但没有价值比，则计算
+        if dcf_value and not price_to_value_ratio and dcf_value > 0:
+            price_to_value_ratio = (price / dcf_value) * 100
+        
         # 记录交易（包含技术指标和信号详情）
         transaction = {
             'date': date,
@@ -411,6 +445,8 @@ class PortfolioManager:
             'stock_code': stock_code,
             'shares': shares,
             'price': price,
+            'dcf_value': dcf_value,  # 添加DCF估值
+            'price_to_value_ratio': price_to_value_ratio,  # 添加价值比
             'gross_amount': shares * price,
             'transaction_cost': transaction_cost,
             'net_amount': total_cost,
