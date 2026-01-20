@@ -1192,62 +1192,66 @@ class IntegratedReportGenerator:
             
             details = []
             
-            # 从signal_details中获取scores信息，避免重新计算
+            # 从signal_details中获取scores信息和交易类型
             scores = signal_details.get('scores', {})
-            
-            # 1. 价值比过滤器详情 - 从scores读取
-            if dimension_status.get('trend_filter') == '✓':
-                if scores.get('trend_filter_high'):
-                    details.append(f"💰 价值比{price_value_ratio:.1%} 支持卖出 ✅")
-                elif scores.get('trend_filter_low'):
-                    details.append(f"💰 价值比{price_value_ratio:.1%} 支持买入 ✅")
-                else:
-                    details.append(f"💰 价值比过滤器触发 ✅")
-            else:
-                details.append(f"💰 价值比{price_value_ratio:.1%} 不满足条件")
-            
-            # 2. 超买超卖详情 - 从scores读取
-            if dimension_status.get('rsi_signal') == '✓':
-                if scores.get('overbought_oversold_high'):
-                    details.append(f"📊 RSI{rsi_14w:.1f} 支持卖出信号 ✅")
-                elif scores.get('overbought_oversold_low'):
-                    details.append(f"📊 RSI{rsi_14w:.1f} 支持买入信号 ✅")
-                else:
-                    details.append(f"📊 RSI超买超卖信号触发 ✅")
-            else:
-                details.append(f"📊 RSI{rsi_14w:.1f} 无信号")
-            
-            # 3. 动能确认详情 - 根据交易类型匹配对应的MACD信号
             trade_type = signal_details.get('signal_type', 'BUY').upper()
-            macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
             
+            # 获取RSI阈值信息
+            rsi_thresholds = signal_details.get('rsi_thresholds', {})
+            rsi_buy_threshold = rsi_thresholds.get('buy_threshold', 30)
+            rsi_sell_threshold = rsi_thresholds.get('sell_threshold', 70)
+            
+            # 1. 价值比过滤器详情 - 直接从scores判断
             if trade_type == 'BUY':
-                # 买入交易：只有momentum_low才支持
-                if scores.get('momentum_low'):
-                    details.append(f"⚡ {macd_reason} ✅")
+                if scores.get('trend_filter_low'):
+                    details.append(f"💰 价值比{price_value_ratio:.1%} < 买入阈值80% ✅")
                 else:
-                    details.append(f"⚡ {macd_reason}")
+                    details.append(f"💰 价值比{price_value_ratio:.1%} 不满足买入条件")
             else:  # SELL
-                # 卖出交易：只有momentum_high才支持
-                if scores.get('momentum_high'):
-                    details.append(f"⚡ {macd_reason} ✅")
+                if scores.get('trend_filter_high'):
+                    details.append(f"💰 价值比{price_value_ratio:.1%} > 卖出阈值120% ✅")
                 else:
-                    details.append(f"⚡ {macd_reason}")
+                    details.append(f"💰 价值比{price_value_ratio:.1%} 不满足卖出条件")
             
-            # 4. 极端价格量能详情 - 从scores读取，增加价格位置描述
-            if dimension_status.get('bollinger_volume') == '✓':
-                if scores.get('extreme_price_volume_high'):
-                    # 卖出信号：价格高于上轨
-                    price_position = "高于上轨" if close_price > bb_upper else "接近上轨"
-                    details.append(f"🎯 极端价格量能支持卖出 (价格{close_price:.2f}{price_position}, 量能{volume_ratio:.1f}x) ✅")
-                elif scores.get('extreme_price_volume_low'):
-                    # 买入信号：价格低于下轨
-                    price_position = "低于下轨" if close_price < bb_lower else "接近下轨"
-                    details.append(f"🎯 极端价格量能支持买入 (价格{close_price:.2f}{price_position}, 量能{volume_ratio:.1f}x) ✅")
+            # 2. 超买超卖详情 - 直接从scores判断，增加阈值信息
+            if trade_type == 'BUY':
+                if scores.get('overbought_oversold_low'):
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 超卖阈值{rsi_buy_threshold:.1f} ✅")
                 else:
-                    details.append(f"🎯 极端价格量能信号触发 ✅")
-            else:
-                details.append(f"🎯 无极端价格量能")
+                    details.append(f"📊 RSI{rsi_14w:.1f} > 超卖阈值{rsi_buy_threshold:.1f}，无买入信号")
+            else:  # SELL
+                if scores.get('overbought_oversold_high'):
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 超买阈值{rsi_sell_threshold:.1f} ✅")
+                else:
+                    details.append(f"📊 RSI{rsi_14w:.1f} < 超买阈值{rsi_sell_threshold:.1f}，无卖出信号")
+            
+            # 3. 动能确认详情 - 直接从scores判断
+            if trade_type == 'BUY':
+                if scores.get('momentum_low'):
+                    macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
+                    details.append(f"⚡ MACD买入信号: {macd_reason} ✅")
+                else:
+                    details.append(f"⚡ MACD无买入信号 (HIST={macd_hist:.3f}, DIF={macd_dif:.3f}, DEA={macd_dea:.3f})")
+            else:  # SELL
+                if scores.get('momentum_high'):
+                    macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
+                    details.append(f"⚡ MACD卖出信号: {macd_reason} ✅")
+                else:
+                    details.append(f"⚡ MACD无卖出信号 (HIST={macd_hist:.3f}, DIF={macd_dif:.3f}, DEA={macd_dea:.3f})")
+            
+            # 4. 极端价格量能详情 - 直接从scores判断，增加具体数值
+            if trade_type == 'BUY':
+                if scores.get('extreme_price_volume_low'):
+                    price_position = "低于下轨" if close_price < bb_lower else "接近下轨"
+                    details.append(f"🎯 极端价格量能买入信号: 价格{close_price:.2f}{price_position}(下轨{bb_lower:.2f}), 量能{volume_ratio:.1f}x ✅")
+                else:
+                    details.append(f"🎯 无极端价格量能买入信号 (价格{close_price:.2f}, 下轨{bb_lower:.2f}, 量能{volume_ratio:.1f}x)")
+            else:  # SELL
+                if scores.get('extreme_price_volume_high'):
+                    price_position = "高于上轨" if close_price > bb_upper else "接近上轨"
+                    details.append(f"🎯 极端价格量能卖出信号: 价格{close_price:.2f}{price_position}(上轨{bb_upper:.2f}), 量能{volume_ratio:.1f}x ✅")
+                else:
+                    details.append(f"🎯 无极端价格量能卖出信号 (价格{close_price:.2f}, 上轨{bb_upper:.2f}, 量能{volume_ratio:.1f}x)")
             
             return "<br>".join(details)  # 显示所有4个维度的详情
             
