@@ -1179,7 +1179,12 @@ class IntegratedReportGenerator:
             bb_lower = technical_indicators.get('bb_lower', 0)
             volume = technical_indicators.get('volume', 0)
             volume_4w_avg = technical_indicators.get('volume_4w_avg', 1)
-            volume_ratio = volume / volume_4w_avg if volume_4w_avg > 0 else 0
+            # 修复量能倍数计算：如果volume_4w_avg为None或无效值，使用volume本身作为基准
+            if volume_4w_avg and volume_4w_avg > 0 and volume_4w_avg != 1:
+                volume_ratio = volume / volume_4w_avg
+            else:
+                # 如果没有有效的4周均量，显示为N/A
+                volume_ratio = None
             
             # 计算价值比（转换为0-1的比率格式，用于显示）
             price_value_ratio = (close_price / dcf_value) if dcf_value > 0 else 0
@@ -1213,15 +1218,33 @@ class IntegratedReportGenerator:
                 else:
                     details.append(f"💰 价值比{price_value_ratio:.1%} 不满足卖出条件")
             
-            # 2. 超买超卖详情 - 直接从scores判断，增加阈值信息
+            # 2. 超买超卖详情 - 直接从scores判断，增加阈值和背离信息
+            # 获取背离信息
+            rsi_divergence = signal_details.get('rsi_divergence', {})
+            divergence_required = rsi_thresholds.get('divergence_required', True)
+            
             if trade_type == 'BUY':
                 if scores.get('overbought_oversold_low'):
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 超卖阈值{rsi_buy_threshold:.1f} ✅")
+                    # 检查是否有底背离
+                    if rsi_divergence.get('bottom_divergence'):
+                        div_info = "且出现底背离"
+                    elif not divergence_required:
+                        div_info = "(该行业不强求背离)"
+                    else:
+                        div_info = "(极端超卖，无需背离)"
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 超卖阈值{rsi_buy_threshold:.1f}，{div_info} ✅")
                 else:
                     details.append(f"📊 RSI{rsi_14w:.1f} > 超卖阈值{rsi_buy_threshold:.1f}，无买入信号")
             else:  # SELL
                 if scores.get('overbought_oversold_high'):
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 超买阈值{rsi_sell_threshold:.1f} ✅")
+                    # 检查是否有顶背离
+                    if rsi_divergence.get('top_divergence'):
+                        div_info = "且出现顶背离"
+                    elif not divergence_required:
+                        div_info = "(该行业不强求背离)"
+                    else:
+                        div_info = "(极端超买，无需背离)"
+                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 超买阈值{rsi_sell_threshold:.1f}，{div_info} ✅")
                 else:
                     details.append(f"📊 RSI{rsi_14w:.1f} < 超买阈值{rsi_sell_threshold:.1f}，无卖出信号")
             
@@ -1240,18 +1263,20 @@ class IntegratedReportGenerator:
                     details.append(f"⚡ MACD无卖出信号 (HIST={macd_hist:.3f}, DIF={macd_dif:.3f}, DEA={macd_dea:.3f})")
             
             # 4. 极端价格量能详情 - 直接从scores判断，增加具体数值
+            volume_str = f"{volume_ratio:.1f}x" if volume_ratio is not None else "N/A"
+            
             if trade_type == 'BUY':
                 if scores.get('extreme_price_volume_low'):
                     price_position = "低于下轨" if close_price < bb_lower else "接近下轨"
-                    details.append(f"🎯 极端价格量能买入信号: 价格{close_price:.2f}{price_position}(下轨{bb_lower:.2f}), 量能{volume_ratio:.1f}x ✅")
+                    details.append(f"🎯 极端价格量能买入信号: 价格{close_price:.2f}{price_position}(下轨{bb_lower:.2f}), 量能{volume_str} ✅")
                 else:
-                    details.append(f"🎯 无极端价格量能买入信号 (价格{close_price:.2f}, 下轨{bb_lower:.2f}, 量能{volume_ratio:.1f}x)")
+                    details.append(f"🎯 无极端价格量能买入信号 (价格{close_price:.2f}, 下轨{bb_lower:.2f}, 量能{volume_str})")
             else:  # SELL
                 if scores.get('extreme_price_volume_high'):
                     price_position = "高于上轨" if close_price > bb_upper else "接近上轨"
-                    details.append(f"🎯 极端价格量能卖出信号: 价格{close_price:.2f}{price_position}(上轨{bb_upper:.2f}), 量能{volume_ratio:.1f}x ✅")
+                    details.append(f"🎯 极端价格量能卖出信号: 价格{close_price:.2f}{price_position}(上轨{bb_upper:.2f}), 量能{volume_str} ✅")
                 else:
-                    details.append(f"🎯 无极端价格量能卖出信号 (价格{close_price:.2f}, 上轨{bb_upper:.2f}, 量能{volume_ratio:.1f}x)")
+                    details.append(f"🎯 无极端价格量能卖出信号 (价格{close_price:.2f}, 上轨{bb_upper:.2f}, 量能{volume_str})")
             
             return "<br>".join(details)  # 显示所有4个维度的详情
             
