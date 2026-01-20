@@ -193,15 +193,21 @@ class StockSignalAnalyzer:
                 divergence_info = signal_details.get('divergence_info', {})
                 
                 # 提取MACD历史数据用于详细分析
-                macd_data = signal_details.get('macd', {})
-                if isinstance(macd_data, dict) and 'HIST' in macd_data:
-                    hist_series = macd_data['HIST']
-                    if len(hist_series) >= 3:
-                        indicators['macd_hist_prev1'] = hist_series.iloc[-2]
-                        indicators['macd_hist_prev2'] = hist_series.iloc[-3]
-                    if len(macd_data.get('DIF', [])) >= 2:
-                        indicators['macd_dif_prev'] = macd_data['DIF'].iloc[-2]
-                        indicators['macd_dea_prev'] = macd_data['DEA'].iloc[-2]
+                # 注意：需要从原始数据重新计算MACD以获取历史值
+                # 因为signal_details只包含当前值，不包含完整的Series
+                if len(historical_data) >= 3:
+                    # 重新获取最后3个MACD柱体值
+                    from indicators.momentum import calculate_macd
+                    macd_result = calculate_macd(
+                        historical_data['close'],
+                        fast=12, slow=26, signal=9
+                    )
+                    if len(macd_result['hist']) >= 3:
+                        indicators['macd_hist_prev1'] = macd_result['hist'].iloc[-2]
+                        indicators['macd_hist_prev2'] = macd_result['hist'].iloc[-3]
+                    if len(macd_result['dif']) >= 2:
+                        indicators['macd_dif_prev'] = macd_result['dif'].iloc[-2]
+                        indicators['macd_dea_prev'] = macd_result['dea'].iloc[-2]
                 
                 # 构建结果
                 result = {
@@ -294,57 +300,76 @@ class StockSignalAnalyzer:
             return "，".join(reasons)
         
         elif dimension == 'momentum_sell':
-            reasons = []
-            # 判断MACD柱体状态
+            # 检查各个卖出条件
+            conditions = []
+            
+            # 条件1: MACD红色柱体连续2根缩短
+            red_shrinking = False
             if macd_hist > 0 and macd_hist_prev1 > 0 and macd_hist_prev2 > 0:
                 if macd_hist < macd_hist_prev1 < macd_hist_prev2:
-                    reasons.append(f"MACD红色柱体连续2根缩短 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
-            elif macd_hist_prev1 > 0 and macd_hist_prev2 > 0 and macd_hist < 0:
-                if macd_hist_prev1 < macd_hist_prev2:
-                    reasons.append(f"MACD红柱缩短后转绿 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+                    red_shrinking = True
+                    conditions.append(f"✓ MACD红色柱体连续2根缩短 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            if not red_shrinking:
+                conditions.append("✗ MACD红色柱体连续2根缩短")
             
-            # 检查DIF死叉DEA
+            # 条件2: 前期红柱缩短+当前转绿
+            red_to_green_transition = False
+            if (macd_hist_prev1 > 0 and macd_hist_prev2 > 0 and 
+                macd_hist_prev1 < macd_hist_prev2 and macd_hist < 0):
+                red_to_green_transition = True
+                conditions.append(f"✓ 前期红柱缩短+当前转绿 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            else:
+                conditions.append("✗ 前期红柱缩短+当前转绿")
+            
+            # 条件3: DIF死叉DEA
             dif = indicators.get('macd_dif', 0)
             dea = indicators.get('macd_dea', 0)
             dif_prev = indicators.get('macd_dif_prev', 0)
             dea_prev = indicators.get('macd_dea_prev', 0)
+            dif_cross_down = False
             if dif < dea and dif_prev >= dea_prev:
-                reasons.append(f"DIF死叉DEA (DIF:{dif:.4f} < DEA:{dea:.4f})")
+                dif_cross_down = True
+                conditions.append(f"✓ DIF死叉DEA (DIF:{dif:.4f} < DEA:{dea:.4f})")
+            else:
+                conditions.append(f"✗ DIF死叉DEA (DIF:{dif:.4f}, DEA:{dea:.4f})")
             
-            return " 或 ".join(reasons) if reasons else "MACD动能转弱"
+            return "\n         ".join(conditions)
         
         elif dimension == 'momentum_buy':
-            reasons = []
-            # 判断MACD柱体状态
+            # 检查各个买入条件
+            conditions = []
+            
+            # 条件1: MACD绿色柱体连续2根缩短
+            green_shrinking = False
             if macd_hist < 0 and macd_hist_prev1 < 0 and macd_hist_prev2 < 0:
                 if abs(macd_hist) < abs(macd_hist_prev1) < abs(macd_hist_prev2):
-                    reasons.append(f"MACD绿色柱体连续2根缩短 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
-            elif macd_hist_prev1 < 0 and macd_hist_prev2 < 0 and macd_hist > 0:
-                if abs(macd_hist_prev1) < abs(macd_hist_prev2):
-                    reasons.append(f"MACD绿柱缩短后转红 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
-            elif macd_hist > 0:
-                reasons.append(f"MACD柱体已为红色 ({macd_hist:.4f})")
+                    green_shrinking = True
+                    conditions.append(f"✓ MACD绿色柱体连续2根缩短 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            if not green_shrinking:
+                conditions.append("✗ MACD绿色柱体连续2根缩短")
             
-            # 检查DIF金叉DEA
+            # 条件2: 前期绿柱缩短+当前转红
+            green_to_red_transition = False
+            if (macd_hist_prev1 < 0 and macd_hist_prev2 < 0 and 
+                abs(macd_hist_prev1) < abs(macd_hist_prev2) and macd_hist > 0):
+                green_to_red_transition = True
+                conditions.append(f"✓ 前期绿柱缩短+当前转红 ({macd_hist_prev2:.4f}→{macd_hist_prev1:.4f}→{macd_hist:.4f})")
+            else:
+                conditions.append("✗ 前期绿柱缩短+当前转红")
+            
+            # 条件3: DIF金叉DEA
             dif = indicators.get('macd_dif', 0)
             dea = indicators.get('macd_dea', 0)
             dif_prev = indicators.get('macd_dif_prev', 0)
             dea_prev = indicators.get('macd_dea_prev', 0)
+            dif_cross_up = False
             if dif > dea and dif_prev <= dea_prev:
-                reasons.append(f"DIF金叉DEA (DIF:{dif:.4f} > DEA:{dea:.4f})")
+                dif_cross_up = True
+                conditions.append(f"✓ DIF金叉DEA (DIF:{dif:.4f} > DEA:{dea:.4f})")
+            else:
+                conditions.append(f"✗ DIF金叉DEA (DIF:{dif:.4f}, DEA:{dea:.4f})")
             
-            # 如果没有明确原因，显示当前MACD状态
-            if not reasons:
-                if macd_hist > 0:
-                    reasons.append(f"MACD柱体为红色 ({macd_hist:.4f})")
-                elif macd_hist < 0:
-                    # 绿柱但在缩短
-                    if macd_hist_prev1 and abs(macd_hist) < abs(macd_hist_prev1):
-                        reasons.append(f"MACD绿柱缩短 ({macd_hist_prev1:.4f}→{macd_hist:.4f})")
-                    else:
-                        reasons.append(f"MACD动能转强迹象 (当前柱体:{macd_hist:.4f})")
-            
-            return " 或 ".join(reasons) if reasons else "MACD动能转强"
+            return "\n         ".join(conditions)
         
         elif dimension == 'extreme_sell':
             return f"价格 {price:.2f} ≥ 布林上轨 {bb_upper:.2f}，且成交量放大 {volume_ratio:.2f}倍"
