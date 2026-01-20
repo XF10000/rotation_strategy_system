@@ -273,6 +273,7 @@ class StockSignalAnalyzer:
             reasons = []
             extreme_threshold = rsi_thresholds.get('extreme_sell_threshold', 80)
             normal_threshold = rsi_thresholds.get('sell_threshold', 70)
+            industry_name = result.get('stock_industry', '')
             
             if rsi >= extreme_threshold:
                 reasons.append(f"RSI {rsi:.2f} ≥ 极端超买阈值 {extreme_threshold:.2f}（强制信号）")
@@ -281,13 +282,19 @@ class StockSignalAnalyzer:
                 if divergence_info.get('top_divergence', False):
                     reasons.append("且出现RSI顶背离")
                 else:
-                    reasons.append("但未出现RSI顶背离")
+                    # 检查行业是否要求背离
+                    divergence_required = rsi_thresholds.get('divergence_required', True)
+                    if divergence_required:
+                        reasons.append("但未出现RSI顶背离")
+                    else:
+                        reasons.append(f"但未出现RSI顶背离（{industry_name}行业不强求背离）")
             return "，".join(reasons)
         
         elif dimension == 'rsi_buy':
             reasons = []
             extreme_threshold = rsi_thresholds.get('extreme_buy_threshold', 20)
             normal_threshold = rsi_thresholds.get('buy_threshold', 30)
+            industry_name = result.get('stock_industry', '')
             
             if rsi <= extreme_threshold:
                 reasons.append(f"RSI {rsi:.2f} ≤ 极端超卖阈值 {extreme_threshold:.2f}（强制信号）")
@@ -296,7 +303,12 @@ class StockSignalAnalyzer:
                 if divergence_info.get('bottom_divergence', False):
                     reasons.append("且出现RSI底背离")
                 else:
-                    reasons.append("但未出现RSI底背离")
+                    # 检查行业是否要求背离
+                    divergence_required = rsi_thresholds.get('divergence_required', True)
+                    if divergence_required:
+                        reasons.append("但未出现RSI底背离")
+                    else:
+                        reasons.append(f"但未出现RSI底背离（{industry_name}行业不强求背离）")
             return "，".join(reasons)
         
         elif dimension == 'momentum_sell':

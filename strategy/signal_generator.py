@@ -762,7 +762,8 @@ class SignalGenerator:
                 'oversold': rsi_oversold,  # 兼容旧格式
                 'overbought': rsi_overbought,  # 兼容旧格式
                 'extreme_oversold': rsi_extreme_oversold,  # 兼容旧格式
-                'extreme_overbought': rsi_extreme_overbought  # 兼容旧格式
+                'extreme_overbought': rsi_extreme_overbought,  # 兼容旧格式
+                'divergence_required': need_divergence_buy  # 添加背离要求信息
             }
             
             # 如果使用了动态阈值，添加行业信息
