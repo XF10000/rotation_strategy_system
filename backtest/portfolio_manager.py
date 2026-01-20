@@ -365,9 +365,15 @@ class PortfolioManager:
             dcf_value = signal_details.get('dcf_value')
             price_to_value_ratio = signal_details.get('value_price_ratio')
         
-        # 如果有DCF估值但没有价值比，则计算
-        if dcf_value and not price_to_value_ratio and dcf_value > 0:
-            price_to_value_ratio = (price / dcf_value) * 100
+        # 计算价值比（百分比格式）
+        if dcf_value and dcf_value > 0:
+            if price_to_value_ratio is None:
+                # 没有价值比，从头计算
+                price_to_value_ratio = (price / dcf_value) * 100
+            elif price_to_value_ratio < 10:
+                # value_price_ratio是比率格式(如0.8)，需要转换为百分比
+                price_to_value_ratio = price_to_value_ratio * 100
+            # 否则已经是百分比格式，直接使用
         
         # 记录交易（包含技术指标和信号详情）
         transaction = {
@@ -434,9 +440,15 @@ class PortfolioManager:
             dcf_value = signal_details.get('dcf_value')
             price_to_value_ratio = signal_details.get('value_price_ratio')
         
-        # 如果有DCF估值但没有价值比，则计算
-        if dcf_value and not price_to_value_ratio and dcf_value > 0:
-            price_to_value_ratio = (price / dcf_value) * 100
+        # 计算价值比（百分比格式）
+        if dcf_value and dcf_value > 0:
+            if price_to_value_ratio is None:
+                # 没有价值比，从头计算
+                price_to_value_ratio = (price / dcf_value) * 100
+            elif price_to_value_ratio < 10:
+                # value_price_ratio是比率格式(如0.8)，需要转换为百分比
+                price_to_value_ratio = price_to_value_ratio * 100
+            # 否则已经是百分比格式，直接使用
         
         # 记录交易（包含技术指标和信号详情）
         transaction = {
