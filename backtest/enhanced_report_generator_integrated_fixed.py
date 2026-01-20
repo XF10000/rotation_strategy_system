@@ -1181,7 +1181,7 @@ class IntegratedReportGenerator:
             volume_4w_avg = technical_indicators.get('volume_4w_avg', 1)
             volume_ratio = volume / volume_4w_avg if volume_4w_avg > 0 else 0
             
-            # 计算价值比
+            # 计算价值比（转换为0-1的比率格式，用于显示）
             price_value_ratio = (close_price / dcf_value) if dcf_value > 0 else 0
             
             # 获取RSI阈值（从交易记录或默认值）
@@ -1348,11 +1348,26 @@ class IntegratedReportGenerator:
                 
                 # 提取技术指标
                 close_price = technical_indicators.get('close', price)
-                # 获取DCF估值数据（从backtest_results中获取）
-                dcf_values = getattr(self, '_dcf_values', {})
-                dcf_value = dcf_values.get(stock_code, 0)
-                # 计算价值比
-                price_value_ratio = (close_price / dcf_value * 100) if dcf_value > 0 else 0
+                
+                # 优先使用交易记录中已计算的价值比
+                price_value_ratio = transaction.get('price_to_value_ratio', 0)
+                
+                # 如果交易记录中没有价值比，则尝试计算
+                if price_value_ratio == 0 or price_value_ratio is None:
+                    dcf_values = getattr(self, '_dcf_values', {})
+                    dcf_value = dcf_values.get(stock_code, 0)
+                    if not dcf_value:
+                        dcf_value = transaction.get('dcf_value', 0)
+                    price_value_ratio = (close_price / dcf_value * 100) if dcf_value > 0 else 0
+                else:
+                    # 交易记录中的price_to_value_ratio已经是百分比格式
+                    pass
+                
+                # 获取DCF估值（用于后续的dimension_details生成）
+                dcf_value = transaction.get('dcf_value', 0)
+                if not dcf_value:
+                    dcf_values = getattr(self, '_dcf_values', {})
+                    dcf_value = dcf_values.get(stock_code, 0)
                 rsi_14w = technical_indicators.get('rsi_14w', 50)
                 macd_dif = technical_indicators.get('macd_dif', 0)
                 macd_dea = technical_indicators.get('macd_dea', 0)
