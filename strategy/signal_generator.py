@@ -1012,6 +1012,7 @@ class SignalGenerator:
                 'bb_middle': bb_middle,
                 'bb_lower': bb_lower,
                 'volume_ma': volume_ma_value,
+                'volume_4w_avg': volume_ma_value,  # 添加此字段以兼容HTML报告
                 'volume_ratio': volume_ratio
             }
             
@@ -1045,6 +1046,7 @@ class SignalGenerator:
                 'bb_middle': current_close,
                 'bb_lower': current_close * 0.98,
                 'volume_ma': current_volume,
+                'volume_4w_avg': current_volume,  # 添加此字段以兼容HTML报告
                 'volume_ratio': 1.0
             }
     
