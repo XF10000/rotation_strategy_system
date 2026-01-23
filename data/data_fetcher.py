@@ -1117,7 +1117,7 @@ class TushareDataFetcher(DataFetcher):
                     
                     # 找到最接近的周线日期
                     closest_date = None
-                    min_diff = pd.Timedelta(days=999999)
+                    min_diff = pd.Timedelta(days=30)  # 使用合理的初始值避免溢出
                     
                     for week_date in weekly_data.index:
                         try:
