@@ -2150,9 +2150,15 @@ class IntegratedReportGenerator:
             template = template.replace('BENCHMARK_CASH (BENCHMARK_CASH_RATIO%)', f'{cash:,.2f} ({cash_ratio:.1f}%)')
             template = template.replace('BENCHMARK_STOCK_VALUE (BENCHMARK_STOCK_RATIO%)', f'{stock_value:,.2f} ({stock_ratio:.1f}%)')
             
-            # 生成基准持仓对比表格
-            benchmark_table_html = self._build_benchmark_position_table(positions, total_value, benchmark_portfolio)
-            template = template.replace('BENCHMARK_POSITION_COMPARISON_TABLE', benchmark_table_html)
+            # 🔧 修复：禁用此处的表格替换，因为_replace_position_comparison_table已经处理
+            # 避免重复生成两个持仓对比表格
+            # benchmark_table_html = self._build_benchmark_position_table(positions, total_value, benchmark_portfolio)
+            # template = template.replace('BENCHMARK_POSITION_COMPARISON_TABLE', benchmark_table_html)
+            
+            # 如果占位符仍然存在，用空内容替换（表格已由_replace_position_comparison_table生成）
+            if 'BENCHMARK_POSITION_COMPARISON_TABLE' in template:
+                template = template.replace('BENCHMARK_POSITION_COMPARISON_TABLE', '')
+                print("⚠️ 清除BENCHMARK_POSITION_COMPARISON_TABLE占位符（表格已由其他方法生成）")
             
             print(f"✅ 基准持仓状态替换完成")
             return template
