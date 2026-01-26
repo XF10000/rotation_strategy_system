@@ -1570,13 +1570,28 @@ class BacktestEngine:
             'positions': {}
         }
         
-        # 转换持仓详情格式
+        # 转换持仓详情格式 - 包含所有股票（包括持仓为0的）
+        # 首先从market_values获取有持仓的股票
         for stock_code, market_info in final_state.get('market_values', {}).items():
             result['positions'][stock_code] = {
                 'shares': market_info['shares'],
                 'current_price': market_info['price'],
                 'market_value': market_info['market_value']
             }
+        
+        # 🔧 修复：添加持仓为0但在positions中的股票（使用正确的价格）
+        final_positions_raw = final_state.get('positions', {})
+        final_prices = final_state.get('prices', {})
+        for stock_code, shares in final_positions_raw.items():
+            if stock_code != 'cash' and stock_code not in result['positions']:
+                # 这只股票持仓为0，但需要包含在结果中
+                price = final_prices.get(stock_code, 0)
+                result['positions'][stock_code] = {
+                    'shares': shares,
+                    'current_price': price,
+                    'market_value': 0
+                }
+                print(f"  ⚠️ 添加持仓为0的股票: {stock_code}, 价格: ¥{price:.2f}")
         
         print(f"  转换后的最终结果: {result}")
         return result

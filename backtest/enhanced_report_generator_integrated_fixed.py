@@ -1013,16 +1013,27 @@ class IntegratedReportGenerator:
     def _get_current_price(self, stock_code: str) -> float:
         """获取股票当前价格的辅助方法"""
         try:
-            # 这里应该从数据源获取当前价格，暂时返回默认值
-            price_map = {
-                '601088': 38.43,  # 中国神华
-                '600985': 13.27,  # 淮北矿业
-                '002738': 39.01,  # 中矿资源
-                '002916': 131.98, # 深南电路
-                '600900': 28.75   # 长江电力
-            }
-            return price_map.get(stock_code, 10.0)
-        except:
+            # 🔧 修复：从portfolio_data_manager获取正确的价格数据
+            if hasattr(self, 'portfolio_data_manager'):
+                # 获取最终状态的价格数据
+                final_state = self.portfolio_data_manager.get_final_portfolio_state()
+                if final_state:
+                    prices = final_state.get('prices', {})
+                    price = prices.get(stock_code, 0)
+                    if price > 0:
+                        return price
+            
+            # 回退：尝试从最新价格数据获取
+            if hasattr(self, 'portfolio_data_manager'):
+                price = self.portfolio_data_manager.get_latest_price(stock_code)
+                if price and price > 0:
+                    return price
+            
+            # 最后回退到默认值（不应该到这里）
+            print(f"⚠️ 无法获取{stock_code}的价格，使用默认值10.0")
+            return 10.0
+        except Exception as e:
+            print(f"❌ 获取{stock_code}价格失败: {e}")
             return 10.0
 
     def _replace_position_details_table(self, template: str, positions: Dict, total_value: float) -> str:
@@ -1080,18 +1091,29 @@ class IntegratedReportGenerator:
             return template
     
     def _get_current_price(self, stock_code: str) -> float:
-        """获取股票当前价格的辅助方法"""
+        """获取股票当前价格的辅助方法（重复方法，应该删除）"""
         try:
-            # 这里应该从数据源获取当前价格，暂时返回默认值
-            price_map = {
-                '601088': 38.43,  # 中国神华
-                '600985': 13.27,  # 淮北矿业
-                '002738': 39.01,  # 中矿资源
-                '002916': 131.98, # 深南电路
-                '600900': 28.75   # 长江电力
-            }
-            return price_map.get(stock_code, 10.0)
-        except:
+            # 🔧 修复：从portfolio_data_manager获取正确的价格数据
+            if hasattr(self, 'portfolio_data_manager'):
+                # 获取最终状态的价格数据
+                final_state = self.portfolio_data_manager.get_final_portfolio_state()
+                if final_state:
+                    prices = final_state.get('prices', {})
+                    price = prices.get(stock_code, 0)
+                    if price > 0:
+                        return price
+            
+            # 回退：尝试从最新价格数据获取
+            if hasattr(self, 'portfolio_data_manager'):
+                price = self.portfolio_data_manager.get_latest_price(stock_code)
+                if price and price > 0:
+                    return price
+            
+            # 最后回退到默认值（不应该到这里）
+            print(f"⚠️ 无法获取{stock_code}的价格，使用默认值10.0")
+            return 10.0
+        except Exception as e:
+            print(f"❌ 获取{stock_code}价格失败: {e}")
             return 10.0
     
     def _replace_trading_stats_safe(self, template: str, transactions: List) -> str:
