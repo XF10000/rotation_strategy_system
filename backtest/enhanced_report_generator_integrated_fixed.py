@@ -634,12 +634,19 @@ class IntegratedReportGenerator:
                 initial_total, final_total, initial_cash, final_cash
             )
             
-            # 替换表格
-            stock_table_start = template.find('<th>股票代码</th>')
-            if stock_table_start != -1:
-                table_start = template.rfind('<table', 0, stock_table_start)
+            # 🔧 修复：使用更精确的定位方式查找基准持仓对比表格
+            comparison_table_marker = template.find('基准股票持仓明细')
+            if comparison_table_marker == -1:
+                comparison_table_marker = template.find('回测起始日')
+            
+            if comparison_table_marker != -1:
+                # 从标记位置向后查找表格
+                table_start = template.rfind('<table', 0, comparison_table_marker)
+                if table_start == -1:
+                    table_start = template.find('<table', comparison_table_marker)
+                
                 if table_start != -1:
-                    table_end = template.find('</table>', stock_table_start) + 8
+                    table_end = template.find('</table>', table_start) + 8
                     if table_end > 7:
                         template = template[:table_start] + comparison_table_html + template[table_end:]
                         print("✅ 从配置文件生成的持仓对比表格已成功替换")
