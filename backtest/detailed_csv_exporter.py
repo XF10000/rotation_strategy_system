@@ -269,8 +269,10 @@ class DetailedCSVExporter:
                 # 优先从technical_indicators获取行业信息
                 industry = indicators.get('industry', '')
                 
-                # 从交易记录中获取实际使用的RSI阈值（如果有的话）
-                actual_thresholds = record.get('rsi_thresholds', {})
+                # 🔧 修复：从signal_details中获取实际使用的RSI阈值
+                signal_details = record.get('signal_details', {})
+                actual_thresholds = signal_details.get('rsi_thresholds', {})
+                
                 if actual_thresholds:
                     # 使用实际交易时使用的阈值
                     overbought_threshold = actual_thresholds.get('sell_threshold', 70)
