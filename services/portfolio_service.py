@@ -113,17 +113,41 @@ class PortfolioService(BaseService):
             for stock_code in self.stock_pool:
                 if stock_code in stock_data:
                     stock_weekly = stock_data[stock_code]['weekly']
-                    if start_date in stock_weekly.index:
-                        initial_prices[stock_code] = stock_weekly.loc[start_date, 'close']
+                    # 🔧 修复：使用更宽松的日期匹配，找到回测开始日期或之后的第一个交易日
+                    backtest_data = stock_weekly[stock_weekly.index >= start_date]
+                    if not backtest_data.empty:
+                        initial_prices[stock_code] = backtest_data.iloc[0]['close']
+                        self.logger.info(f"🎯 {stock_code} 初始价格: {initial_prices[stock_code]:.2f} (日期: {backtest_data.index[0].strftime('%Y-%m-%d')})")
+                    else:
+                        self.logger.warning(f"⚠️ {stock_code} 在回测开始日期后没有数据")
+            
+            # 🔍 调试：检查美的集团
+            if '000333' in self.stock_pool:
+                if '000333' in initial_prices:
+                    self.logger.info(f"✅ 美的集团(000333)初始价格: ¥{initial_prices['000333']:.2f}")
+                else:
+                    self.logger.warning(f"⚠️ 美的集团(000333)没有初始价格")
             
             # 计算持仓（与BacktestEngine保持一致）
             holdings = {}
             total_stock_value = 0.0
             
             for stock_code in self.stock_pool:
+                # 🔍 调试：特别关注美的集团
+                if stock_code == '000333':
+                    self.logger.info(f"🔍 处理美的集团(000333)")
+                    self.logger.info(f"  - 在initial_holdings中: {stock_code in self.initial_holdings}")
+                    self.logger.info(f"  - 在initial_prices中: {stock_code in initial_prices}")
+                    if stock_code in self.initial_holdings:
+                        self.logger.info(f"  - 权重: {self.initial_holdings[stock_code]:.1%}")
+                    if stock_code in initial_prices:
+                        self.logger.info(f"  - 初始价格: ¥{initial_prices[stock_code]:.2f}")
+                
                 if stock_code in self.initial_holdings and stock_code in initial_prices:
                     weight = self.initial_holdings[stock_code]
                     if weight <= 0:
+                        if stock_code == '000333':
+                            self.logger.warning(f"⚠️ 美的集团权重<=0，跳过")
                         continue
                     
                     # 计算目标股票价值
@@ -137,6 +161,15 @@ class PortfolioService(BaseService):
                         holdings[stock_code] = shares
                         actual_market_value = shares * price
                         total_stock_value += actual_market_value
+                        
+                        if stock_code == '000333':
+                            self.logger.info(f"✅ 美的集团成功添加到holdings: {shares:,}股")
+                    else:
+                        if stock_code == '000333':
+                            self.logger.warning(f"⚠️ 美的集团计算的shares<=0")
+                else:
+                    if stock_code == '000333':
+                        self.logger.warning(f"⚠️ 美的集团不满足条件")
             
             # 计算现金
             initial_cash = self.total_capital - total_stock_value
