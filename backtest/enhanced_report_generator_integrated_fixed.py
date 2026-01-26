@@ -466,6 +466,11 @@ class IntegratedReportGenerator:
         try:
             print(f"🔍 开始生成持仓对比表格...")
             
+            # 🔧 修复：检查表格是否已经被替换过（避免重复替换）
+            if 'position-comparison-table' in template and template.count('position-comparison-table') > 1:
+                print("⚠️ 持仓对比表格已被替换，跳过重复替换")
+                return template
+            
             # 获取投资组合历史数据
             portfolio_history = getattr(self, '_portfolio_history', [])
             print(f"📋 portfolio_history类型: {type(portfolio_history)}, 长度: {len(portfolio_history) if hasattr(portfolio_history, '__len__') else 'N/A'}")
