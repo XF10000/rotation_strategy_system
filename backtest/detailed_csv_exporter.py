@@ -72,10 +72,16 @@ class DetailedCSVExporter:
                 # 写入表头
                 writer.writerow(self.csv_headers)
                 
-                # 写入交易记录
+                # 写入交易记录 - 只处理真实的买卖交易
                 valid_records = 0
                 for i, record in enumerate(trading_records):
                     try:
+                        # 🔧 修复：过滤掉分红、送股、转增等非交易事件
+                        transaction_type = record.get('type', '').upper()
+                        if transaction_type not in ['BUY', 'SELL', '买入', '卖出']:
+                            logger.debug(f"跳过非交易事件: {record.get('date', 'N/A')} {transaction_type} {record.get('stock_code', 'N/A')}")
+                            continue
+                        
                         logger.info(f"处理第{i+1}条记录: {record.get('date', 'N/A')} {record.get('type', 'N/A')} {record.get('stock_code', 'N/A')}")
                         row_data = self._format_trading_record(record)
                         if row_data and any(row_data):  # 确保不是空行
