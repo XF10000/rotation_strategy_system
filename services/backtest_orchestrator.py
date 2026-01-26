@@ -466,11 +466,15 @@ class BacktestOrchestrator(BaseService):
         stock_value = 0
         positions = {}
         
+        # 🔧 修复：包含所有股票，即使持仓为0
         for stock_code, shares in portfolio_manager.holdings.items():
-            if shares > 0 and stock_code in final_prices:
+            if stock_code in final_prices:
                 current_price = final_prices[stock_code]
                 current_value = shares * current_price
-                stock_value += current_value
+                
+                # 只有持仓>0的股票才计入股票总市值
+                if shares > 0:
+                    stock_value += current_value
                 
                 # 获取初始持仓价格（回测开始时的价格）
                 initial_price = self._get_initial_holding_price(stock_code)
@@ -478,6 +482,7 @@ class BacktestOrchestrator(BaseService):
                 # 计算收益率：(当前价格 - 初始价格) / 初始价格
                 return_pct = ((current_price - initial_price) / initial_price * 100) if initial_price > 0 else 0
                 
+                # 包含所有股票（包括持仓为0的）
                 positions[stock_code] = {
                     'shares': shares,
                     'price': current_price,
