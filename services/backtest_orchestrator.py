@@ -466,7 +466,7 @@ class BacktestOrchestrator(BaseService):
         stock_value = 0
         positions = {}
         
-        # 🔧 修复：包含所有股票，即使持仓为0
+        # 包含所有股票，即使持仓为0
         for stock_code, shares in portfolio_manager.holdings.items():
             if stock_code in final_prices:
                 current_price = final_prices[stock_code]
