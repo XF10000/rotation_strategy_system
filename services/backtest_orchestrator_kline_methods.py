@@ -119,13 +119,20 @@ def _prepare_kline_data(self, portfolio_manager, transaction_history: List[Dict]
                 self.logger.warning(f"处理K线数据点失败: {e}, 索引: {idx}")
                 continue
         
-        # 准备交易点数据 - 只包含该股票的交易
+        # 准备交易点数据 - 只包含该股票的真实买卖交易，排除分红等事件
         trade_points = []
         stock_trade_count = 0
         
         for transaction in transaction_history:
             if transaction.get('stock_code') == stock_code:
                 try:
+                    # 🔧 修复：排除分红、送股、转增等非交易事件
+                    transaction_type = transaction.get('type', '').upper()
+                    if transaction_type not in ['BUY', 'SELL', '买入', '卖出']:
+                        # 跳过DIVIDEND（分红）、BONUS（送股）、TRANSFER（转增）等事件
+                        self.logger.debug(f"跳过非交易事件: {stock_code} {transaction['date']} {transaction_type}")
+                        continue
+                    
                     trade_date = pd.to_datetime(transaction['date'])
                     
                     # 确保交易日期在回测期间内
