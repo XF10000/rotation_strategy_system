@@ -695,13 +695,20 @@ class BacktestOrchestrator(BaseService):
                     self.logger.warning(f"处理K线数据点失败: {e}, 索引: {idx}")
                     continue
             
-            # 准备交易点数据
+            # 准备交易点数据 - 只包含真实买卖交易，排除分红等事件
             trade_points = []
             stock_trade_count = 0
             
             for transaction in transaction_history:
                 if transaction.get('stock_code') == stock_code:
                     try:
+                        # 🔧 修复：排除分红、送股、转增等非交易事件
+                        transaction_type = transaction.get('type', '').upper()
+                        if transaction_type not in ['BUY', 'SELL', '买入', '卖出']:
+                            # 跳过DIVIDEND（分红）、BONUS（送股）、TRANSFER（转增）等事件
+                            self.logger.debug(f"跳过非交易事件: {stock_code} {transaction.get('date')} {transaction_type}")
+                            continue
+                        
                         trade_date = pd.to_datetime(transaction['date'])
                         if start_date <= trade_date <= end_date:
                             trade_points.append({
@@ -712,6 +719,7 @@ class BacktestOrchestrator(BaseService):
                                 'reason': transaction.get('reason', '')
                             })
                             stock_trade_count += 1
+                            self.logger.info(f"添加交易点: {stock_code} {transaction['date']} {transaction['type']} {transaction['price']}")
                     except Exception as e:
                         self.logger.warning(f"处理交易点数据失败: {e}")
         
