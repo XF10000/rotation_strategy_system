@@ -1352,11 +1352,15 @@ class IntegratedReportGenerator:
                     template
                 )
             
-            # 生成真实的交易记录
+            # 生成真实的交易记录 - 只包含买卖交易，排除分红等事件
             transaction_rows = []
             for transaction in transactions:
-                date = transaction.get('date', '')
+                # 🔧 修复：过滤掉分红、送股、转增等非交易事件
                 trade_type = transaction.get('type', '')
+                if trade_type.upper() not in ['BUY', 'SELL', '买入', '卖出']:
+                    continue  # 跳过DIVIDEND、BONUS、TRANSFER等事件
+                
+                date = transaction.get('date', '')
                 stock_code = transaction.get('stock_code', '')
                 price = transaction.get('price', 0)
                 shares = transaction.get('shares', 0)
