@@ -526,14 +526,21 @@ class IntegratedReportGenerator:
                 initial_total, final_total, initial_cash, final_cash
             )
             
-            # 查找持仓明细表格的位置并替换
-            stock_table_start = template.find('<th>股票代码</th>')
-            if stock_table_start != -1:
-                # 找到整个表格的开始位置
-                table_start = template.rfind('<table', 0, stock_table_start)
+            # 🔧 修复：使用更精确的定位方式查找基准持仓对比表格
+            # 查找"基准股票持仓明细"或"回测起始日"来定位正确的表格
+            comparison_table_marker = template.find('基准股票持仓明细')
+            if comparison_table_marker == -1:
+                comparison_table_marker = template.find('回测起始日')
+            
+            if comparison_table_marker != -1:
+                # 从标记位置向后查找表格
+                table_start = template.rfind('<table', 0, comparison_table_marker)
+                if table_start == -1:
+                    table_start = template.find('<table', comparison_table_marker)
+                
                 if table_start != -1:
                     # 找到表格的结束位置
-                    table_end = template.find('</table>', stock_table_start) + 8
+                    table_end = template.find('</table>', table_start) + 8
                     if table_end > 7:
                         # 替换整个表格
                         template = template[:table_start] + comparison_table_html + template[table_end:]
@@ -543,7 +550,7 @@ class IntegratedReportGenerator:
                 else:
                     print("⚠️ 未找到表格开始标签")
             else:
-                print("⚠️ 未找到持仓明细表格（股票代码表头）")
+                print("⚠️ 未找到基准持仓对比表格标记")
             
             return template
             
