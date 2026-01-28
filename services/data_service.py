@@ -416,18 +416,13 @@ class DataService(BaseService):
             周线数据DataFrame
         """
         try:
-            # 先尝试从缓存获取
-            weekly_data = self._get_cached_or_fetch_data(
-                stock_code, extended_start_date, self.end_date, 'weekly'
-            )
+            # 始终从日线数据转换周线，确保end_date参数被正确传递
+            # 不使用缓存的周线数据，因为缓存可能不包含正确的end_date处理
+            self.logger.info(f"🔄 {stock_code} 从日线数据转换周线数据")
+            weekly_data = self.data_processor.resample_to_weekly(daily_data, end_date=self.end_date)
             
-            if weekly_data is None or weekly_data.empty:
-                # 从日线转换
-                self.logger.info(f"🔄 {stock_code} 从日线数据转换周线数据")
-                weekly_data = self.data_processor.resample_to_weekly(daily_data)
-                
-                if len(weekly_data) < 139:
-                    self.logger.warning(f"⚠️ {stock_code} 数据不足，只有 {len(weekly_data)} 条记录，建议139条")
+            if len(weekly_data) < 139:
+                self.logger.warning(f"⚠️ {stock_code} 数据不足，只有 {len(weekly_data)} 条记录，建议139条")
             
             return weekly_data
             

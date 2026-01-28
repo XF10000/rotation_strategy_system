@@ -60,6 +60,9 @@ Thumbs.db
 .env
 .env.local
 
+# Sensitive configuration files
+config/secrets.csv
+
 # Temporary files
 *.tmp
 *.temp

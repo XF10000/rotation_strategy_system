@@ -169,12 +169,13 @@ class DataProcessor:
         except Exception as e:
             raise DataProcessError(f"数据清洗失败: {str(e)}") from e
     
-    def resample_to_weekly(self, df: pd.DataFrame) -> pd.DataFrame:
+    def resample_to_weekly(self, df: pd.DataFrame, end_date: str = None) -> pd.DataFrame:
         """
         将日线数据重采样为周线数据
         
         Args:
             df: 日线数据
+            end_date: 回测结束日期（可选），如果提供，会将该日期所在的周视为完整周
             
         Returns:
             pd.DataFrame: 周线数据
@@ -206,6 +207,48 @@ class DataProcessor:
             
             # 重采样到周线（周五为一周结束）
             weekly_df = df.resample('W-FRI').agg(agg_rules)
+            
+            # 如果提供了end_date，处理该日期所在的未完整周
+            if end_date:
+                end_date_obj = pd.to_datetime(end_date)
+                # 检查end_date是否不是周五，或者最后一个周线数据早于end_date
+                # 如果是，则将end_date所在的周视为完整周
+                is_friday = end_date_obj.weekday() == 4
+                last_week_date = weekly_df.index[-1] if not weekly_df.empty else None
+                
+                logger.info(f"🔍 end_date={end_date}, is_friday={is_friday}, last_week={last_week_date}")
+                
+                if not is_friday or (last_week_date and last_week_date < end_date_obj):
+                    # 获取end_date所在周的数据（从周一到end_date）
+                    week_start = end_date_obj - pd.Timedelta(days=end_date_obj.weekday())
+                    week_data = df[(df.index >= week_start) & (df.index <= end_date_obj)]
+                    
+                    if not week_data.empty:
+                        # 计算该周的聚合数据
+                        week_agg = {}
+                        for col, func in agg_rules.items():
+                            if col in week_data.columns:
+                                if func == 'first':
+                                    week_agg[col] = week_data[col].iloc[0]
+                                elif func == 'last':
+                                    week_agg[col] = week_data[col].iloc[-1]
+                                elif func == 'max':
+                                    week_agg[col] = week_data[col].max()
+                                elif func == 'min':
+                                    week_agg[col] = week_data[col].min()
+                                elif func == 'sum':
+                                    week_agg[col] = week_data[col].sum()
+                                elif func == 'mean':
+                                    week_agg[col] = week_data[col].mean()
+                        
+                        # 删除所有晚于end_date的数据（包括resample自动生成的未来周五）
+                        weekly_df = weekly_df[weekly_df.index < end_date_obj]
+                        
+                        # 添加end_date所在周的数据，使用end_date作为该周的标签
+                        week_series = pd.Series(week_agg, name=end_date_obj)
+                        weekly_df = pd.concat([weekly_df, week_series.to_frame().T])
+                        
+                        logger.info(f"✅ 已将 {end_date} 所在的周（{week_start.date()} 至 {end_date_obj.date()}）视为完整周")
             
             # 删除全为NaN的行（可能是没有交易的周）
             weekly_df = weekly_df.dropna(how='all')

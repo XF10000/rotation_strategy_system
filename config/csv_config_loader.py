@@ -11,6 +11,45 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+def load_secrets(csv_path: str = 'config/secrets.csv') -> Dict[str, Any]:
+    """
+    从CSV文件加载敏感配置（如API Token）
+    
+    Args:
+        csv_path: CSV文件路径
+        
+    Returns:
+        Dict[str, Any]: 敏感配置字典
+    """
+    try:
+        if not os.path.exists(csv_path):
+            logger.warning(f"敏感配置文件不存在: {csv_path}，将尝试从环境变量或Backtest_settings.csv读取")
+            return {}
+        
+        # 读取CSV文件
+        df = pd.read_csv(csv_path, encoding='utf-8')
+        logger.info(f"成功读取敏感配置文件: {csv_path}")
+        
+        # 转换为字典格式
+        secrets = {}
+        for _, row in df.iterrows():
+            param_name = str(row['Parameter']).strip()
+            param_value = row['Value']
+            
+            # 跳过注释行
+            if param_name.startswith('#'):
+                continue
+            
+            secrets[param_name] = param_value
+            logger.debug(f"加载敏感配置: {param_name} = ***")
+        
+        logger.info(f"敏感配置加载完成，共 {len(secrets)} 项")
+        return secrets
+        
+    except Exception as e:
+        logger.error(f"加载敏感配置失败: {str(e)}")
+        return {}
+
 def load_portfolio_config(csv_path: str = 'Input/portfolio_config.csv') -> Dict[str, float]:
     """
     从CSV文件加载投资组合配置
@@ -240,17 +279,26 @@ def create_csv_config() -> Dict[str, Any]:
         # 读取数据源配置
         data_source = backtest_settings.get('data_source', 'akshare')
         backup_data_source = backtest_settings.get('backup_data_source', None)
-        tushare_token = backtest_settings.get('tushare_token', None)
         data_fetch_strategy = backtest_settings.get('data_fetch_strategy', 'simple')
         
         # 如果backup_data_source是空字符串或'none'，设为None
         if backup_data_source and backup_data_source.lower() in ['none', '', 'null']:
             backup_data_source = None
         
-        # 如果tushare_token是空字符串，尝试从环境变量读取
+        # 加载敏感配置（优先级：secrets.csv > Backtest_settings.csv > 环境变量）
+        secrets = load_secrets()
+        tushare_token = secrets.get('tushare_token')
+        
+        # 如果secrets.csv中没有token，尝试从Backtest_settings.csv读取
+        if not tushare_token or tushare_token == '':
+            tushare_token = backtest_settings.get('tushare_token', None)
+        
+        # 如果仍然没有token，尝试从环境变量读取
         if not tushare_token or tushare_token == '':
             import os
             tushare_token = os.getenv('TUSHARE_TOKEN')
+            if tushare_token:
+                logger.info("从环境变量 TUSHARE_TOKEN 加载 Tushare token")
         
         # 创建完整配置
         config = {

@@ -53,6 +53,12 @@ class DataValidator(DataProcessor):
         
         # 验证必要列存在
         missing_columns = set(self.required_columns) - set(data.columns)
+        
+        # 如果缺少date列，检查索引是否为DatetimeIndex
+        if 'date' in missing_columns and isinstance(data.index, pd.DatetimeIndex):
+            missing_columns.remove('date')
+            self.logger.debug("date列作为索引存在，验证通过")
+        
         if missing_columns:
             raise ValueError(f"缺少必要列: {missing_columns}")
         
