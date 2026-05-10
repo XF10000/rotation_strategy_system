@@ -149,26 +149,30 @@ class DataService(BaseService):
                 
                 # 3. 计算技术指标
                 weekly_data = self._ensure_technical_indicators(stock_code, weekly_data)
-                
+
+                # 验证技术指标计算是否成功
+                actual_start_date = pd.to_datetime(self.start_date)
+                weekly_backtest_data = weekly_data[weekly_data.index >= actual_start_date]
+                if 'rsi' not in weekly_backtest_data.columns:
+                    self.logger.warning(f"⚠️ {stock_code} 技术指标计算失败（缺少RSI列），跳过该股票")
+                    continue
+
                 # 4. 获取分红配股数据
                 weekly_data = self._process_dividend_data(
                     stock_code, weekly_data, extended_start_date_str
                 )
-                
+
                 # 5. 存储数据
                 self.stock_data[stock_code] = {
                     'daily': daily_data,
                     'weekly': weekly_data
                 }
-                
+
                 # 显示统计信息
-                actual_start_date = pd.to_datetime(self.start_date)
-                weekly_backtest_data = weekly_data[weekly_data.index >= actual_start_date]
-                
                 self.logger.info(f"✅ {stock_code} 数据准备完成:")
                 self.logger.info(f"   - 日线数据: {len(daily_data)} 条")
                 self.logger.info(f"   - 周线数据: {len(weekly_data)} 条 (回测期 {len(weekly_backtest_data)} 条)")
-                
+
                 # RSI统计
                 rsi_valid = weekly_backtest_data['rsi'].notna().sum()
                 rsi_nan = weekly_backtest_data['rsi'].isna().sum()

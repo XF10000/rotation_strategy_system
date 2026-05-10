@@ -92,7 +92,7 @@ class DataProcessor:
                     issues.append("成交量存在负数")
             
             # 检查日期索引
-            if not isinstance(df.index, pd.DatetimeIndex):
+            if not pd.api.types.is_datetime64_any_dtype(df.index):
                 issues.append("索引不是日期类型")
             elif not df.index.is_monotonic_increasing:
                 issues.append("日期索引不是递增顺序")
@@ -187,7 +187,7 @@ class DataProcessor:
             logger.info(f"将日线数据重采样为周线，原始数据 {len(df)} 条记录")
             
             # 确保索引是日期类型
-            if not isinstance(df.index, pd.DatetimeIndex):
+            if not pd.api.types.is_datetime64_any_dtype(df.index):
                 raise DataProcessError("数据索引必须是日期类型")
             
             # 定义重采样规则
@@ -426,17 +426,23 @@ class DataProcessor:
             logger.info(f"   - EMA20 NaN数量: {result_df['ema_20'].isna().sum()}")
             logger.info(f"   - EMA20 最后5个值: {result_df['ema_20'].tail().values}")
             
-            logger.info("   - 计算EMA50...")
-            ema_50_data = self._calculate_ema_debug(result_df['close'], 50)
-            result_df['ema_50'] = ema_50_data
+            logger.info(f"   - 计算EMA50 (数据长度: {len(result_df['close'])})...")
+            if len(result_df['close']) >= 50:
+                ema_50_data = self._calculate_ema_debug(result_df['close'], 50)
+                result_df['ema_50'] = ema_50_data
+            else:
+                logger.warning(f"⚠️ 数据长度({len(result_df['close'])})小于EMA50所需周期(50)，EMA50设为NaN")
+                result_df['ema_50'] = pd.Series(index=result_df.index, dtype=float)
             logger.info(f"   - EMA50 NaN数量: {result_df['ema_50'].isna().sum()}")
-            logger.info(f"   - EMA50 最后5个值: {result_df['ema_50'].tail().values}")
-            
-            logger.info("   - 计算EMA60...")
-            ema_60_data = self._calculate_ema_debug(result_df['close'], 60)
-            result_df['ema_60'] = ema_60_data
+
+            logger.info(f"   - 计算EMA60 (数据长度: {len(result_df['close'])})...")
+            if len(result_df['close']) >= 60:
+                ema_60_data = self._calculate_ema_debug(result_df['close'], 60)
+                result_df['ema_60'] = ema_60_data
+            else:
+                logger.warning(f"⚠️ 数据长度({len(result_df['close'])})小于EMA60所需周期(60)，EMA60设为NaN")
+                result_df['ema_60'] = pd.Series(index=result_df.index, dtype=float)
             logger.info(f"   - EMA60 NaN数量: {result_df['ema_60'].isna().sum()}")
-            logger.info(f"   - EMA60 最后5个值: {result_df['ema_60'].tail().values}")
             
             # 计算MACD
             logger.info("\n🔄 计算MACD指标...")

@@ -32,7 +32,7 @@ class DataValidator(DataProcessor):
         """
         self.logger = logging.getLogger(__name__)
         self.required_columns = required_columns or [
-            'date', 'open', 'high', 'low', 'close', 'volume'
+            'open', 'high', 'low', 'close', 'volume'
         ]
     
     def process(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -53,12 +53,6 @@ class DataValidator(DataProcessor):
         
         # 验证必要列存在
         missing_columns = set(self.required_columns) - set(data.columns)
-        
-        # 如果缺少date列，检查索引是否为DatetimeIndex
-        if 'date' in missing_columns and isinstance(data.index, pd.DatetimeIndex):
-            missing_columns.remove('date')
-            self.logger.debug("date列作为索引存在，验证通过")
-        
         if missing_columns:
             raise ValueError(f"缺少必要列: {missing_columns}")
         
@@ -242,7 +236,7 @@ class DataNormalizer(DataProcessor):
         
         # 按日期排序
         if self.sort_by_date and 'date' in result.columns:
-            if not isinstance(result.index, pd.DatetimeIndex):
+            if not pd.api.types.is_datetime64_any_dtype(result.index):
                 result = result.sort_values('date')
                 self.logger.debug("按日期排序完成")
         
@@ -270,9 +264,6 @@ class DataNormalizer(DataProcessor):
             null_count_after = result.isnull().sum().sum()
             if null_count_after > 0:
                 self.logger.warning(f"仍有 {null_count_after} 个缺失值未处理")
-        
-        # 重置索引
-        result = result.reset_index(drop=True)
         
         self.logger.debug(f"数据标准化完成，最终数据量: {len(result)} 行")
         return result
