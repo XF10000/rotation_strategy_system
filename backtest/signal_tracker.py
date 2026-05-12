@@ -6,11 +6,12 @@
 
 import csv
 import logging
-import os
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 import pandas as pd
+
+from config.path_manager import get_path_manager
 
 logger = logging.getLogger(__name__)
 
@@ -554,9 +555,7 @@ class SignalTracker:
                 self.output_path = output_path
             
             # 确保输出目录存在
-            output_dir = os.path.dirname(self.output_path)
-            if output_dir:  # 只有当有目录路径时才创建
-                os.makedirs(output_dir, exist_ok=True)
+            get_path_manager().get_reports_dir().mkdir(parents=True, exist_ok=True)
             
             if not self.signal_records:
                 self.logger.warning("没有信号记录可导出")

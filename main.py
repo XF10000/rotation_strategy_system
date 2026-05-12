@@ -10,18 +10,19 @@ from datetime import datetime
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from config.settings import LOGGING_CONFIG, OUTPUT_CONFIG
+from config.path_manager import get_path_manager
+from config.settings import LOGGING_CONFIG
 
 
 def setup_logging():
     """设置日志系统"""
-    os.makedirs('logs', exist_ok=True)
+    get_path_manager().get_logs_dir().mkdir(parents=True, exist_ok=True)
     
     logging.basicConfig(
         level=getattr(logging, str(LOGGING_CONFIG['level'])),
         format=str(LOGGING_CONFIG['format']),
         handlers=[
-            logging.FileHandler(str(LOGGING_CONFIG['file_path']), encoding='utf-8'),
+            logging.FileHandler(str(get_path_manager().get_log_path('rotation_strategy.log')), encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
         ]
     )
@@ -41,8 +42,7 @@ def main():
         logger.info("使用CSV配置，跳过传统股票池验证...")
         
         # 创建输出目录
-        os.makedirs(OUTPUT_CONFIG['output_dir'], exist_ok=True)
-        os.makedirs('data_cache', exist_ok=True)
+        get_path_manager().ensure_directories()
         
         logger.info("系统初始化完成")
         

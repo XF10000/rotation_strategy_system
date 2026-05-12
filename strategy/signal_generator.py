@@ -453,7 +453,9 @@ class SignalGenerator:
                 # 如果signal_generator没有dcf_values，尝试从配置加载
                 try:
                     # 从portfolio_config中提取DCF估值
-                    df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
+                    from config.path_manager import get_path_manager
+                    pm = get_path_manager()
+                    df = pd.read_csv(pm.get_portfolio_config_path(), encoding='utf-8-sig')
                     for _, row in df.iterrows():
                         if str(row['Stock_number']).strip() == stock_code:
                             dcf_value = float(row['DCF_value_per_share'])

@@ -8,18 +8,22 @@ from typing import Dict
 
 import pandas as pd
 
+from config.path_manager import get_path_manager
 
-def load_stock_name_mapping(config_path: str = 'Input/portfolio_config.csv') -> Dict[str, str]:
+
+def load_stock_name_mapping(config_path: str = None) -> Dict[str, str]:
     """
     从配置文件加载股票代码到名称的映射
-    
+
     Args:
-        config_path: 配置文件路径
-        
+        config_path: 配置文件路径，None时使用PathManager默认路径
+
     Returns:
         Dict[str, str]: 股票代码到名称的映射 {代码: 名称}
     """
-    # 清除全局缓存，确保读取最新配置
+    if config_path is None:
+        config_path = str(get_path_manager().get_portfolio_config_path())
+# 清除全局缓存，确保读取最新配置
     global _cached_stock_mapping
     _cached_stock_mapping = None
     

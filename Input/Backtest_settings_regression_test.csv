@@ -5,7 +5,7 @@ Parameter,Value,Description
 # ========== 数据源配置 ==========,,
 data_source,tushare,主数据源 (akshare/tushare)
 backup_data_source,akshare,备用数据源 (akshare/tushare/none) - 可选
-tushare_token,883a1e85d3c15b9cd25cf53853b093a1af5a4e143562d9e9e47e5f4e,Tushare API Token - 使用tushare时必填
+tushare_token,3d11b8702f4330b65a04a31691c3479e9448fbae013e41d474e6226f,Tushare API Token - 使用tushare时必填
 data_fetch_strategy,smart,数据获取策略 (smart:智能切换/simple:单一数据源)
 # ========== 回测基础配置 ==========,,
 total_capital,100000000,回测总资本

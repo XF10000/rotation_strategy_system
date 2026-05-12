@@ -7,6 +7,7 @@ from datetime import datetime
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from config.path_manager import get_path_manager
 from config.industry_rsi_loader import get_rsi_loader
 from utils.industry_classifier import get_stock_industry_auto
 from utils.stock_name_mapper import get_cached_stock_mapping, get_stock_display_name
@@ -56,7 +57,7 @@ class DetailedCSVExporter:
         """
         try:
             # 确保输出目录存在
-            os.makedirs(output_dir, exist_ok=True)
+            get_path_manager().get_reports_dir().mkdir(parents=True, exist_ok=True)
             
             # 生成文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -388,7 +389,7 @@ class DetailedCSVExporter:
         """
         try:
             # 确保输出目录存在
-            os.makedirs(output_dir, exist_ok=True)
+            get_path_manager().get_reports_dir().mkdir(parents=True, exist_ok=True)
             
             # 生成文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

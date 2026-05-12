@@ -12,6 +12,8 @@ import pandas as pd
 from backtest.detailed_csv_exporter import DetailedCSVExporter
 from backtest.enhanced_report_generator_integrated_fixed import IntegratedReportGenerator
 
+from config.path_manager import get_path_manager
+
 from .base_service import BaseService
 
 
@@ -45,7 +47,7 @@ class ReportService(BaseService):
         self.report_dir = config.get('report_dir', 'reports')
         
         # 确保报告目录存在
-        os.makedirs(self.report_dir, exist_ok=True)
+        get_path_manager().get_reports_dir().mkdir(parents=True, exist_ok=True)
     
     def initialize(self) -> bool:
         """

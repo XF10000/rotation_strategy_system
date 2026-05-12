@@ -1,8 +1,8 @@
 import json
-import os
 from datetime import datetime
 from typing import Any, Dict, List
 
+from config.path_manager import get_path_manager
 from models.signal_result import SignalResult
 from utils.stock_name_mapper import get_stock_display_name, load_stock_name_mapping
 
@@ -11,21 +11,22 @@ class IntegratedReportGenerator:
     """集成HTML模板的回测报告生成器 - 修复版"""
     
     def __init__(self):
-        self.template_path = "config/backtest_report_template.html"
+        pm = get_path_manager()
+        self.template_path = pm.get_config_dir() / "backtest_report_template.html"
         # 强制重新加载股票名称映射，不使用缓存
         print("🔄 重新加载股票名称映射...")
         self.stock_mapping = load_stock_name_mapping()
         print(f"📊 当前股票映射包含 {len(self.stock_mapping)} 只股票")
         
         # 确保模板文件存在
-        if not os.path.exists(self.template_path):
+        if not self.template_path.exists():
             print(f"警告: HTML模板文件不存在: {self.template_path}")
             # 创建一个简单的默认模板
             self._create_default_template()
-        
+
     def _create_default_template(self):
         """创建默认HTML模板"""
-        os.makedirs(os.path.dirname(self.template_path), exist_ok=True)
+        self.template_path.parent.mkdir(parents=True, exist_ok=True)
         default_template = """
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -97,10 +98,12 @@ class IntegratedReportGenerator:
             # 确定输出路径
             if output_path is None:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_path = f"reports/integrated_backtest_report_{timestamp}.html"
-            
+                pm = get_path_manager()
+                pm.get_reports_dir().mkdir(parents=True, exist_ok=True)
+                output_path = str(pm.get_reports_dir() / f"integrated_backtest_report_{timestamp}.html")
+
             # 确保输出目录存在
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            get_path_manager().get_reports_dir().mkdir(parents=True, exist_ok=True)
             
             
             # 写入文件
@@ -119,7 +122,7 @@ class IntegratedReportGenerator:
         """生成错误报告"""
         if output_path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_path = f"reports/error_report_{timestamp}.html"
+            output_path = str(get_path_manager().get_reports_dir() / f"error_report_{timestamp}.html")
         
         error_html = f"""
 <!DOCTYPE html>
@@ -137,7 +140,7 @@ class IntegratedReportGenerator:
 """
         
         try:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            get_path_manager().get_reports_dir().mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(error_html)
             return output_path
@@ -675,7 +678,8 @@ class IntegratedReportGenerator:
         """从配置文件加载初始持仓权重"""
         try:
             import pandas as pd
-            df = pd.read_csv('Input/portfolio_config.csv', encoding='utf-8-sig')
+            pm = get_path_manager()
+            df = pd.read_csv(pm.get_portfolio_config_path(), encoding='utf-8-sig')
             
             initial_holdings = {}
             for _, row in df.iterrows():

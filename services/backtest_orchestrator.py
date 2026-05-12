@@ -57,49 +57,44 @@ class BacktestOrchestrator(BaseService):
             bool: 初始化是否成功
         """
         try:
-            self.logger.info("🚀 开始初始化回测协调器...")
-            
+            self.logger.info("开始初始化回测协调器...")
+
             # 1. 初始化DataService
-            self.logger.info("📊 初始化DataService...")
             self.data_service = DataService(self.config)
             if not self.data_service.initialize():
                 self.logger.error("DataService初始化失败")
                 return False
-            
+
             # 2. 准备回测数据
-            self.logger.info("📈 准备回测数据...")
             if not self.data_service.prepare_backtest_data():
                 self.logger.error("数据准备失败")
                 return False
-            
+
             # 获取准备好的数据
             self.stock_data = self.data_service.stock_data
             dcf_values = self.data_service.dcf_values
             rsi_thresholds = self.data_service.rsi_thresholds
             stock_industry_map = self.data_service.stock_industry_map
-            
+
             # 3. 创建SignalTracker
             from backtest.signal_tracker import SignalTracker
             signal_tracker = SignalTracker()
-            self.logger.info(f"✅ SignalTracker已创建: {signal_tracker.output_path}")
-            
+            self.logger.debug(f"SignalTracker已创建: {signal_tracker.output_path}")
+
             # 4. 初始化SignalService
-            self.logger.info("🎯 初始化SignalService...")
-            # 传递完整config，让SignalService自己处理strategy_params合并
             self.signal_service = SignalService(
                 self.config,
                 dcf_values,
                 rsi_thresholds,
                 stock_industry_map,
                 self.data_service.stock_pool,
-                signal_tracker  # 传递signal_tracker
+                signal_tracker
             )
             if not self.signal_service.initialize():
                 self.logger.error("SignalService初始化失败")
                 return False
-            
+
             # 5. 创建并初始化PortfolioService
-            self.logger.info("📊 初始化PortfolioService...")
             self.portfolio_service = PortfolioService(self.config, dcf_values)
             start_date = pd.Timestamp(self.start_date)
             if not self.portfolio_service.initialize(
@@ -110,16 +105,15 @@ class BacktestOrchestrator(BaseService):
             ):
                 self.logger.error("PortfolioService初始化失败")
                 return False
-            
+
             # 6. 初始化ReportService
-            self.logger.info("📄 初始化ReportService...")
             self.report_service = ReportService(self.config)
             if not self.report_service.initialize():
                 self.logger.error("ReportService初始化失败")
                 return False
-            
+
             self._initialized = True
-            self.logger.info("✅ 回测协调器初始化完成")
+            self.logger.info("回测协调器初始化完成")
             return True
             
         except Exception as e:
@@ -140,43 +134,38 @@ class BacktestOrchestrator(BaseService):
                 self.logger.error("协调器未初始化")
                 return False
             
-            self.logger.info("🏃 开始运行回测...")
-            
+            self.logger.info("开始运行回测...")
+
             # 获取所有交易日期
             trading_dates = self._get_trading_dates()
-            self.logger.info(f"📅 回测期间: {self.start_date} 至 {self.end_date}")
-            self.logger.info(f"📊 有效回测周期数: {len(trading_dates)}")
+            self.logger.info(f"回测期间: {self.start_date} 至 {self.end_date}, 共{len(trading_dates)}个周期")
             
             # 主回测循环
             for i, current_date in enumerate(trading_dates):
                 if i % 10 == 0:
-                    self.logger.info(f"⏳ 回测进度: {i+1}/{len(trading_dates)} ({current_date.strftime('%Y-%m-%d')})")
-                
+                    self.logger.info(f"回测进度: {i+1}/{len(trading_dates)} ({current_date.strftime('%Y-%m-%d')})")
+
                 # 1. 更新当前价格
                 current_prices = self._get_current_prices(current_date)
                 if i == 0:
-                    self.logger.info(f"📊 第一天价格数量: {len(current_prices)}")
-                
-                # 2. 更新投资组合价格（关键！BacktestEngine有这一步）
+                    self.logger.debug(f"第一天价格数量: {len(current_prices)}")
+
+                # 2. 更新投资组合价格
                 self.portfolio_service.portfolio_manager.update_prices(current_prices)
-                
-                # 🔧 修复：记录投资组合价值历史（用于计算最大回撤）
+
+                # 记录投资组合价值历史（用于计算最大回撤）
                 total_value = self.portfolio_service.portfolio_manager.get_total_value(current_prices)
                 self.portfolio_service.portfolio_manager.portfolio_history.append({
                     'date': current_date,
                     'total_value': total_value,
                     'cash': self.portfolio_service.portfolio_manager.cash
                 })
-                
+
                 # 3. 处理分红配股事件
                 self.portfolio_service.process_dividend_events(self.stock_data, current_date)
-                
+
                 # 4. 生成交易信号
                 signals = self.signal_service.generate_signals(self.stock_data, current_date)
-                if i == 0:
-                    self.logger.info(f"🎯 第一天信号数量: {len(signals) if signals else 0}")
-                    if signals:
-                        self.logger.info(f"   信号: {signals}")
                 
                 # 5. 执行交易
                 if signals:
@@ -203,11 +192,10 @@ class BacktestOrchestrator(BaseService):
                     new_txns = self.portfolio_service.portfolio_manager.transaction_history[txn_count_before:]
                     
                     if new_txns:
-                        self.logger.info(f"💰 {current_date.strftime('%Y-%m-%d')} 执行了 {len(new_txns)} 笔交易")
+                        self.logger.info(f"{current_date.strftime('%Y-%m-%d')} 执行了 {len(new_txns)} 笔交易")
                         self.transaction_history.extend(new_txns)
-                    else:
-                        if i < 5:  # 只在前5天记录
-                            self.logger.info(f"⚠️ {current_date.strftime('%Y-%m-%d')} 有信号但未执行交易")
+                    elif i < 5:
+                        self.logger.debug(f"{current_date.strftime('%Y-%m-%d')} 有信号但未执行交易")
             
             self.logger.info("✅ 回测完成")
             return True
@@ -229,19 +217,13 @@ class BacktestOrchestrator(BaseService):
             Dict[str, str]: 生成的报告文件路径
         """
         try:
-            self.logger.info("📊 开始生成回测报告...")
-            
+            self.logger.info("开始生成回测报告...")
+
             # 准备回测结果
             backtest_results = self._prepare_backtest_results()
-            
-            # 🔧 修复：使用portfolio_manager的transaction_history，而不是空的self.transaction_history
+
             transaction_history = self.portfolio_service.portfolio_manager.transaction_history
-            self.logger.info(f"📋 交易记录数量: {len(transaction_history)}")
-            
-            # 🔧 修复：确保backtest_results包含完整的kline_data
-            # backtest_engine的_prepare_backtest_results已经准备了kline_data
-            self.logger.info(f"🔍 backtest_results包含的键: {list(backtest_results.keys())}")
-            self.logger.info(f"🔍 kline_data包含的股票: {list(backtest_results.get('kline_data', {}).keys())}")
+            self.logger.debug(f"交易记录数量: {len(transaction_history)}")
             
             # 使用ReportService生成所有报告（包括HTML、CSV、信号跟踪等）
             report_paths = self.report_service.generate_all_reports(
@@ -325,58 +307,49 @@ class BacktestOrchestrator(BaseService):
         final_date = trading_dates[-1]
         final_prices = self._get_current_prices(final_date)
         
-        # 🔧 修复：获取交易记录
         transaction_history = portfolio_manager.transaction_history
-        self.logger.info(f"📋 准备回测结果，交易记录数量: {len(transaction_history)}")
-        
+        self.logger.debug(f"交易记录数量: {len(transaction_history)}")
+
         # 计算收益
         initial_value = self.config.get('total_capital', 1000000)
         final_value = portfolio_manager.get_total_value(final_prices)
         total_return = (final_value - initial_value) / initial_value
-        
+
         # 计算年化收益
         start_date = pd.to_datetime(self.start_date)
         end_date = pd.to_datetime(self.end_date)
         years = (end_date - start_date).days / 365.25
         annual_return = (1 + total_return) ** (1 / years) - 1 if years > 0 else 0
-        
-        # 🔧 修复：计算策略最大回撤
+
+        # 计算策略最大回撤
         max_drawdown = self._calculate_strategy_max_drawdown(portfolio_manager)
-        
-        # ✅ 使用完整的基准计算方法
+
+        # 使用完整的基准计算方法
         benchmark_portfolio_data = {}
         benchmark_return = 0.0
         benchmark_annual_return = 0.0
         benchmark_max_drawdown = 0.0
-        
+
         try:
             benchmark_return, benchmark_annual_return, benchmark_max_drawdown = self._calculate_buy_and_hold_benchmark(initial_value)
-            self.logger.info(f"📊 基准收益率: {benchmark_return:.2f}%, 年化: {benchmark_annual_return:.2f}%")
-            
-            # 获取基准持仓数据
+            self.logger.debug(f"基准收益率: {benchmark_return:.2f}%")
             benchmark_portfolio_data = getattr(self, 'benchmark_portfolio_data', {})
-            self.logger.info(f"🔍 基准持仓数据: {list(benchmark_portfolio_data.keys()) if benchmark_portfolio_data else 'None'}")
         except Exception as e:
             self.logger.error(f"计算基准数据失败: {e}")
             import traceback
             self.logger.error(traceback.format_exc())
-        
-        # 🔧 修复：从交易记录中提取信号统计
+
+        # 从交易记录中提取信号统计
         signal_analysis = self._extract_signal_analysis(transaction_history)
-        
-        # 🔧 修复：构建完整的最终持仓状态
+
+        # 构建完整的最终持仓状态
         final_portfolio = self._build_final_portfolio_state(portfolio_manager, final_prices, final_date)
-        
-        # ✅ 使用完整的K线数据准备方法
+
+        # 使用完整的K线数据准备方法
         kline_data = {}
         try:
             kline_data = self._prepare_kline_data(portfolio_manager, transaction_history)
-            self.logger.info(f"✅ K线数据准备完成，包含 {len(kline_data)} 只股票")
-            
-            # 🔍 调试：检查600900的数据完整性
-            if '600900' in kline_data:
-                self.logger.info(f"🔍 _prepare_backtest_results中600900的keys: {list(kline_data['600900'].keys())}")
-                self.logger.info(f"🔍 _prepare_backtest_results中600900的trades数量: {len(kline_data['600900'].get('trades', []))}")
+            self.logger.debug(f"K线数据准备完成，包含 {len(kline_data)} 只股票")
         except Exception as e:
             self.logger.error(f"准备K线数据失败: {e}")
             import traceback
@@ -567,7 +540,7 @@ class BacktestOrchestrator(BaseService):
                 if drawdown < max_drawdown:
                     max_drawdown = drawdown
             
-            self.logger.info(f"📉 策略最大回撤计算完成: {max_drawdown:.2f}% (基于{len(values)}个数据点)")
+            self.logger.debug(f"策略最大回撤计算完成: {max_drawdown:.2f}% (基于{len(values)}个数据点)")
             return max_drawdown
             
         except Exception as e:
@@ -593,13 +566,8 @@ class BacktestOrchestrator(BaseService):
     def _prepare_kline_data(self, portfolio_manager, transaction_history: List[Dict]) -> Dict[str, Any]:
         """准备K线数据（包含技术指标）- 确保时间轴完全对齐"""
         kline_data = {}
-        
-        self.logger.info(f"🔍 开始准备K线数据")
-        self.logger.info(f"📊 股票数据总数: {len(self.stock_data)}")
-        self.logger.info(f"📈 股票代码列表: {list(self.stock_data.keys())}")
-        self.logger.info(f"📋 交易记录数量: {len(transaction_history)}")
-        if transaction_history:
-            self.logger.info(f"📝 交易记录示例: {transaction_history[0]}")
+
+        self.logger.debug(f"开始准备K线数据，共{len(self.stock_data)}只股票")
         
         # 过滤回测期间的数据
         start_date = pd.to_datetime(self.start_date)
@@ -724,11 +692,11 @@ class BacktestOrchestrator(BaseService):
                                 'reason': transaction.get('reason', '')
                             })
                             stock_trade_count += 1
-                            self.logger.info(f"添加交易点: {stock_code} {transaction['date']} {transaction['type']} {transaction['price']}")
+                            self.logger.debug(f"添加交易点: {stock_code} {transaction['date']} {transaction['type']} {transaction['price']}")
                     except Exception as e:
                         self.logger.warning(f"处理交易点数据失败: {e}")
         
-            self.logger.info(f"股票 {stock_code} 交易点数量: {stock_trade_count}")
+            self.logger.debug(f"股票 : {stock_trade_count}")
             
             # 准备分红数据
             dividend_points = []
@@ -780,7 +748,7 @@ class BacktestOrchestrator(BaseService):
                 'dividends': dividend_points
             }
         
-        self.logger.info(f"🔍 _prepare_kline_data返回，总共{len(kline_data)}只股票")
+        self.logger.debug(f"_prepare_kline_data返回，总共{len(kline_data)}只股票")
         return kline_data
     
     def _calculate_buy_and_hold_benchmark(self, initial_capital: float) -> tuple:
@@ -794,8 +762,8 @@ class BacktestOrchestrator(BaseService):
             Tuple[float, float, float]: (总收益率%, 年化收益率%, 最大回撤%)
         """
         try:
-            self.logger.info(f"🔍 基准计算开始 - 股票数据数量: {len(self.stock_data)}")
-            self.logger.info(f"🔍 回测日期范围: {self.start_date} 到 {self.end_date}")
+            self.logger.debug(f"基准计算开始 - 股票数据数量: {len(self.stock_data)}")
+            self.logger.debug(f"回测日期范围: {self.start_date} 到 {self.end_date}")
             
             # 读取投资组合配置
             try:
@@ -815,11 +783,11 @@ class BacktestOrchestrator(BaseService):
                         initial_weights[code] = weight
                         total_stock_weight += weight
                 
-                self.logger.info(f"🔍 基准计算 - 投资组合权重: 股票{total_stock_weight:.1%}, 现金{cash_weight:.1%}")
+                self.logger.debug(f"基准计算 - 投资组合权重: 股票{total_stock_weight:.1%}, 现金{cash_weight:.1%}")
                 
                 # 如果是100%现金，直接返回0%收益率
                 if total_stock_weight <= 0.01:
-                    self.logger.info("💰 基准计算 - 100%现金投资组合，基准收益率为0%")
+                    self.logger.debug("基准计算 - 100%现金投资组合，基准收益率为0%")
                     return 0.0, 0.0, 0.0
                     
             except Exception as e:
@@ -828,8 +796,7 @@ class BacktestOrchestrator(BaseService):
                 cash_weight = 0
             
             if not self.stock_data:
-                self.logger.warning("⚠️ 没有股票数据，使用默认基准值")
-                return 45.0, 12.0, -18.0
+                raise ValueError("没有股票数据，无法计算基准")
             
             start_date = pd.to_datetime(self.start_date)
             end_date = pd.to_datetime(self.end_date)
@@ -885,7 +852,7 @@ class BacktestOrchestrator(BaseService):
                 end_total_value += end_value
                 total_dividend_income += dividend_income
                 
-                self.logger.info(f"基准 - {stock_code}: 权重{weight:.1%}, {start_price:.2f}->{end_price:.2f}, 初始{initial_shares:.0f}股->最终{current_shares:.0f}股, 市值{start_value:.0f}->{end_value:.0f}, 分红{dividend_income:.0f}元")
+                self.logger.debug(f"基准 - {stock_code}: 权重{weight:.1%}, {start_price:.2f}->{end_price:.2f}, 初始{initial_shares:.0f}股->最终{current_shares:.0f}股, 市值{start_value:.0f}->{end_value:.0f}, 分红{dividend_income:.0f}元")
             
             # 加上现金部分
             cash_amount = initial_capital * cash_weight
@@ -893,8 +860,7 @@ class BacktestOrchestrator(BaseService):
             end_total_value += cash_amount
             
             if start_total_value <= 0:
-                self.logger.warning("⚠️ 基准计算失败，使用默认值")
-                return 45.0, 12.0, -18.0
+                raise ValueError("基准计算失败：投资组合初始市值为0")
             
             # 基准收益率 = (结束市值 + 分红收入 - 开始市值) / 开始市值
             total_return = (end_total_value + total_dividend_income - start_total_value) / start_total_value
@@ -991,7 +957,7 @@ class BacktestOrchestrator(BaseService):
             self.logger.error(f"计算买入持有基准失败: {e}")
             import traceback
             self.logger.error(traceback.format_exc())
-            return 45.0, 12.0, -18.0
+            raise
     
     def _calculate_benchmark_max_drawdown(self, initial_weights: dict, cash_weight: float, 
                                           initial_capital: float, start_date, end_date) -> float:
@@ -1069,7 +1035,7 @@ class BacktestOrchestrator(BaseService):
                 portfolio_values.append(total_value)
             
             if not portfolio_values:
-                return -0.15  # 默认值
+                raise ValueError("没有投资组合净值数据，无法计算基准最大回撤")
             
             # 计算最大回撤
             peak = portfolio_values[0]
@@ -1082,11 +1048,11 @@ class BacktestOrchestrator(BaseService):
                 if drawdown < max_drawdown:
                     max_drawdown = drawdown
             
-            self.logger.info(f"📉 基准最大回撤计算完成: {max_drawdown*100:.2f}%")
+            self.logger.debug(f"基准最大回撤计算完成: {max_drawdown*100:.2f}%")
             return max_drawdown
             
         except Exception as e:
             self.logger.error(f"计算基准最大回撤失败: {e}")
             import traceback
             self.logger.error(traceback.format_exc())
-            return -0.15  # 默认值
+            raise

@@ -66,3 +66,4 @@ config/secrets.csv
 # Temporary files
 *.tmp
 *.temp
+*.bak
