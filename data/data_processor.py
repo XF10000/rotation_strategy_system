@@ -457,6 +457,7 @@ class DataProcessor:
             result_df['bb_upper'] = bb_data['upper']
             result_df['bb_middle'] = bb_data['middle']
             result_df['bb_lower'] = bb_data['lower']
+            result_df['boll_bandwidth'] = result_df['bb_upper'] - result_df['bb_lower']
             
             # 计算移动平均线 - 使用TA-Lib SMA
             logger.info("\n🔄 计算移动平均线...")
@@ -512,6 +513,14 @@ class DataProcessor:
                 # 使用4周均量（策略文档要求：极端价格量能判断使用4周均量）
                 result_df['volume_ma'] = result_df['volume'].rolling(window=4).mean()
                 logger.info(f"   - 成交量MA4 NaN数量: {result_df['volume_ma'].isna().sum()}")
+
+                # 鹿鼎公策略新增：5周均量、20周均量、4周最大量
+                result_df['vol_ma5'] = result_df['volume'].rolling(window=5).mean()
+                result_df['vol_ma20'] = result_df['volume'].rolling(window=20).mean()
+                result_df['vol_4w_max'] = result_df['volume'].rolling(window=4).max()
+                logger.info(f"   - 成交量MA5 NaN数量: {result_df['vol_ma5'].isna().sum()}")
+                logger.info(f"   - 成交量MA20 NaN数量: {result_df['vol_ma20'].isna().sum()}")
+                logger.info(f"   - 近4周最大量 NaN数量: {result_df['vol_4w_max'].isna().sum()}")
                 
                 # 检查除零情况
                 zero_volume_ma = (result_df['volume_ma'] == 0).sum()

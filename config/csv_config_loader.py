@@ -136,8 +136,12 @@ def load_backtest_settings(csv_path: str = 'Input/Backtest_settings.csv') -> Dic
             elif ('ratio' in param_name or 'threshold' in param_name or 'limit' in param_name):
                 settings[param_name] = float(param_value)
             else:
-                settings[param_name] = param_value
-            
+                # NaN → None，避免 float NaN 污染字符串配置项
+                if isinstance(param_value, float) and pd.isna(param_value):
+                    settings[param_name] = None
+                else:
+                    settings[param_name] = param_value
+
             logger.debug(f"加载设置: {param_name} = {param_value}")
         
         # 验证必要参数
@@ -177,23 +181,25 @@ def create_csv_config() -> Dict[str, Any]:
             if key not in ['total_capital', 'start_date', 'end_date']:
                 strategy_params[key] = value
         
-        # 读取数据源配置
-        data_source = backtest_settings.get('data_source', 'akshare')
-        backup_data_source = backtest_settings.get('backup_data_source', None)
-        data_fetch_strategy = backtest_settings.get('data_fetch_strategy', 'simple')
-        
+        # 读取数据源配置（NaN → 默认值）
+        data_source = backtest_settings.get('data_source') or 'akshare'
+        backup_data_source = backtest_settings.get('backup_data_source') or None
+        data_fetch_strategy = backtest_settings.get('data_fetch_strategy') or 'simple'
+
         # 如果backup_data_source是空字符串或'none'，设为None
-        if backup_data_source and backup_data_source.lower() in ['none', '', 'null']:
+        if backup_data_source and str(backup_data_source).lower() in ['none', '', 'null']:
             backup_data_source = None
-        
+
         # 加载敏感配置（优先级：secrets.csv > Backtest_settings.csv > 环境变量）
         secrets = load_secrets()
         tushare_token = secrets.get('tushare_token')
-        
+
         # 如果secrets.csv中没有token，尝试从Backtest_settings.csv读取
-        if not tushare_token or tushare_token == '':
-            tushare_token = backtest_settings.get('tushare_token', None)
-        
+        if not tushare_token or tushare_token == '' or (isinstance(tushare_token, float) and pd.isna(tushare_token)):
+            tushare_token = backtest_settings.get('tushare_token')
+            if isinstance(tushare_token, float) and pd.isna(tushare_token):
+                tushare_token = None
+
         # 如果仍然没有token，尝试从环境变量读取
         if not tushare_token or tushare_token == '':
             import os

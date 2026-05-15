@@ -1,37 +1,16 @@
 #!/usr/bin/env python3
 """
-股票信号分析工具
-完全复用main.py的数据获取和计算逻辑，确保结果一致性
-支持分析指定股票在特定日期范围内的4维信号详情
+[已废弃] 旧版4维信号分析工具
 
-升级内容：
-- 同步主系统的日志配置
-- 添加缓存验证功能
-- 改进错误处理机制
-- 保持工具的简洁性和专注性
+本工具服务于已删除的4维并行信号策略（SignalGenerator）。
+请使用 analyze_ludinggong_signal.py 替代：
+    python3 analyze_ludinggong_signal.py -s <股票代码> -d <日期>
 """
 
-import pandas as pd
-import numpy as np
-import logging
-import argparse
 import sys
-import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
-
-# 添加项目路径
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# 导入与main.py完全相同的核心组件
-from services.data_service import DataService
-from strategy.signal_generator import SignalGenerator
-from data.data_processor import DataProcessor
-from config.csv_config_loader import create_csv_config
-from utils.industry_classifier import get_stock_industry_auto
-from config.settings import LOGGING_CONFIG
-from data.cache_validator import validate_cache_before_backtest
-from config.path_manager import get_path_manager
+print("❌ 此工具已废弃。请使用:")
+print("   python3 analyze_ludinggong_signal.py -s <股票代码> -d <日期>")
+sys.exit(1)
 
 
 def setup_logging():

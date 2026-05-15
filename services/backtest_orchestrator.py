@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from strategy.ludinggong_state import LudinggongStateTracker
+
 from .base_service import BaseService
 from .data_service import DataService
 from .portfolio_service import PortfolioService
@@ -76,9 +78,10 @@ class BacktestOrchestrator(BaseService):
             rsi_thresholds = self.data_service.rsi_thresholds
             stock_industry_map = self.data_service.stock_industry_map
 
-            # 3. 创建SignalTracker
+            # 3. 创建SignalTracker和StateTracker
             from backtest.signal_tracker import SignalTracker
             signal_tracker = SignalTracker()
+            state_tracker = LudinggongStateTracker()
             self.logger.debug(f"SignalTracker已创建: {signal_tracker.output_path}")
 
             # 4. 初始化SignalService
@@ -88,14 +91,17 @@ class BacktestOrchestrator(BaseService):
                 rsi_thresholds,
                 stock_industry_map,
                 self.data_service.stock_pool,
-                signal_tracker
+                state_tracker,
+                signal_tracker,
             )
             if not self.signal_service.initialize():
                 self.logger.error("SignalService初始化失败")
                 return False
 
             # 5. 创建并初始化PortfolioService
-            self.portfolio_service = PortfolioService(self.config, dcf_values)
+            self.portfolio_service = PortfolioService(
+                self.config, dcf_values, state_tracker
+            )
             start_date = pd.Timestamp(self.start_date)
             if not self.portfolio_service.initialize(
                 self.stock_data,

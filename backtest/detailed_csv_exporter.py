@@ -239,7 +239,9 @@ class DetailedCSVExporter:
             dcf_value = indicators.get('dcf_value', 0)
             if not dcf_value or dcf_value <= 0:
                 # 回退到self.dcf_values
-                dcf_value = self.dcf_values.get(symbol, 0)
+                dcf_value = self.dcf_values.get(stock_code, 0)
+                if not dcf_value:
+                    dcf_value = self.dcf_values.get(symbol, 0)
             if not dcf_value or dcf_value <= 0:
                 # 最后回退到record
                 dcf_value = record.get('dcf_value', 0)
@@ -292,7 +294,7 @@ class DetailedCSVExporter:
                 else:
                     # 回退到旧方法
                     if not industry:
-                        industry = get_stock_industry_auto(symbol)
+                        industry = get_stock_industry_auto(stock_code) if stock_code else get_stock_industry_auto(symbol)
                     if not industry:
                         industry = '未知'
                     

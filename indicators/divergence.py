@@ -184,6 +184,102 @@ def detect_price_macd_divergence_auto(price: pd.Series, lookback: int = 13) -> D
     except Exception as e:
         raise IndicatorCalculationError(f"自动MACD背离检测失败: {str(e)}") from e
 
+def detect_macd_bullish_divergence(close: pd.Series, hist: pd.Series, order: int = 5) -> bool:
+    """
+    检测MACD底背离（鹿鼎公策略 V2）
+    两层确认：
+    1. 结构性：最近两个价格波谷，价格更低但绿柱深度更浅（卖方衰竭）
+    2. 即时性：当前波谷绿柱已比邻近前一周在缩短（动量已在修复）
+
+    Args:
+        close: 收盘价序列
+        hist: MACD柱状图序列（绿柱为负值）
+        order: 局部极值点窗口（左右各order周），默认5
+
+    Returns:
+        bool: 是否出现底背离
+    """
+    try:
+        from scipy.signal import argrelextrema
+
+        if len(close) < order * 2 + 2 or len(hist) < order * 2 + 2:
+            return False
+
+        close_vals = close.values.astype(float)
+        hist_vals = hist.values.astype(float)
+
+        local_mins = argrelextrema(close_vals, np.less, order=order)[0]
+        if len(local_mins) < 2:
+            return False
+
+        idx1 = local_mins[-2]
+        idx2 = local_mins[-1]
+
+        # 两个波谷绿柱都必须在零轴下方
+        if hist_vals[idx1] >= 0 or hist_vals[idx2] >= 0:
+            return False
+
+        # 第一层：结构性 — 价格更低，绿柱更浅
+        if not (close_vals[idx2] <= close_vals[idx1] and hist_vals[idx2] > hist_vals[idx1]):
+            return False
+
+        # 第二层：即时性 — 波谷当周绿柱已比邻近前一周在缩短
+        # 若前一周是红柱（hist>=0），则绿柱刚出现，不算衰竭确认
+        if idx2 == 0:
+            return False
+        if hist_vals[idx2 - 1] >= 0:
+            return False
+        return hist_vals[idx2] > hist_vals[idx2 - 1]
+
+    except Exception as e:
+        logger.warning(f"MACD底背离检测失败: {e}")
+        return False
+        logger.warning(f"MACD底背离检测失败: {e}")
+        return False
+
+
+def detect_macd_bearish_divergence(close: pd.Series, dif: pd.Series, order: int = 5) -> bool:
+    """
+    检测MACD顶背离（鹿鼎公策略）
+    使用 scipy.signal.argrelextrema 查找局部极大值点。
+    最近两个波峰：价格更高，DIF更低 → 顶背离。
+
+    Args:
+        close: 收盘价序列
+        dif: MACD DIF线序列
+        order: 局部极值点窗口（左右各order周），默认5
+
+    Returns:
+        bool: 是否出现顶背离
+    """
+    try:
+        from scipy.signal import argrelextrema
+
+        if len(close) < order * 2 + 2 or len(dif) < order * 2 + 2:
+            return False
+
+        close_vals = close.values.astype(float)
+        dif_vals = dif.values.astype(float)
+
+        local_maxs = argrelextrema(close_vals, np.greater, order=order)[0]
+        if len(local_maxs) < 2:
+            return False
+
+        idx1 = local_maxs[-2]
+        idx2 = local_maxs[-1]
+
+        # 第二波峰距今超过 order*2 周则背离已失效
+        max_age = order * 2
+        if len(close_vals) - 1 - idx2 > max_age:
+            return False
+
+        return (close_vals[idx2] >= close_vals[idx1]) and (dif_vals[idx2] < dif_vals[idx1])
+
+    except Exception as e:
+        logger.warning(f"MACD顶背离检测失败: {e}")
+        return False
+
+
 if __name__ == "__main__":
     # 测试代码
     dates = pd.date_range('2023-01-01', periods=50, freq='D')

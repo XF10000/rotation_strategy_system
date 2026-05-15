@@ -79,9 +79,15 @@ class DataService(BaseService):
             bool: 初始化是否成功
         """
         try:
-            # 创建数据获取器
+            # 创建数据获取器（支持主备自动降级）
             data_source = self.config.get('data_source', 'akshare')
-            self.data_fetcher = DataFetcherFactory.create_fetcher(data_source, self.config)
+            backup_source = self.config.get('backup_data_source', '')
+            if backup_source and backup_source.lower() != 'none':
+                self.data_fetcher = DataFetcherFactory.create_with_fallback(
+                    data_source, backup_source, self.config
+                )
+            else:
+                self.data_fetcher = DataFetcherFactory.create_fetcher(data_source, self.config)
             
             # 加载配置数据
             self.dcf_values = self.load_dcf_values()

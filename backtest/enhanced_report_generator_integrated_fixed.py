@@ -1140,230 +1140,123 @@ class IntegratedReportGenerator:
             return 10.0
     
     def _replace_trading_stats_safe(self, template: str, transactions: List) -> str:
-        """安全地替换交易统计"""
+        """安全地替换交易统计 — 定位到交易统计区块后按标签精确替换"""
+        import re
         try:
             total_trades = len(transactions) if transactions else 0
             buy_count = sum(1 for t in transactions if t.get('type') == 'BUY') if transactions else 0
             sell_count = sum(1 for t in transactions if t.get('type') == 'SELL') if transactions else 0
             total_fees = sum(t.get('transaction_cost', t.get('fee', 0)) for t in transactions) if transactions else 0
-            
+
             print(f"🔍 交易统计数据: 总交易={total_trades}, 买入={buy_count}, 卖出={sell_count}, 手续费={total_fees}")
-            
-            print(f"🔄 开始替换交易统计数据...")
-            
-            # 按照HTML模板中的顺序进行精确替换
-            # 1. 总交易次数 (第一个出现的数值)
-            old_total_patterns = ['<div class="value">7</div>', '<div class="value">9</div>']
-            for pattern in old_total_patterns:
-                if pattern in template:
-                    template = template.replace(pattern, f'<div class="value">{total_trades}</div>', 1)
-                    print(f"  ✓ 总交易次数: {pattern} -> {total_trades}")
-                    break
-            
-            # 2. 买入次数 (第二个出现的数值)
-            old_buy_patterns = ['<div class="value">0</div>', '<div class="value">4</div>', '<div class="value">7</div>']
-            for pattern in old_buy_patterns:
-                if pattern in template:
-                    template = template.replace(pattern, f'<div class="value">{buy_count}</div>', 1)
-                    print(f"  ✓ 买入次数: {pattern} -> {buy_count}")
-                    break
-            
-            # 3. 卖出次数 (第三个出现的数值)
-            old_sell_patterns = ['<div class="value">3</div>', '<div class="value">7</div>', '<div class="value">9</div>']
-            for pattern in old_sell_patterns:
-                if pattern in template:
-                    template = template.replace(pattern, f'<div class="value">{sell_count}</div>', 1)
-                    print(f"  ✓ 卖出次数: {pattern} -> {sell_count}")
-                    break
-            
-            # 4. 总手续费 (第四个出现的数值)
-            old_fee_patterns = [
-                '<div class="value">¥748.20</div>', 
-                '<div class="value">0.0:1</div>',
-                '<div class="value">¥9791.18</div>'
-            ]
-            for pattern in old_fee_patterns:
-                if pattern in template:
-                    template = template.replace(pattern, f'<div class="value">¥{total_fees:.2f}</div>', 1)
-                    print(f"  ✓ 总手续费: {pattern} -> ¥{total_fees:.2f}")
-                    break
-            
-            # 计算手续费率
+
+            # 定位「交易统计指标」区块，对其中的 <div class="value"> 按标签精确替换
+            section_start = template.find('交易统计指标')
+            if section_start == -1:
+                print("⚠️ 未找到交易统计指标区块，跳过替换")
+                return template
+
+            # 在区块内按标签名替换：总交易次数→买入次数→卖出次数→总手续费
+            labels = ['总交易次数', '买入次数', '卖出次数', '总手续费']
+            new_vals = [str(total_trades), str(buy_count), str(sell_count), f'¥{total_fees:.2f}']
+
+            for label, new_val in zip(labels, new_vals):
+                label_pos = template.find(label, section_start)
+                if label_pos == -1:
+                    continue
+                # 在标签后最近的一个 <div class="value"> 处替换
+                after_label = template[label_pos:]
+                value_match = re.search(r'<div class="value">([^<]*)</div>', after_label)
+                if value_match:
+                    old_html = value_match.group(0)
+                    new_html = f'<div class="value">{new_val}</div>'
+                    template = template.replace(old_html, new_html, 1)
+                    print(f"  ✓ {label}: {old_html} -> {new_val}")
+
+            # 手续费率
             if total_trades > 0:
-                fee_rate = (total_fees / 15000000) * 100  # 相对于初始资金1500万的百分比
-                fee_rate_replacements = [
-                    ('<div class="value">0.0748%</div>', f'<div class="value">{fee_rate:.4f}%</div>'),
-                    ('<div class="value">0.1%</div>', f'<div class="value">{fee_rate:.4f}%</div>'),
-                ]
-                
-                for old_rate, new_rate in fee_rate_replacements:
-                    if old_rate in template:
-                        template = template.replace(old_rate, new_rate)
-                        print(f"  ✓ 手续费率: {old_rate} -> {new_rate}")
-                        break
-            
+                fee_rate = (total_fees / 15000000) * 100
+                fee_label_pos = template.find('手续费率', section_start)
+                if fee_label_pos != -1:
+                    after_fee = template[fee_label_pos:]
+                    fee_match = re.search(r'<div class="value">([\d.]+)%</div>', after_fee)
+                    if fee_match:
+                        template = template.replace(
+                            fee_match.group(0),
+                            f'<div class="value">{fee_rate:.4f}%</div>', 1
+                        )
+
             print(f"✅ 交易统计替换完成")
             return template
         except Exception as e:
-            print(f"❌ 详细交易记录替换错误: {e}")
+            print(f"❌ 交易统计替换错误: {e}")
             return template
     
-    def _generate_dimension_details(self, technical_indicators: Dict, signal_details: Dict, 
-                                   stock_code: str, close_price: float, dcf_value: float) -> str:
-        """生成4维度评分详情的HTML显示"""
+    def _generate_zone_signal_details(self, technical_indicators: Dict, signal_details: Dict,
+                                    stock_code: str, close_price: float, dcf_value: float) -> str:
+        """生成鹿鼎公区域信号详情的HTML显示"""
         try:
-            # 获取维度状态
-            dimension_status = signal_details.get('dimension_status', {})
-            
-            # 获取技术指标
-            rsi_14w = technical_indicators.get('rsi_14w', 50)
-            macd_hist = technical_indicators.get('macd_hist', 0)
-            macd_dif = technical_indicators.get('macd_dif', 0)
-            macd_dea = technical_indicators.get('macd_dea', 0)
-            bb_upper = technical_indicators.get('bb_upper', 0)
-            bb_lower = technical_indicators.get('bb_lower', 0)
-            volume = technical_indicators.get('volume', 0)
-            volume_4w_avg = technical_indicators.get('volume_4w_avg', 1)
-            # 修复量能倍数计算：如果volume_4w_avg为None或无效值，使用volume本身作为基准
-            if volume_4w_avg and volume_4w_avg > 0 and volume_4w_avg != 1:
-                volume_ratio = volume / volume_4w_avg
+            # 优先从 ZoneResult 对象提取，回退到 technical_indicators
+            zr = signal_details.get('zone_result') if signal_details else None
+            if zr is not None:
+                zone = getattr(zr, 'zone', '') or ''
+                vz = getattr(zr, 'valuation_zone', '') or ''
+                perm = getattr(zr, 'permission', '') or ''
+                reason = getattr(zr, 'reason', '') or ''
+                buy_level = getattr(zr, 'buy_level', None) or ''
+                sell_step = getattr(zr, 'sell_step', None) or ''
             else:
-                # 如果没有有效的4周均量，显示为N/A
-                volume_ratio = None
-            
-            # 计算价值比（转换为0-1的比率格式，用于显示）
-            price_value_ratio = (close_price / dcf_value) if dcf_value > 0 else 0
-            
-            # 获取RSI阈值（从交易记录或默认值）
-            rsi_buy_threshold = 30  # 默认值
-            rsi_sell_threshold = 70  # 默认值
-            rsi_extreme_buy = 20  # 默认值
-            rsi_extreme_sell = 80  # 默认值
-            
+                zone = technical_indicators.get('zone', signal_details.get('zone', '')) if signal_details else ''
+                vz = technical_indicators.get('valuation_zone', signal_details.get('valuation_zone', '')) if signal_details else ''
+                perm = technical_indicators.get('permission', signal_details.get('permission', '')) if signal_details else ''
+                reason = technical_indicators.get('trigger_reason', signal_details.get('reason', '')) if signal_details else ''
+                buy_level = (signal_details.get('buy_level') or '') if signal_details else ''
+                sell_step = (signal_details.get('sell_step') or '') if signal_details else ''
+
             details = []
-            
-            # 从signal_details中获取scores信息和交易类型
-            scores = signal_details.get('scores', {})
-            trade_type = signal_details.get('signal_type', 'BUY').upper()
-            
-            # 获取RSI阈值信息
-            rsi_thresholds = signal_details.get('rsi_thresholds', {})
-            rsi_buy_threshold = rsi_thresholds.get('buy_threshold', 30)
-            rsi_sell_threshold = rsi_thresholds.get('sell_threshold', 70)
-            
-            # 1. 价值比过滤器详情 - 直接从scores判断
-            if trade_type == 'BUY':
-                if scores.get('trend_filter_low'):
-                    details.append(f"💰 价值比{price_value_ratio:.1%} < 买入阈值80% ✅")
-                else:
-                    details.append(f"💰 价值比{price_value_ratio:.1%} 不满足买入条件")
-            else:  # SELL
-                if scores.get('trend_filter_high'):
-                    details.append(f"💰 价值比{price_value_ratio:.1%} > 卖出阈值120% ✅")
-                else:
-                    details.append(f"💰 价值比{price_value_ratio:.1%} 不满足卖出条件")
-            
-            # 2. 超买超卖详情 - 直接从scores判断，增加阈值和背离信息
-            # 获取背离信息
-            rsi_divergence = signal_details.get('rsi_divergence', {})
-            divergence_required = rsi_thresholds.get('divergence_required', True)
-            
-            if trade_type == 'BUY':
-                if scores.get('overbought_oversold_low'):
-                    # 检查是否有底背离
-                    if rsi_divergence.get('bottom_divergence'):
-                        div_info = "且出现底背离"
-                    elif not divergence_required:
-                        div_info = "(该行业不强求背离)"
-                    else:
-                        div_info = "(极端超卖，无需背离)"
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≤ 超卖阈值{rsi_buy_threshold:.1f}，{div_info} ✅")
-                else:
-                    details.append(f"📊 RSI{rsi_14w:.1f} > 超卖阈值{rsi_buy_threshold:.1f}，无买入信号")
-            else:  # SELL
-                if scores.get('overbought_oversold_high'):
-                    # 检查是否有顶背离
-                    if rsi_divergence.get('top_divergence'):
-                        div_info = "且出现顶背离"
-                    elif not divergence_required:
-                        div_info = "(该行业不强求背离)"
-                    else:
-                        div_info = "(极端超买，无需背离)"
-                    details.append(f"📊 RSI{rsi_14w:.1f} ≥ 超买阈值{rsi_sell_threshold:.1f}，{div_info} ✅")
-                else:
-                    details.append(f"📊 RSI{rsi_14w:.1f} < 超买阈值{rsi_sell_threshold:.1f}，无卖出信号")
-            
-            # 3. 动能确认详情 - 直接从scores判断
-            if trade_type == 'BUY':
-                if scores.get('momentum_low'):
-                    macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
-                    details.append(f"⚡ MACD买入信号: {macd_reason} ✅")
-                else:
-                    details.append(f"⚡ MACD无买入信号 (HIST={macd_hist:.3f}, DIF={macd_dif:.3f}, DEA={macd_dea:.3f})")
-            else:  # SELL
-                if scores.get('momentum_high'):
-                    macd_reason = self._get_detailed_macd_reason(technical_indicators, signal_details)
-                    details.append(f"⚡ MACD卖出信号: {macd_reason} ✅")
-                else:
-                    details.append(f"⚡ MACD无卖出信号 (HIST={macd_hist:.3f}, DIF={macd_dif:.3f}, DEA={macd_dea:.3f})")
-            
-            # 4. 极端价格量能详情 - 直接从scores判断，增加具体数值
-            volume_str = f"{volume_ratio:.1f}x" if volume_ratio is not None else "N/A"
-            
-            if trade_type == 'BUY':
-                if scores.get('extreme_price_volume_low'):
-                    price_position = "低于下轨" if close_price < bb_lower else "接近下轨"
-                    details.append(f"🎯 极端价格量能买入信号: 价格{close_price:.2f}{price_position}(下轨{bb_lower:.2f}), 量能{volume_str} ✅")
-                else:
-                    details.append(f"🎯 无极端价格量能买入信号 (价格{close_price:.2f}, 下轨{bb_lower:.2f}, 量能{volume_str})")
-            else:  # SELL
-                if scores.get('extreme_price_volume_high'):
-                    price_position = "高于上轨" if close_price > bb_upper else "接近上轨"
-                    details.append(f"🎯 极端价格量能卖出信号: 价格{close_price:.2f}{price_position}(上轨{bb_upper:.2f}), 量能{volume_str} ✅")
-                else:
-                    details.append(f"🎯 无极端价格量能卖出信号 (价格{close_price:.2f}, 上轨{bb_upper:.2f}, 量能{volume_str})")
-            
-            return "<br>".join(details)  # 显示所有4个维度的详情
-            
+
+            zone_name_map = {
+                'zone1_stop_falling': '止跌区',
+                'zone2_accumulate': '蓄力区',
+                'zone3_excited': '亢奋区',
+                'zone4_hold': '日常持仓'
+            }
+            zone_cn = zone_name_map.get(zone, zone or '未知')
+            zone_icon = {'zone1_stop_falling': '🔵', 'zone2_accumulate': '🟡', 'zone3_excited': '🔴', 'zone4_hold': '⚪'}.get(zone, '⚪')
+            details.append(f'{zone_icon} 区域: {zone_cn}')
+
+            if vz:
+                details.append(f'💰 估值区间: {vz} (权限: {perm})')
+
+            if reason:
+                details.append(f'🎯 触发: {reason}')
+
+            if buy_level:
+                level_cn = {'normal': '正常买入', 'urgent': '加急买入'}.get(buy_level, buy_level)
+                details.append(f'📈 买入级别: {level_cn}')
+            if sell_step:
+                step_cn = {'pre_sell': '预减仓1/3', 'first_sell': '首次止盈1/3', 'second_sell': '加卖1/2'}.get(sell_step, sell_step)
+                details.append(f'📉 卖出步骤: {step_cn}')
+
+            # 技术指标摘要
+            rsi = technical_indicators.get('rsi_14w', 50) or 50
+            macd_dif = technical_indicators.get('macd_dif', 0) or 0
+            macd_dea = technical_indicators.get('macd_dea', 0) or 0
+            macd_hist = technical_indicators.get('macd_hist', 0) or 0
+            details.append(f'📊 RSI:{float(rsi):.1f} DIF:{float(macd_dif):.3f} DEA:{float(macd_dea):.3f} HIST:{float(macd_hist):.3f}')
+
+            if dcf_value > 0:
+                pvr = close_price / dcf_value * 100
+                details.append(f'💎 价值比: {pvr:.1f}%')
+
+            return "<br>".join(details)
+
         except Exception as e:
             return f"详情生成错误: {e}"
-    
-    def _get_detailed_macd_reason(self, technical_indicators, signal_details):
-        """获取详细的MACD信号触发原因 - 从scores中读取而非重新计算"""
-        try:
-            # 从signal_details中获取scores信息
-            scores = signal_details.get('scores', {})
-            
-            # 获取技术指标数据用于显示
-            macd_hist = technical_indicators.get('macd_hist', 0)
-            macd_dif = technical_indicators.get('macd_dif', 0)
-            macd_dea = technical_indicators.get('macd_dea', 0)
-            
-            # 根据scores中的MACD信号状态生成描述
-            if scores.get('momentum_high'):
-                # MACD支持卖出信号
-                if macd_hist < 0:
-                    return f"MACD前期红柱缩短+当前转绿 (HIST={macd_hist:.3f})"
-                elif macd_dif < macd_dea:
-                    return f"MACD死叉 (DIF={macd_dif:.3f} < DEA={macd_dea:.3f})"
-                else:
-                    return f"MACD红柱连续缩短 (HIST={macd_hist:.3f})"
-            
-            elif scores.get('momentum_low'):
-                # MACD支持买入信号
-                if macd_hist < 0:
-                    return f"MACD绿柱连续缩短 (HIST={macd_hist:.3f})"
-                elif macd_dif > macd_dea:
-                    return f"MACD金叉 (DIF={macd_dif:.3f} > DEA={macd_dea:.3f})"
-                else:
-                    return f"MACD前期绿柱缩短+当前转红 (HIST={macd_hist:.3f})"
-            
-            else:
-                # 无MACD信号
-                return f"MACD无信号 (HIST={macd_hist:.3f}, DIF={macd_dif:.3f}, DEA={macd_dea:.3f})"
-                    
-        except Exception as e:
-            return f"MACD信号 (分析错误: {e})"
+
+    def _get_zone_trigger_reason(self, signal_details):
+        """从信号详情中提取触发原因"""
+        return signal_details.get('reason', signal_details.get('trigger_reason', ''))
     
     def _replace_transaction_details_safe(self, template: str, transactions: List, signal_analysis: Dict) -> str:
         """安全地替换详细交易记录"""
@@ -1410,94 +1303,63 @@ class IntegratedReportGenerator:
                 price = transaction.get('price', 0)
                 shares = transaction.get('shares', 0)
                 
-                # 🆕 阶段6：优先使用SignalResult对象（单一数据源原则）
-                signal_result_obj = transaction.get('signal_result')
-                
-                if signal_result_obj and isinstance(signal_result_obj, SignalResult):
-                    # 使用SignalResult对象（避免重复计算）
-                    technical_indicators = self._extract_from_signal_result(signal_result_obj)
-                    signal_details = transaction.get('signal_details', {})
-                    dimension_status = signal_details.get('dimension_status', {})
-                else:
-                    # 回退到旧逻辑（向后兼容）
-                    technical_indicators = transaction.get('technical_indicators', {})
-                    signal_details = transaction.get('signal_details', {})
-                    dimension_status = signal_details.get('dimension_status', {})
-                
-                # 提取技术指标
+                # 提取技术指标（由 _build_indicator_snapshot 构建）
+                technical_indicators = transaction.get('technical_indicators', {})
                 close_price = technical_indicators.get('close', price)
-                
-                # 优先使用交易记录中已计算的价值比
-                price_value_ratio = transaction.get('price_to_value_ratio', 0)
-                
-                # 如果交易记录中没有价值比，则尝试计算
-                if price_value_ratio == 0 or price_value_ratio is None:
-                    dcf_values = getattr(self, '_dcf_values', {})
-                    dcf_value = dcf_values.get(stock_code, 0)
-                    if not dcf_value:
-                        dcf_value = transaction.get('dcf_value', 0)
-                    price_value_ratio = (close_price / dcf_value * 100) if dcf_value > 0 else 0
+
+                # 提取鹿鼎公区域信号 — 优先从 ZoneResult 对象，回退到 tech_indicators
+                signal_details = transaction.get('signal_details', {})
+                zone_result = signal_details.get('zone_result')
+                if zone_result is not None:
+                    zone = getattr(zone_result, 'zone', '') or ''
+                    vz = getattr(zone_result, 'valuation_zone', '') or ''
+                    perm = getattr(zone_result, 'permission', '') or ''
+                    buy_lvl = getattr(zone_result, 'buy_level', None) or ''
+                    sell_stp = getattr(zone_result, 'sell_step', None) or ''
+                    trigger = getattr(zone_result, 'reason', '') or ''
+                    dcf_value = getattr(zone_result, 'dcf_value', 0) or 0
+                    value_ratio = getattr(zone_result, 'value_price_ratio', 0) or 0
                 else:
-                    # 交易记录中的price_to_value_ratio已经是百分比格式
-                    pass
-                
-                # 获取DCF估值（用于后续的dimension_details生成）
-                dcf_value = transaction.get('dcf_value', 0)
+                    zone = technical_indicators.get('zone', '')
+                    vz = technical_indicators.get('valuation_zone', '')
+                    perm = technical_indicators.get('permission', '')
+                    buy_lvl = technical_indicators.get('buy_level') or ''
+                    sell_stp = technical_indicators.get('sell_step') or ''
+                    trigger = technical_indicators.get('trigger_reason', '')
+                    dcf_value = technical_indicators.get('dcf_value', 0)
+                    value_ratio = technical_indicators.get('value_price_ratio', 0)
+
+                # DCF估值和价值比（tech_indicators 优先，因为它是数字）
+                if not dcf_value:
+                    dcf_value = technical_indicators.get('dcf_value', 0) or 0
                 if not dcf_value:
                     dcf_values = getattr(self, '_dcf_values', {})
                     dcf_value = dcf_values.get(stock_code, 0)
-                rsi_14w = technical_indicators.get('rsi_14w', 50)
-                macd_dif = technical_indicators.get('macd_dif', 0)
-                macd_dea = technical_indicators.get('macd_dea', 0)
-                bb_upper = technical_indicators.get('bb_upper', 0)
-                bb_middle = technical_indicators.get('bb_middle', 0)
-                bb_lower = technical_indicators.get('bb_lower', 0)
-                volume = technical_indicators.get('volume', 0)
-                volume_4w_avg = technical_indicators.get('volume_4w_avg', 1)
-                
-                # 计算量能倍数
-                volume_ratio = volume / volume_4w_avg if volume_4w_avg > 0 else 0
-                
-                # 判断布林带位置
-                if close_price >= bb_upper:
-                    bb_position = "上轨之上"
-                elif close_price <= bb_lower:
-                    bb_position = "下轨之下"
-                else:
-                    bb_position = "轨道之间"
-                
-                # 获取信号状态 - 根据交易类型计算正确的维度状态
-                scores = signal_details.get('scores', {})
-                
-                if trade_type == 'BUY':
-                    # 买入交易：只计算支持买入的维度
-                    trend_filter = '✓' if scores.get('trend_filter_low') else '✗'
-                    rsi_signal = '✓' if scores.get('overbought_oversold_low') else '✗'
-                    macd_signal = '✓' if scores.get('momentum_low') else '✗'
-                    bollinger_volume = '✓' if scores.get('extreme_price_volume_low') else '✗'
-                else:  # SELL
-                    # 卖出交易：只计算支持卖出的维度
-                    trend_filter = '✓' if scores.get('trend_filter_high') else '✗'
-                    rsi_signal = '✓' if scores.get('overbought_oversold_high') else '✗'
-                    macd_signal = '✓' if scores.get('momentum_high') else '✗'
-                    bollinger_volume = '✓' if scores.get('extreme_price_volume_high') else '✗'
-                
-                # 计算满足的维度数
-                satisfied_count = sum(1 for status in [trend_filter, rsi_signal, macd_signal, bollinger_volume] if status == '✓')
-                confidence = signal_details.get('confidence', 0)
-                reason = signal_details.get('reason', f'{trade_type}信号')
-                
-                row_class = 'buy-row' if trade_type == 'BUY' else 'sell-row'
-                type_color = '#28a745' if trade_type == 'BUY' else '#dc3545'
-                
-                # 获取股票显示名称
+                if not value_ratio:
+                    value_ratio = technical_indicators.get('value_price_ratio', 0) or 0
+                price_value_ratio = value_ratio * 100 if value_ratio and value_ratio < 10 else value_ratio
+                if (price_value_ratio == 0 or price_value_ratio is None) and dcf_value > 0:
+                    price_value_ratio = (close_price / dcf_value * 100)
+
+                # 区域中文名
+                zone_name_map = {
+                    'zone1_stop_falling': '止跌区', 'zone2_accumulate': '蓄力区',
+                    'zone3_excited': '亢奋区', 'zone4_hold': '日常持仓'
+                }
+                zone_cn = zone_name_map.get(zone, zone)
+                buy_lvl_cn = {'normal': '正常', 'urgent': '加急'}.get(buy_lvl, buy_lvl)
+                sell_stp_cn = {'pre_sell': '预减1/3', 'first_sell': '首止1/3', 'second_sell': '加卖1/2'}.get(sell_stp, sell_stp)
+
+                row_class = 'buy-row' if trade_type.upper() == 'BUY' else 'sell-row'
+                type_color = '#28a745' if trade_type.upper() == 'BUY' else '#dc3545'
                 stock_display_name = get_stock_display_name(stock_code, self.stock_mapping)
-                
-                # 生成4维度评分详情
-                dimension_details = self._generate_dimension_details(
+
+                # 生成区域信号详情
+                signal_details = transaction.get('signal_details', {})
+                zone_details = self._generate_zone_signal_details(
                     technical_indicators, signal_details, stock_code, close_price, dcf_value
                 )
-                
+
                 row = f"""
         <tr class='{row_class}'>
             <td>{date}</td>
@@ -1506,52 +1368,54 @@ class IntegratedReportGenerator:
             <td>{price:.2f}</td>
             <td>{shares:,}</td>
             <td>{price_value_ratio:.1f}%</td>
-            <td class="signal-check">{trend_filter}</td>
-            <td class="signal-check">{rsi_signal}</td>
-            <td class="signal-check">{macd_signal}</td>
-            <td class="signal-check">{bollinger_volume}</td>
-            <td style="font-size: 11px; text-align: left; max-width: 200px;">{dimension_details}</td>
-            <td style="font-size: 10px; text-align: left; max-width: 120px;">{satisfied_count}/4<br><span style="color: {type_color};">{reason}</span></td>
+            <td>{zone_cn}</td>
+            <td>{vz}</td>
+            <td>{perm}</td>
+            <td>{buy_lvl_cn}{sell_stp_cn}</td>
+            <td style="font-size: 10px; text-align: left; max-width: 180px;">{trigger}</td>
+            <td style="font-size: 10px; text-align: left; max-width: 200px;">{zone_details}</td>
         </tr>"""
                 transaction_rows.append(row)
             
-            # 生成信号规则说明HTML
+            # 生成鹿鼎公信号规则说明HTML
             signal_rules_html = '''
                     <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px;">
-                        <h4 style="margin-bottom: 10px;">📋 信号规则说明</h4>
+                        <h4 style="margin-bottom: 10px;">📋 鹿鼎公信号规则说明</h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
                             <div>
-                                <strong style="color: #dc3545;">💰 价值比过滤器（硬性条件）:</strong>
+                                <strong style="color: #0066cc;">🔵 止跌区 (Zone1):</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：价值比 < 70%（当前价格/DCF估值 < 0.7，低估）</li>
-                                    <li>卖出条件：价值比 > 80%（当前价格/DCF估值 > 0.8，高估）</li>
+                                    <li>条件：价格/RSI处于低位超卖区域</li>
+                                    <li>买入扳机：MACD底背离 或 零轴下方金叉</li>
+                                    <li>仓位：正常买入或加急买入</li>
                                 </ul>
                             </div>
                             <div>
-                                <strong style="color: #007bff;">📊 超买/超卖:</strong>
+                                <strong style="color: #e6a817;">🟡 蓄力区 (Zone2):</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：14周RSI ≤ 行业超卖阈值 且出现底背离，或 RSI ≤ 行业极端超卖阈值（强制信号）</li>
-                                    <li>卖出条件：14周RSI ≥ 行业超买阈值 且出现顶背离，或 RSI ≥ 行业极端超买阈值（强制信号）</li>
+                                    <li>条件：价格在布林中轨附近蓄力</li>
+                                    <li>买入扳机：零轴附近金叉</li>
+                                    <li>仓位：加仓（不超过估值区间上限）</li>
                                 </ul>
                             </div>
                             <div>
-                                <strong style="color: #28a745;">⚡ 动能确认:</strong>
+                                <strong style="color: #dc3545;">🔴 亢奋区 (Zone3):</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：MACD绿色柱体连续2根缩短 或 MACD柱体已为红色 或 DIF金叉DEA</li>
-                                    <li>卖出条件：MACD红色柱体连续2根缩短 或 MACD柱体已为绿色 或 DIF死叉DEA</li>
+                                    <li>条件：价格/RSI处于高位超买区域</li>
+                                    <li>卖出扳机：MACD顶背离、红柱缩短、或死叉</li>
+                                    <li>步进卖出：预减1/3 → 首止1/3 → 加卖1/2</li>
                                 </ul>
                             </div>
                             <div>
-                                <strong style="color: #6f42c1;">🎯 极端价格+量能:</strong>
+                                <strong style="color: #6f42c1;">⚪ 日常持仓 (Zone4):</strong>
                                 <ul style="margin: 5px 0; padding-left: 20px;">
-                                    <li>买入条件：收盘价 ≤ 布林下轨，且 本周成交量 ≥ 4周均量×0.8</li>
-                                    <li>卖出条件：收盘价 ≥ 布林上轨，且 本周成交量 ≥ 4周均量×1.3</li>
+                                    <li>无明确买卖信号，维持当前持仓</li>
                                 </ul>
                             </div>
                         </div>
                         <div style="margin-top: 15px; padding: 12px; background: #e7f3ff; border-radius: 5px;">
-                            <strong style="color: #0066cc;">✅ 交易条件：价值比过滤器（硬性）+ 其他3个维度中至少2个满足</strong>
-                            <br><span style="font-size: 11px; color: #666;">💡 系统使用124个申万二级行业的动态RSI阈值，支持极端阈值强制信号触发</span>
+                            <strong style="color: #0066cc;">✅ 决策流程：估值区间定权限 → 价格/RSI定区域 → MACD定扳机</strong>
+                            <br><span style="font-size: 11px; color: #666;">💡 估值极度低估禁止卖出，估值高估禁止买入；仓位上限由估值区间决定</span>
                         </div>
                     </div>'''
             
@@ -1579,12 +1443,12 @@ class IntegratedReportGenerator:
                                     <th>价格</th>
                                     <th>股数</th>
                                     <th>价值比</th>
-                                    <th>价值比过滤器</th>
-                                    <th>超买超卖</th>
-                                    <th>动能确认</th>
-                                    <th>极端价格量能</th>
-                                    <th>4维度详情</th>
-                                    <th>信号摘要</th>
+                                    <th>区域</th>
+                                    <th>估值区间</th>
+                                    <th>权限</th>
+                                    <th>步骤</th>
+                                    <th>触发原因</th>
+                                    <th>信号详情</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1632,41 +1496,37 @@ class IntegratedReportGenerator:
             total_all_signals = 0
             total_buy_signals = 0
             total_sell_signals = 0
-            dimension_stats = {'rsi': 0, 'macd': 0, 'bollinger': 0, 'ema': 0}
-            
+            zone_stats = {'zone1': 0, 'zone2': 0, 'zone3': 0, 'zone4': 0}
+
             # 生成股票卡片和统计数据
             signal_cards = []
             for stock_code in stock_codes:
                 stock_signals = signal_analysis.get(stock_code, {})
                 signals = stock_signals.get('signals', [])
-                
+
                 # 基础统计
                 total_signals = len(signals)
                 buy_signals = sum(1 for s in signals if s.get('type') == 'BUY')
                 sell_signals = sum(1 for s in signals if s.get('type') == 'SELL')
-                
-                # 维度统计
-                rsi_signals = sum(1 for s in signals if s.get('rsi_signal') == '✓')
-                macd_signals = sum(1 for s in signals if s.get('macd_signal') == '✓')
-                bb_signals = sum(1 for s in signals if s.get('bollinger_volume') == '✓')
-                ema_signals = sum(1 for s in signals if s.get('trend_filter') == '✓')
-                
-                # 计算成功率
-                rsi_rate = f"{(rsi_signals/total_signals*100):.1f}%" if total_signals > 0 else "0%"
-                macd_rate = f"{(macd_signals/total_signals*100):.1f}%" if total_signals > 0 else "0%"
-                bb_rate = f"{(bb_signals/total_signals*100):.1f}%" if total_signals > 0 else "0%"
-                ema_rate = f"{(ema_signals/total_signals*100):.1f}%" if total_signals > 0 else "0%"
-                
-                # 累计全局统计
+
+                # 区域统计
+                z1 = sum(1 for s in signals if s.get('zone') == 'zone1_stop_falling')
+                z2 = sum(1 for s in signals if s.get('zone') == 'zone2_accumulate')
+                z3 = sum(1 for s in signals if s.get('zone') == 'zone3_excited')
+                z4 = total_signals - z1 - z2 - z3
+
+                z1_rate = f"{(z1/total_signals*100):.1f}%" if total_signals > 0 else "0%"
+                z2_rate = f"{(z2/total_signals*100):.1f}%" if total_signals > 0 else "0%"
+                z3_rate = f"{(z3/total_signals*100):.1f}%" if total_signals > 0 else "0%"
+
                 total_all_signals += total_signals
                 total_buy_signals += buy_signals
                 total_sell_signals += sell_signals
-                dimension_stats['rsi'] += rsi_signals
-                dimension_stats['macd'] += macd_signals
-                dimension_stats['bollinger'] += bb_signals
-                dimension_stats['ema'] += ema_signals
-                
-                # 生成股票卡片
+                zone_stats['zone1'] += z1
+                zone_stats['zone2'] += z2
+                zone_stats['zone3'] += z3
+                zone_stats['zone4'] += z4
+
                 stock_display_name = get_stock_display_name(stock_code, self.stock_mapping)
                 card_html = f"""
                 <div class="signal-card">
@@ -1686,38 +1546,36 @@ class IntegratedReportGenerator:
                     </div>
                     <div class="dimension-stats">
                         <div class="dimension-item">
-                            <span class="dim-label">💰 价值比过滤</span>
+                            <span class="dim-label">🔵 止跌区</span>
                             <div class="dim-progress">
-                                <div class="progress-bar" style="width: {(ema_signals/total_signals*100) if total_signals > 0 else 0}%"></div>
-                                <span class="progress-text">{ema_signals}/{total_signals} ({ema_rate})</span>
+                                <div class="progress-bar" style="width: {(z1/total_signals*100) if total_signals > 0 else 0}%; background: #0066cc;"></div>
+                                <span class="progress-text">{z1}/{total_signals} ({z1_rate})</span>
                             </div>
                         </div>
                         <div class="dimension-item">
-                            <span class="dim-label">📊 RSI信号</span>
+                            <span class="dim-label">🟡 蓄力区</span>
                             <div class="dim-progress">
-                                <div class="progress-bar" style="width: {(rsi_signals/total_signals*100) if total_signals > 0 else 0}%"></div>
-                                <span class="progress-text">{rsi_signals}/{total_signals} ({rsi_rate})</span>
+                                <div class="progress-bar" style="width: {(z2/total_signals*100) if total_signals > 0 else 0}%; background: #e6a817;"></div>
+                                <span class="progress-text">{z2}/{total_signals} ({z2_rate})</span>
                             </div>
                         </div>
                         <div class="dimension-item">
-                            <span class="dim-label">⚡ MACD信号</span>
+                            <span class="dim-label">🔴 亢奋区</span>
                             <div class="dim-progress">
-                                <div class="progress-bar" style="width: {(macd_signals/total_signals*100) if total_signals > 0 else 0}%"></div>
-                                <span class="progress-text">{macd_signals}/{total_signals} ({macd_rate})</span>
-                            </div>
-                        </div>
-                        <div class="dimension-item">
-                            <span class="dim-label">🔔 布林带+量能</span>
-                            <div class="dim-progress">
-                                <div class="progress-bar" style="width: {(bb_signals/total_signals*100) if total_signals > 0 else 0}%"></div>
-                                <span class="progress-text">{bb_signals}/{total_signals} ({bb_rate})</span>
+                                <div class="progress-bar" style="width: {(z3/total_signals*100) if total_signals > 0 else 0}%; background: #dc3545;"></div>
+                                <span class="progress-text">{z3}/{total_signals} ({z3_rate})</span>
                             </div>
                         </div>
                     </div>
                 </div>"""
                 signal_cards.append(card_html)
-            
+
             # 生成全局统计摘要
+            zone_total = sum(zone_stats.values())
+            z1_rate = f"({zone_stats['zone1']/zone_total*100:.1f}%)" if zone_total > 0 else ''
+            z2_rate = f"({zone_stats['zone2']/zone_total*100:.1f}%)" if zone_total > 0 else ''
+            z3_rate = f"({zone_stats['zone3']/zone_total*100:.1f}%)" if zone_total > 0 else ''
+            buy_sell_ratio = f"{total_buy_signals/total_sell_signals:.1f}:1" if total_sell_signals > 0 else '∞'
             global_summary = f"""
             <div class="global-summary">
                 <h3>📊 全局信号统计摘要</h3>
@@ -1735,41 +1593,36 @@ class IntegratedReportGenerator:
                         <div class="summary-title">卖出信号</div>
                     </div>
                     <div class="summary-card ratio">
-                        <div class="summary-number">{(total_buy_signals/total_sell_signals):.1f}:1</div>
+                        <div class="summary-number">{buy_sell_ratio}</div>
                         <div class="summary-title">买卖比例</div>
                     </div>
                 </div>
                 <div class="dimension-summary">
                     <div class="dim-summary-item">
-                        <span class="dim-name">💰 价值比过滤器</span>
-                        <span class="dim-count">{dimension_stats['ema']}/{total_all_signals}</span>
-                        <span class="dim-rate">({(dimension_stats['ema']/total_all_signals*100):.1f}%)</span>
+                        <span class="dim-name">🔵 止跌区信号</span>
+                        <span class="dim-count">{zone_stats['zone1']}/{zone_total}</span>
+                        <span class="dim-rate">{z1_rate}</span>
                     </div>
                     <div class="dim-summary-item">
-                        <span class="dim-name">📊 RSI超买超卖</span>
-                        <span class="dim-count">{dimension_stats['rsi']}/{total_all_signals}</span>
-                        <span class="dim-rate">({(dimension_stats['rsi']/total_all_signals*100):.1f}%)</span>
+                        <span class="dim-name">🟡 蓄力区信号</span>
+                        <span class="dim-count">{zone_stats['zone2']}/{zone_total}</span>
+                        <span class="dim-rate">{z2_rate}</span>
                     </div>
                     <div class="dim-summary-item">
-                        <span class="dim-name">⚡ MACD动能</span>
-                        <span class="dim-count">{dimension_stats['macd']}/{total_all_signals}</span>
-                        <span class="dim-rate">({(dimension_stats['macd']/total_all_signals*100):.1f}%)</span>
-                    </div>
-                    <div class="dim-summary-item">
-                        <span class="dim-name">🔔 布林带+量能</span>
-                        <span class="dim-count">{dimension_stats['bollinger']}/{total_all_signals}</span>
-                        <span class="dim-rate">({(dimension_stats['bollinger']/total_all_signals*100):.1f}%)</span>
+                        <span class="dim-name">🔴 亢奋区信号</span>
+                        <span class="dim-count">{zone_stats['zone3']}/{zone_total}</span>
+                        <span class="dim-rate">{z3_rate}</span>
                     </div>
                 </div>
             </div>"""
-            
+
             # 创建完整的HTML内容
             cards_html = f"""
             {global_summary}
             <div class="signal-stats-grid">
                 {''.join(signal_cards)}
             </div>
-            
+
             <style>
             /* 全局摘要样式 */
             .global-summary {{
