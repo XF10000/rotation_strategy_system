@@ -416,15 +416,22 @@ class PortfolioManager:
             是否成功执行
         """
         total_cost = shares * price + transaction_cost
-        
+
         if self.cash < total_cost:
-            logger.error(f"买入失败：现金不足，需要 {total_cost:.2f}，可用 {self.cash:.2f}")
-            return False
-        
+            # 允许微小差额（单股价以内），避免因四舍五入导致的买入失败
+            shortage = total_cost - self.cash
+            if shortage <= price and shares >= 1:
+                shares -= 1
+                total_cost = shares * price + transaction_cost
+                logger.debug(f"买入股数微调: {shares+1} -> {shares} (差额 {shortage:.2f})")
+            else:
+                logger.error(f"买入失败：现金不足，需要 {total_cost:.2f}，可用 {self.cash:.2f}")
+                return False
+
         # 执行买入
         if stock_code not in self.holdings:
             self.holdings[stock_code] = 0
-        
+
         self.holdings[stock_code] += shares
         self.cash -= total_cost
         

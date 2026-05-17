@@ -45,9 +45,8 @@ data_cache/
 # RSI计算输出备份
 sw_rsi_thresholds/output_backup/
 
-# Reports (optional - 如果不想提交生成的报告)
-reports/*.html
-reports/*.csv
+# Reports (generated output, don't commit)
+reports/
 
 # OS
 .DS_Store
@@ -62,6 +61,9 @@ Thumbs.db
 
 # Sensitive configuration files
 config/secrets.csv
+
+# Claude Code (personal settings)
+.claude/settings.local.json
 
 # Temporary files
 *.tmp

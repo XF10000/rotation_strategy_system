@@ -41,6 +41,7 @@ class PortfolioService(BaseService):
         self.position_manager = None
 
         self.transaction_history = []
+        self.weekly_snapshots = []  # 每周持仓快照
         self.stock_pool = [code for code in self.initial_holdings.keys() if code != 'cash']
 
     def initialize(self, stock_data: Dict[str, Dict[str, pd.DataFrame]],
@@ -155,6 +156,11 @@ class PortfolioService(BaseService):
         total_value = self.portfolio_manager.get_total_value(current_prices)
         self.position_manager.update_total_capital(total_value)
 
+        # 估值再平衡：砍掉超出估值区间上限的仓位（极度低估豁免）
+        rebalance_trades = self._rebalance_positions(current_prices, current_date)
+        for trade_info in rebalance_trades:
+            executed_trades.append(trade_info)
+
         # 先卖出（释放现金），再买入
         for stock_code, signal in signals.items():
             if signal == 'SELL' and stock_code in current_prices:
@@ -171,6 +177,9 @@ class PortfolioService(BaseService):
                 )
                 if trade_info:
                     executed_trades.append(trade_info)
+
+        # 记录本周持仓快照
+        self._record_weekly_snapshot(current_prices, current_date)
 
         return executed_trades
 
@@ -194,7 +203,7 @@ class PortfolioService(BaseService):
         if decision.action != 'SELL' or decision.shares <= 0:
             if self.signal_tracker:
                 self._record_rejection(stock_code, 'SELL', current_date, price,
-                                       decision.reason, signal_details)
+                                       decision.reason, signal_details, current_prices)
             return None
 
         shares_to_sell = min(decision.shares, current_shares)
@@ -252,7 +261,7 @@ class PortfolioService(BaseService):
         if decision.action != 'BUY' or decision.shares <= 0:
             if self.signal_tracker:
                 self._record_rejection(stock_code, 'BUY', current_date, price,
-                                       decision.reason, signal_details)
+                                       decision.reason, signal_details, current_prices)
             return None
 
         position_before = current_shares
@@ -294,6 +303,223 @@ class PortfolioService(BaseService):
 
         return None
 
+    def _rebalance_positions(self, current_prices: Dict[str, float],
+                             current_date: pd.Timestamp) -> List[str]:
+        """
+        估值再平衡 V2：双向调整仓位至估值区间目标
+
+        卖出阶段：
+        - 极度低估 (<0.70) 不砍
+        - 其他区间：当前市值 > per_stock_cap × zone_max_ratio → 砍到目标
+
+        买入阶段（按 value_ratio 升序，越便宜越优先）：
+        - buy_only / buy_sell 区间：当前 < 目标 → 补仓
+        - 无持仓新建仓：上限 50% target_value
+        - 最小交易额 ≥ per_stock_cap × 2%
+        - sell_only 区间不买入
+        """
+        executed = []
+        per_stock_cap = self.position_manager.per_stock_cap
+
+        # ===== 第一阶段：计算所有标的的估值信息 =====
+        targets = {}
+        for stock_code in self.stock_pool:
+            price = current_prices.get(stock_code)
+            if not price:
+                continue
+            dcf = self.dcf_values.get(stock_code, 0)
+            if not dcf or dcf <= 0:
+                continue
+
+            value_ratio = price / dcf
+            zone_name, zone_max_ratio, permission = \
+                self.position_manager.get_valuation_zone(value_ratio)
+            target_value = self.position_manager.get_max_position_value(zone_max_ratio)
+            current_shares = self.portfolio_manager.holdings.get(stock_code, 0)
+
+            targets[stock_code] = {
+                'zone_name': zone_name,
+                'zone_max_ratio': zone_max_ratio,
+                'target_value': target_value,
+                'permission': permission,
+                'value_ratio': value_ratio,
+                'price': price,
+                'current_shares': current_shares,
+                'current_value': current_shares * price,
+                'dcf': dcf,
+            }
+
+        # ===== 第二阶段：先卖出（释放现金）=====
+        for stock_code, t in targets.items():
+            if t['current_shares'] <= 0:
+                continue
+            if t['zone_name'] == '极度低估':
+                continue
+            if t['current_value'] <= t['target_value']:
+                continue
+
+            excess_value = t['current_value'] - t['target_value']
+            excess_shares = int(excess_value / t['price'])
+            excess_shares = (excess_shares // 100) * 100
+            if excess_shares < 100:
+                continue
+            excess_shares = min(excess_shares, t['current_shares'])
+
+            indicators = {
+                'dcf_value': t['dcf'],
+                'value_price_ratio': t['value_ratio'],
+                'zone': 'rebalance',
+                'valuation_zone': t['zone_name'],
+                'permission': t['permission'],
+                'trigger_reason': f'再平衡卖出({t["zone_name"]}: {t["value_ratio"]:.2f})',
+            }
+            reason = (f'再平衡: {t["zone_name"]}({t["value_ratio"]:.2f}), '
+                      f'市值{t["current_value"]:,.0f}>{t["target_value"]:,.0f}')
+
+            success, trade_info = self.portfolio_manager.sell_stock(
+                stock_code, excess_shares, t['price'], current_date, reason,
+                indicators, None
+            )
+            if success:
+                self.transaction_history.append(trade_info)
+                t['current_shares'] = self.portfolio_manager.holdings.get(stock_code, 0)
+                t['current_value'] = t['current_shares'] * t['price']
+                executed.append(f"REBALANCE SELL {stock_code} {excess_shares}股 @{t['price']:.2f}")
+                self.logger.info(executed[-1])
+
+        # ===== 第三阶段：再买入（value_ratio 升序，越便宜越优先）=====
+        buy_candidates = []
+        for stock_code, t in targets.items():
+            if t['permission'] not in ('buy_only', 'buy_sell'):
+                continue
+
+            current_shares = self.portfolio_manager.holdings.get(stock_code, 0)
+            current_value = current_shares * t['price']
+
+            if current_shares == 0:
+                buy_target = t['target_value'] * 0.5   # 新建仓上限 50%
+            else:
+                buy_target = t['target_value']          # 已有仓位补到 100%
+
+            if current_value >= buy_target:
+                continue
+
+            deficit = buy_target - current_value
+            min_trade = per_stock_cap * 0.02
+            if deficit < min_trade:
+                continue
+
+            buy_candidates.append((t['value_ratio'], stock_code, deficit, t))
+
+        buy_candidates.sort(key=lambda x: x[0])
+
+        for _, stock_code, deficit, t in buy_candidates:
+            available_cash = self.portfolio_manager.cash
+            if available_cash < 100 * t['price']:
+                break
+
+            buy_amount = min(deficit, available_cash)
+            buy_shares = int(buy_amount / t['price'])
+            buy_shares = (buy_shares // 100) * 100
+
+            if buy_shares < 100:
+                continue
+
+            estimated_cost = buy_shares * t['price']
+            if estimated_cost > available_cash:
+                buy_shares = int(available_cash / t['price'] / 100) * 100
+                if buy_shares < 100:
+                    continue
+
+            is_new = t['current_shares'] == 0
+            label = '新建仓(50%)' if is_new else '补仓'
+
+            indicators = {
+                'dcf_value': t['dcf'],
+                'value_price_ratio': t['value_ratio'],
+                'zone': 'rebalance',
+                'valuation_zone': t['zone_name'],
+                'permission': t['permission'],
+                'trigger_reason': f'再平衡{label}({t["zone_name"]}: {t["value_ratio"]:.2f})',
+            }
+            reason = f'再平衡{label}: {t["zone_name"]}({t["value_ratio"]:.2f})'
+
+            success, trade_info = self.portfolio_manager.buy_stock(
+                stock_code, buy_shares, t['price'], current_date, reason,
+                indicators, None
+            )
+            if success:
+                self.transaction_history.append(trade_info)
+                executed.append(f"REBALANCE BUY {stock_code} {buy_shares}股 @{t['price']:.2f}")
+                self.logger.info(executed[-1])
+
+        return executed
+
+    def _record_weekly_snapshot(self, current_prices: Dict[str, float],
+                                current_date: pd.Timestamp):
+        """记录本周所有标的的持仓快照（用于可视化分析）"""
+        total_value = self.portfolio_manager.get_total_value(current_prices)
+        per_stock_cap = self.position_manager.per_stock_cap
+        cash = self.portfolio_manager.cash
+
+        for stock_code in self.stock_pool:
+            price = current_prices.get(stock_code)
+            shares = self.portfolio_manager.holdings.get(stock_code, 0)
+            market_value = shares * price if price else 0
+            weight = market_value / total_value if total_value > 0 else 0
+
+            dcf = self.dcf_values.get(stock_code, 0)
+            value_ratio = price / dcf if (dcf and dcf > 0 and price) else None
+
+            if value_ratio is not None:
+                zone_name, zone_max_ratio, permission = \
+                    self.position_manager.get_valuation_zone(value_ratio)
+                target_value = self.position_manager.get_max_position_value(zone_max_ratio)
+                deviation = market_value - target_value
+            else:
+                zone_name = '未知'
+                zone_max_ratio = 0
+                target_value = 0
+                deviation = 0
+                permission = 'N/A'
+
+            self.weekly_snapshots.append({
+                '日期': current_date,
+                '股票代码': str(stock_code).zfill(6),
+                '持仓股数': shares,
+                '当前价格': price or 0,
+                '持仓市值': market_value,
+                '仓位占比': weight,
+                '价值比': value_ratio or 0,
+                '估值区间': zone_name,
+                'zone_max': zone_max_ratio,
+                '目标市值': target_value,
+                '偏差': deviation,
+                '极度低估豁免': zone_name == '极度低估',
+                'DCF估值': dcf,
+                '操作权限': permission,
+                '总资产': total_value,
+                '总现金': cash,
+                'per_stock_cap': per_stock_cap,
+            })
+
+    def export_weekly_snapshots(self, output_path: str = None) -> str:
+        """导出每周持仓快照到 CSV"""
+        import pandas as pd
+        if not self.weekly_snapshots:
+            self.logger.warning("无持仓快照可导出")
+            return ''
+        if output_path is None:
+            from config.path_manager import get_path_manager
+            from datetime import datetime
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_path = str(get_path_manager().get_reports_dir() /
+                              f'weekly_snapshots_{ts}.csv')
+        df = pd.DataFrame(self.weekly_snapshots)
+        df.to_csv(output_path, index=False, encoding='utf-8-sig')
+        self.logger.info(f"每周持仓快照已导出: {output_path} ({len(df)} 行)")
+        return output_path
+
     def _build_indicator_snapshot(self, stock_code: str, price: float,
                                    zone_result) -> Dict[str, Any]:
         """构建交易记录所需的技术指标快照"""
@@ -333,13 +559,14 @@ class PortfolioService(BaseService):
 
     def _record_rejection(self, stock_code: str, signal_type: str,
                           current_date: pd.Timestamp, price: float,
-                          reason: str, signal_details: Dict = None):
+                          reason: str, signal_details: Dict = None,
+                          all_prices: Dict[str, float] = None):
         if not self.signal_tracker:
             return
         signal_id = self.signal_tracker.get_signal_id(stock_code, current_date, signal_type)
         if signal_id:
             position_before = self.portfolio_manager.holdings.get(stock_code, 0)
-            current_prices = {stock_code: price}
+            current_prices = all_prices if all_prices else {stock_code: price}
             total_value = self.portfolio_manager.get_total_value(current_prices)
             weight_before = (position_before * price / total_value) if total_value > 0 else 0.0
             self.signal_tracker.update_execution_status(

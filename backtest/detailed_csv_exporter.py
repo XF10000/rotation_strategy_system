@@ -137,44 +137,33 @@ class DetailedCSVExporter:
             
             # 技术指标 - 智能获取，优先使用真实计算值
             def safe_get_indicator(key, default=0.0, decimal_places=2):
-                """智能获取技术指标值，优先保持真实计算数据"""
+                """智能获取技术指标值，缺失时静默使用默认值（正常行为）"""
                 try:
                     value = indicators.get(key, None)
-                    logger.info(f"🔍 获取指标 {key}: 原始值={value}, 类型={type(value)}")
-                    
-                    # 如果有有效的数值，直接使用
+
                     if value is not None:
-                        # 检查是否为NaN
                         import numpy as np
                         import pandas as pd
 
-                        # 字符串'nan'的情况
                         if isinstance(value, str) and value.lower() == 'nan':
-                            logger.warning(f"指标 {key} 为字符串'nan'，使用默认值 {default}")
+                            logger.debug(f"指标 {key} 为字符串'nan'，使用默认值 {default}")
                             return default
-                        
-                        # 数值类型的NaN检查
+
                         try:
                             float_value = float(value)
                             if pd.isna(float_value) or np.isnan(float_value):
-                                logger.warning(f"指标 {key} 为数值NaN，使用默认值 {default}")
+                                logger.debug(f"指标 {key} 为数值NaN，使用默认值 {default}")
                                 return default
-                            
-                            # 有效数值，保持原值
-                            result = round(float_value, decimal_places)
-                            logger.info(f"✅ 指标 {key} 使用真实值: {result}")
-                            return result
-                            
+                            return round(float_value, decimal_places)
                         except (ValueError, TypeError):
-                            logger.warning(f"指标 {key} 无法转换为数值，使用默认值 {default}")
+                            logger.debug(f"指标 {key} 无法转换为数值，使用默认值 {default}")
                             return default
-                    
-                    # 完全没有数据的情况
-                    logger.warning(f"指标 {key} 为None，使用默认值 {default}")
+
+                    # 无指标数据（如再平衡交易无信号），静默使用默认值
                     return default
-                    
+
                 except Exception as e:
-                    logger.error(f"获取指标 {key} 时发生异常: {e}，使用默认值 {default}")
+                    logger.warning(f"获取指标 {key} 时发生异常: {e}，使用默认值 {default}")
                     return default
             
             # EMA20和EMA60字段已移除（V1.1策略不再使用EMA趋势过滤器）
@@ -305,7 +294,7 @@ class DetailedCSVExporter:
                     oversold_threshold = rsi_thresholds.get('oversold', 30)
                     extreme_overbought_threshold = rsi_thresholds.get('extreme_overbought', 80)
                     extreme_oversold_threshold = rsi_thresholds.get('extreme_oversold', 20)
-                    logger.warning(f"⚠️ 交易记录中无动态RSI阈值，使用回退方法: {overbought_threshold}/{oversold_threshold}, 极端: {extreme_overbought_threshold}/{extreme_oversold_threshold}")
+                    logger.debug(f"交易记录中无动态RSI阈值，使用回退方法: {overbought_threshold}/{oversold_threshold}")
                 
             except Exception as e:
                 logger.warning(f"获取股票{symbol}行业信息或RSI阈值失败: {str(e)}")

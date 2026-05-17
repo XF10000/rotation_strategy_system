@@ -3,6 +3,8 @@
 负责协调各个服务完成回测流程
 """
 
+import glob
+import os
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -225,6 +227,9 @@ class BacktestOrchestrator(BaseService):
         try:
             self.logger.info("开始生成回测报告...")
 
+            # 导出每周持仓快照（供可视化分析）
+            snapshot_path = self.portfolio_service.export_weekly_snapshots()
+
             # 准备回测结果
             backtest_results = self._prepare_backtest_results()
 
@@ -240,6 +245,26 @@ class BacktestOrchestrator(BaseService):
                 portfolio_manager=self.portfolio_service.portfolio_manager
             )
             
+            # 导出 kline 指标数据（BB/RSI），供可视化报告复用
+            import json
+            kline_data = backtest_results.get('kline_data', {})
+            kline_ts = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+            kline_json_path = f'{output_dir}/kline_indicators_{kline_ts}.json'
+            with open(kline_json_path, 'w', encoding='utf-8') as f:
+                json.dump(kline_data, f, ensure_ascii=False, default=str)
+            # 清理旧 kline 文件（保留最新 3 份）
+            old_kline = sorted(glob.glob(f'{output_dir}/kline_indicators_*.json'))
+            for f_old in old_kline[:-3]:
+                os.remove(f_old)
+
+            # 生成可视化诊断报告
+            try:
+                from generate_visual_report import generate_report as gen_visual
+                visual_path = gen_visual(snapshot_path, kline_json_path)
+                report_paths['visual_diagnosis'] = visual_path
+            except Exception as e:
+                self.logger.warning(f"可视化报告生成失败（不影响其他报告）: {e}")
+
             self.logger.info("✅ 报告生成完成")
             return report_paths
             
@@ -278,10 +303,10 @@ class BacktestOrchestrator(BaseService):
     def _get_current_prices(self, current_date: pd.Timestamp) -> Dict[str, float]:
         """
         获取当前日期的股票价格
-        
+
         Args:
             current_date: 当前日期
-            
+
         Returns:
             Dict[str, float]: 股票代码到价格的映射
         """
@@ -289,9 +314,14 @@ class BacktestOrchestrator(BaseService):
         for stock_code in self.data_service.stock_pool:
             if stock_code in self.stock_data:
                 stock_weekly = self.stock_data[stock_code]['weekly']
+                # 精确匹配优先，否则取目标日期之前最近的收盘价（前向填充）
                 if current_date in stock_weekly.index:
                     current_prices[stock_code] = stock_weekly.loc[current_date, 'close']
-        
+                else:
+                    earlier = stock_weekly[stock_weekly.index <= current_date]
+                    if len(earlier) > 0:
+                        current_prices[stock_code] = earlier['close'].iloc[-1]
+
         return current_prices
     
     def _prepare_backtest_results(self) -> Dict[str, Any]:

@@ -1034,25 +1034,30 @@ class IntegratedReportGenerator:
             return "<p>持仓对比表格生成失败</p>"
     
     def _get_current_price(self, stock_code: str) -> float:
-        """获取股票当前价格的辅助方法"""
+        """获取股票当前价格：portfolio_data_manager → kline 数据 → 默认值"""
         try:
-            # 🔧 修复：从portfolio_data_manager获取正确的价格数据
+            # 1) 从 portfolio_data_manager 获取
             if hasattr(self, 'portfolio_data_manager'):
-                # 获取最终状态的价格数据
                 final_state = self.portfolio_data_manager.get_final_portfolio_state()
                 if final_state:
-                    prices = final_state.get('prices', {})
-                    price = prices.get(stock_code, 0)
+                    price = final_state.get('prices', {}).get(stock_code, 0)
                     if price > 0:
                         return price
-            
-            # 回退：尝试从最新价格数据获取
-            if hasattr(self, 'portfolio_data_manager'):
                 price = self.portfolio_data_manager.get_latest_price(stock_code)
                 if price and price > 0:
                     return price
-            
-            # 最后回退到默认值（不应该到这里）
+
+            # 2) 从 kline_data 获取（已清仓股票不在此处，但在 kline 中有完整历史）
+            kline_data = getattr(self, '_kline_data', {})
+            if kline_data and stock_code in kline_data:
+                kline_points = kline_data[stock_code].get('kline', [])
+                if kline_points:
+                    # kline 格式: [timestamp, open, close, low, high]
+                    last = kline_points[-1]
+                    if len(last) >= 3:
+                        return float(last[2])  # 收盘价
+
+            # 3) 最后回退
             print(f"⚠️ 无法获取{stock_code}的价格，使用默认值10.0")
             return 10.0
         except Exception as e:
@@ -1112,32 +1117,6 @@ class IntegratedReportGenerator:
         except Exception as e:
             print(f"❌ 持仓明细表格替换错误: {e}")
             return template
-    
-    def _get_current_price(self, stock_code: str) -> float:
-        """获取股票当前价格的辅助方法（重复方法，应该删除）"""
-        try:
-            # 🔧 修复：从portfolio_data_manager获取正确的价格数据
-            if hasattr(self, 'portfolio_data_manager'):
-                # 获取最终状态的价格数据
-                final_state = self.portfolio_data_manager.get_final_portfolio_state()
-                if final_state:
-                    prices = final_state.get('prices', {})
-                    price = prices.get(stock_code, 0)
-                    if price > 0:
-                        return price
-            
-            # 回退：尝试从最新价格数据获取
-            if hasattr(self, 'portfolio_data_manager'):
-                price = self.portfolio_data_manager.get_latest_price(stock_code)
-                if price and price > 0:
-                    return price
-            
-            # 最后回退到默认值（不应该到这里）
-            print(f"⚠️ 无法获取{stock_code}的价格，使用默认值10.0")
-            return 10.0
-        except Exception as e:
-            print(f"❌ 获取{stock_code}价格失败: {e}")
-            return 10.0
     
     def _replace_trading_stats_safe(self, template: str, transactions: List) -> str:
         """安全地替换交易统计 — 定位到交易统计区块后按标签精确替换"""
