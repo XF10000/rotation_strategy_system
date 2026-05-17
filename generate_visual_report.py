@@ -14,14 +14,25 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-# 股票代码 → 名称映射
-STOCK_NAMES = {
-    '601088': '中国神华', '601225': '陕西煤业', '600985': '淮北矿业',
-    '002738': '中矿资源', '002466': '天齐锂业', '002460': '赣锋锂业',
-    '000933': '神火股份', '000807': '云铝股份', '600079': '人福医药',
-    '603345': '安井食品', '601898': '中煤能源', '000333': '美的集团',
-    '000651': '格力电器',
-}
+# 股票代码 → 名称映射（从配置文件动态加载）
+def _load_stock_names():
+    """从 portfolio_config.csv 加载股票名称映射"""
+    names = {}
+    try:
+        from config.path_manager import get_path_manager
+        import pandas as pd
+        path = get_path_manager().get_portfolio_config_path()
+        df = pd.read_csv(path, encoding='utf-8-sig')
+        for _, row in df.iterrows():
+            code = str(row['Stock_number']).strip()
+            name = str(row['Stock_name']).strip()
+            if code.upper() != 'CASH' and code != 'nan' and name != 'nan':
+                names[str(code).zfill(6)] = name
+    except Exception:
+        pass
+    return names
+
+STOCK_NAMES = _load_stock_names()
 
 
 def _stock_label(code: str) -> str:
@@ -344,6 +355,7 @@ def chart_trading_timeline(df_snapshot: pd.DataFrame, kline_data: dict = None,
                 x=hl_x, y=hl_y, mode='lines', name='影线',
                 line=dict(color='#666', width=0.6),
                 showlegend=False, connectgaps=False,
+                hoverinfo='skip',
             ), row=1, col=1)
             # 实体
             for mask, color in [(is_up, '#d73027'), (~is_up, '#2ca02c')]:
@@ -355,10 +367,20 @@ def chart_trading_timeline(df_snapshot: pd.DataFrame, kline_data: dict = None,
                     bx.extend([idx, idx, idx])
                     by.extend([row['open'], row['close'], float('nan')])
                 fig.add_trace(go.Scatter(
-                    x=bx, y=by, mode='lines', name='K线',
+                    x=bx, y=by, mode='lines',
                     line=dict(color=color, width=3),
                     showlegend=False, connectgaps=False,
+                    hoverinfo='skip',
                 ), row=1, col=1)
+            # OHLC 参考线（不可见，仅提供悬浮数据）
+            fig.add_trace(go.Scatter(
+                x=kline_df.index, y=kline_df['close'],
+                mode='markers', name='收盘',
+                marker=dict(size=1, color='rgba(0,0,0,0)'),
+                showlegend=False,
+                customdata=kline_df[['open', 'high', 'low']].values.tolist(),
+                hovertemplate='<b>OHLC</b><br>开: %{customdata[0]:.2f}<br>高: %{customdata[1]:.2f}<br>低: %{customdata[2]:.2f}<br>收: %{y:.2f}<extra></extra>',
+            ), row=1, col=1)
         else:
             fig.add_trace(go.Scatter(
                 x=snap['日期'], y=snap['当前价格'],
@@ -366,6 +388,7 @@ def chart_trading_timeline(df_snapshot: pd.DataFrame, kline_data: dict = None,
                 line=dict(color='#333', width=1.5),
             ), row=1, col=1)
         # BB
+        bb_names = {'bb_upper': 'BB上轨', 'bb_mid': 'BB中轨', 'bb_lower': 'BB下轨'}
         if has_ind:
             for bb_col, dash, alpha in [('bb_upper', 'dash', 0.3), ('bb_mid', 'dot', 0.2), ('bb_lower', 'dash', 0.3)]:
                 if bb_col in ind_df.columns:
@@ -373,6 +396,7 @@ def chart_trading_timeline(df_snapshot: pd.DataFrame, kline_data: dict = None,
                         x=ind_df.index, y=ind_df[bb_col],
                         mode='lines', line=dict(color='#888', width=0.7, dash=dash),
                         opacity=alpha, showlegend=False,
+                        name=bb_names.get(bb_col, bb_col),
                     ), row=1, col=1)
         # 交易标记
         trade_source = trades_df if not trades_df.empty else csv_trades
@@ -438,13 +462,14 @@ def chart_trading_timeline(df_snapshot: pd.DataFrame, kline_data: dict = None,
             fig.add_trace(go.Bar(
                 x=ind_df.index, y=ind_df['macd_hist'],
                 marker_color=hist_colors, showlegend=False,
+                name='MACD柱',
             ), row=4, col=1)
-            for col_name, color, dash in [('macd_dif', '#1f77b4', None), ('macd_dea', '#ff7f0e', 'dash')]:
+            for col_name, color, dash, trace_name in [('macd_dif', '#1f77b4', None, 'DIF'), ('macd_dea', '#ff7f0e', 'dash', 'DEA')]:
                 if col_name in ind_df.columns:
                     fig.add_trace(go.Scatter(
                         x=ind_df.index, y=ind_df[col_name],
                         mode='lines', line=dict(color=color, width=1, dash=dash),
-                        showlegend=False,
+                        showlegend=False, name=trace_name,
                     ), row=4, col=1)
             fig.add_hline(y=0, line_color='#aaa', line_width=0.5, row=4, col=1)
 
@@ -453,6 +478,8 @@ def chart_trading_timeline(df_snapshot: pd.DataFrame, kline_data: dict = None,
             margin=dict(l=45, r=10, t=30, b=25),
             showlegend=False,
             hovermode='x',
+            hoverdistance=3,
+            spikedistance=-1,
         )
         fig.update_yaxes(title_text='价格', row=1, col=1)
         fig.update_yaxes(title_text='PVR%', row=2, col=1)

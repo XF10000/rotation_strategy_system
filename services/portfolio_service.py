@@ -141,6 +141,9 @@ class PortfolioService(BaseService):
         """
         执行交易 — 鹿鼎公分批建仓+步进止盈
 
+        顺序：信号卖出 → 信号买入 → 估值再平衡
+        信号优先执行（置信度更高），再平衡用剩余现金按比例填补缺口
+
         signal_details: {stock_code: ZoneResult}
         """
         executed_trades = []
@@ -156,12 +159,8 @@ class PortfolioService(BaseService):
         total_value = self.portfolio_manager.get_total_value(current_prices)
         self.position_manager.update_total_capital(total_value)
 
-        # 估值再平衡：砍掉超出估值区间上限的仓位（极度低估豁免）
-        rebalance_trades = self._rebalance_positions(current_prices, current_date)
-        for trade_info in rebalance_trades:
-            executed_trades.append(trade_info)
-
-        # 先卖出（释放现金），再买入
+        # 步骤1：信号卖出（释放现金）
+        signal_traded = set()
         for stock_code, signal in signals.items():
             if signal == 'SELL' and stock_code in current_prices:
                 trade_info = self._execute_sell(
@@ -169,7 +168,9 @@ class PortfolioService(BaseService):
                 )
                 if trade_info:
                     executed_trades.append(trade_info)
+                    signal_traded.add(stock_code)
 
+        # 步骤2：信号买入（消耗现金）
         for stock_code, signal in signals.items():
             if signal == 'BUY' and stock_code in current_prices:
                 trade_info = self._execute_buy(
@@ -177,6 +178,13 @@ class PortfolioService(BaseService):
                 )
                 if trade_info:
                     executed_trades.append(trade_info)
+                    signal_traded.add(stock_code)
+
+        # 步骤3：估值再平衡 —— 用剩余现金按缺口比例填补（跳过信号已交易的标的）
+        rebalance_trades = self._rebalance_positions(current_prices, current_date,
+                                                     skip_stocks=signal_traded)
+        for trade_info in rebalance_trades:
+            executed_trades.append(trade_info)
 
         # 记录本周持仓快照
         self._record_weekly_snapshot(current_prices, current_date)
@@ -304,7 +312,8 @@ class PortfolioService(BaseService):
         return None
 
     def _rebalance_positions(self, current_prices: Dict[str, float],
-                             current_date: pd.Timestamp) -> List[str]:
+                             current_date: pd.Timestamp,
+                             skip_stocks: set = None) -> List[str]:
         """
         估值再平衡 V2：双向调整仓位至估值区间目标
 
@@ -317,7 +326,10 @@ class PortfolioService(BaseService):
         - 无持仓新建仓：上限 50% target_value
         - 最小交易额 ≥ per_stock_cap × 2%
         - sell_only 区间不买入
+        - skip_stocks 中的标的（信号已交易）不重复买入
+        - 现金不够当前候选时 skip 而非 break，让后面候选有机会
         """
+        skip_stocks = skip_stocks or set()
         executed = []
         per_stock_cap = self.position_manager.per_stock_cap
 
@@ -350,6 +362,7 @@ class PortfolioService(BaseService):
             }
 
         # ===== 第二阶段：先卖出（释放现金）=====
+        rebalance_sold = set()
         for stock_code, t in targets.items():
             if t['current_shares'] <= 0:
                 continue
@@ -384,13 +397,17 @@ class PortfolioService(BaseService):
                 self.transaction_history.append(trade_info)
                 t['current_shares'] = self.portfolio_manager.holdings.get(stock_code, 0)
                 t['current_value'] = t['current_shares'] * t['price']
+                rebalance_sold.add(stock_code)
                 executed.append(f"REBALANCE SELL {stock_code} {excess_shares}股 @{t['price']:.2f}")
                 self.logger.info(executed[-1])
 
-        # ===== 第三阶段：再买入（value_ratio 升序，越便宜越优先）=====
+        # ===== 第三阶段：按价值比排序顺序买入（break→continue）=====
+        skip_buy = skip_stocks | rebalance_sold  # 信号已交易 + 再平衡已卖出，都不再买入
         buy_candidates = []
         for stock_code, t in targets.items():
             if t['permission'] not in ('buy_only', 'buy_sell'):
+                continue
+            if stock_code in skip_buy:
                 continue
 
             current_shares = self.portfolio_manager.holdings.get(stock_code, 0)
@@ -416,7 +433,7 @@ class PortfolioService(BaseService):
         for _, stock_code, deficit, t in buy_candidates:
             available_cash = self.portfolio_manager.cash
             if available_cash < 100 * t['price']:
-                break
+                continue
 
             buy_amount = min(deficit, available_cash)
             buy_shares = int(buy_amount / t['price'])
@@ -432,7 +449,7 @@ class PortfolioService(BaseService):
                     continue
 
             is_new = t['current_shares'] == 0
-            label = '新建仓(50%)' if is_new else '补仓'
+            label = '新建仓(50%上限)' if is_new else '补仓'
 
             indicators = {
                 'dcf_value': t['dcf'],
